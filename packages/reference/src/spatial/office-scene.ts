@@ -68,6 +68,7 @@ export class SpatialScene {
   private yaw = 0;
   private pitch = -0.1;
   private lastAction: string | null = null;
+  private shadowDirty = true;
 
   constructor(
     private host: HTMLElement,
@@ -270,12 +271,13 @@ export class SpatialScene {
               position.z - offset.z,
             );
             this.recenterPending = false;
+            this.shadowDirty = true;
           }
         }
         const delta = this.lastFrame ? Math.min((time - this.lastFrame) / 1000, 0.035) : 1 / 90;
         this.lastFrame = time;
         this.scene.updateMatrixWorld(true);
-        this.office.tick(delta);
+        const moving = this.office.tick(delta);
         for (const c of this.controllers) {
           const action = c.ray.visible ? this.controllerAction(c.ray, c.hand) : null;
           c.cursor.visible = !!action;
@@ -290,7 +292,7 @@ export class SpatialScene {
             if (hit) c.cursor.position.copy(hit.point);
           }
         }
-        this.renderOffice();
+        this.renderOffice(moving);
       });
     } catch (error) {
       if (requested) await requested.end().catch(() => undefined);
@@ -322,6 +324,7 @@ export class SpatialScene {
     });
   };
   recenter() {
+    this.shadowDirty = true;
     if (this.session) this.recenterPending = true;
     else this.look('desk');
   }
@@ -338,6 +341,7 @@ export class SpatialScene {
     this.invalidate();
   }
   private invalidate() {
+    this.shadowDirty = true;
     if (this.disposed || this.session) return;
     // Procedural textures are ready synchronously. Two frames cover resize and
     // hover updates; tick() keeps the loop alive for actual moving objects.
@@ -351,7 +355,7 @@ export class SpatialScene {
     this.lastFrame = time;
     this.scene.updateMatrixWorld(true);
     const moving = this.office.tick(delta);
-    this.renderOffice();
+    this.renderOffice(moving);
     if (moving || --this.framesRemaining > 0)
       this.animation = requestAnimationFrame(this.desktopFrame);
   };
@@ -374,8 +378,9 @@ export class SpatialScene {
     canvas.dataset.textures = String(this.renderer.info.memory.textures);
     canvas.dataset.immersive = String(!!this.session);
   }
-  private renderOffice() {
-    this.renderer.shadowMap.needsUpdate = true;
+  private renderOffice(moving: boolean) {
+    this.renderer.shadowMap.needsUpdate = this.shadowDirty || moving;
+    this.shadowDirty = false;
     this.camera.layers.set(0);
     this.renderer.info.autoReset = false;
     this.renderer.info.reset();

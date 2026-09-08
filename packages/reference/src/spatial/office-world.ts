@@ -73,6 +73,7 @@ export class OfficeWorld {
   private lamp = new THREE.PointLight('#ffdf9c', 1.2, 3.5, 2);
   private stamp?: THREE.Group;
   private stampMotion = 0;
+  private shadowTransforms = new Map<THREE.Object3D, THREE.Matrix4>();
 
   constructor(
     private act: (action: string) => void,
@@ -410,6 +411,7 @@ export class OfficeWorld {
   }
   private clearDynamic() {
     this.hover(null);
+    this.shadowTransforms.clear();
     for (const actor of this.folderActors.values()) actor.root.removeFromParent();
     for (const key of this.keyActors.values()) key.removeFromParent();
     this.content.clear();
@@ -1096,9 +1098,25 @@ export class OfficeWorld {
     const held = this.session.held ? this.folderActors.get(this.session.held.id) : undefined;
     if (held && delta > 0) {
       const position = held.root.getWorldPosition(new THREE.Vector3());
+      if (position.distanceToSquared(this.lastHeldPosition) > 0.000001) moving = true;
       this.handVelocity.copy(position).sub(this.lastHeldPosition).divideScalar(delta);
       this.lastHeldPosition.copy(position);
     }
+    const shadowTransforms = new Map<THREE.Object3D, THREE.Matrix4>();
+    for (const root of [held?.root, this.heldKey?.root]) {
+      if (!root) continue;
+      root.updateWorldMatrix(true, false);
+      const previous = this.shadowTransforms.get(root);
+      if (
+        !previous ||
+        root.matrixWorld.elements.some(
+          (value, i) => Math.abs(value - previous.elements[i]!) > 0.00001,
+        )
+      )
+        moving = true;
+      shadowTransforms.set(root, root.matrixWorld.clone());
+    }
+    this.shadowTransforms = shadowTransforms;
     if (this.session.xray) {
       this.root.updateMatrixWorld(true);
       for (const line of this.traceLines.children) {

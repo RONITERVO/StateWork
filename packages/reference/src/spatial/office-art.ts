@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export type OfficeMaterial =
   | 'wood'
@@ -72,6 +73,10 @@ export class OfficeArt {
   ownMaterial<T extends THREE.Material>(material: T): T {
     this.materials.add(material);
     return material;
+  }
+  discardGeometry(geometry: THREE.BufferGeometry) {
+    geometry.dispose();
+    this.geometries.delete(geometry);
   }
   box(
     parent: THREE.Object3D,
@@ -448,7 +453,40 @@ export function makeOfficeShell(art: OfficeArt) {
         0.003,
       );
   }
+  mergeFurniture(room, art);
   return room;
+}
+
+/** Static furniture shares draw calls; movable/selectable props keep their identity. */
+function mergeFurniture(room: THREE.Group, art: OfficeArt) {
+  room.updateMatrixWorld(true);
+  const groups = new Map<string, THREE.Mesh[]>();
+  room.traverse((object) => {
+    if (!(object instanceof THREE.Mesh) || Array.isArray(object.material)) return;
+    for (let ancestor: THREE.Object3D | null = object; ancestor; ancestor = ancestor.parent)
+      if (ancestor.name === 'office:phone' || ancestor.name === 'office:lamp') return;
+    const key = `${object.material.uuid}/${object.castShadow}/${object.receiveShadow}`;
+    groups.set(key, [...(groups.get(key) ?? []), object]);
+  });
+  for (const meshes of groups.values()) {
+    if (meshes.length < 2) continue;
+    const pieces = meshes.map((mesh) => {
+      const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+      return geometry.applyMatrix4(mesh.matrixWorld);
+    });
+    const geometry = mergeGeometries(pieces, false);
+    pieces.forEach((piece) => piece.dispose());
+    if (!geometry) throw new Error('Unable to combine office furniture geometry.');
+    const batch = new THREE.Mesh(art.own(geometry), meshes[0]!.material);
+    batch.castShadow = meshes[0]!.castShadow;
+    batch.receiveShadow = meshes[0]!.receiveShadow;
+    batch.name = 'Static furniture batch';
+    room.add(batch);
+    meshes.forEach((mesh) => {
+      mesh.removeFromParent();
+      art.discardGeometry(mesh.geometry);
+    });
+  }
 }
 
 export function makeFolder(art: OfficeArt, title: string, subtitle: string, color = '#bd9252') {

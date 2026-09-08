@@ -13,6 +13,26 @@ async function createSpace(page: Page, name = 'Example studio') {
   await expect(page.locator('#record-count')).toContainText('6 records');
 }
 
+test('graphics-unavailable fallback stays readable and can still record work', async ({ page }) => {
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (kind: string, ...args: unknown[]) {
+      if (kind === 'webgl' || kind === 'webgl2') return null;
+      return Reflect.apply(getContext, this, [kind, ...args]);
+    } as typeof getContext;
+  });
+  await createSpace(page, 'Graphics fallback');
+  await expect(page.locator('#scene-loading')).toContainText('3D is unavailable');
+  await expect(page.getByRole('button', { name: 'Pick up folder', exact: true })).toBeDisabled();
+  const result = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(result.violations).toEqual([]);
+  await page.locator('#inspector').getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(page.locator('#inspector .state')).toContainText('Done');
+  await expect(page.locator('#record-count')).toContainText('Revision 1');
+});
+
 test('spatial setup, prerequisite navigation, actions, undo, resource links and persistence', async ({
   page,
 }) => {

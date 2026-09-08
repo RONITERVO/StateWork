@@ -6,6 +6,9 @@
   min-height: 460px;
   background: #9fa99c;
 }
+#scene-loading {
+  color: #20382c;
+}
 .stage {
   border-color: #727966;
 }

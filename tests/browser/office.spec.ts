@@ -41,6 +41,16 @@ async function clickInRoom(page: Page, point: [number, number, number]) {
   const p = new THREE.Vector3(...point).project(camera);
   await page.mouse.click(box.x + ((p.x + 1) * box.width) / 2, box.y + ((1 - p.y) * box.height) / 2);
 }
+async function xrInputFrame(page: Page) {
+  // Wait for input to be consumed by XR frames, independent of GPU speed.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const session = window.officeTestDevice.activeSession!;
+        session.requestAnimationFrame(() => session.requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
 
 test('physical drawer picks, held X-ray, quick view, keys, locks and file-all', async ({
   page,
@@ -145,6 +155,7 @@ test('IWER Quest controllers enter, ray-pick, hold, release, lose tracking and e
   page,
   browserName,
 }, info) => {
+  test.setTimeout(120000); // Full stereo software rendering is slower on hosted runners.
   test.skip(
     browserName !== 'chromium',
     'IWER exercises a WebGL XR session in Chromium. This is emulation, not a hardware comfort claim.',
@@ -163,20 +174,28 @@ test('IWER Quest controllers enter, ray-pick, hold, release, lose tracking and e
   // viewer at (0,1.6,0); the office is recentered around that actual pose.
   async function triggerAt(x: number, y: number, z: number, button = 'trigger') {
     await page.evaluate(
-      ({ x, y, z, button }) => {
+      ({ x, y, z }) => {
         const d = window.officeTestDevice,
           c = d.controllers.right!;
         c.position.set(x, y, z);
         c.quaternion.set(0, 0, 0, 1);
-        c.updateButtonValue(button, 1);
       },
-      { x, y, z, button },
+      { x, y, z },
     );
-    await page.waitForTimeout(120); // Let the emulated XR frame consume the input edge.
+    // Deliver the pose (and any reconnection) before generating a select edge.
+    await xrInputFrame(page);
+    await page.evaluate(
+      (button) => window.officeTestDevice.controllers.right!.updateButtonValue(button, 1),
+      button,
+    );
+    await xrInputFrame(page);
     await page.evaluate(
       (button) => window.officeTestDevice.controllers.right!.updateButtonValue(button, 0),
       button,
     );
+    // Consume the release before the next press: two commands in one XR frame
+    // otherwise look like one continuously held button to the runtime.
+    await xrInputFrame(page);
   }
   await triggerAt(-0.72, 1.32, -0.8);
   await expect(page.locator('#office-held')).toContainText('Gather references');
@@ -189,25 +208,17 @@ test('IWER Quest controllers enter, ray-pick, hold, release, lose tracking and e
   await page.evaluate(() =>
     window.officeTestDevice.controllers.right!.updateButtonValue('squeeze', 1),
   );
-  await page.waitForTimeout(120);
+  await xrInputFrame(page);
   await page.evaluate(() =>
     window.officeTestDevice.controllers.right!.updateButtonValue('squeeze', 0),
   );
+  await xrInputFrame(page);
   await expect(page.locator('#scene')).toHaveAttribute('data-held', '');
   await triggerAt(-0.72, 1.32, -0.8);
   await expect(page.locator('#scene')).toHaveAttribute('data-held', 'step-1');
   // One controller can operate the desk while holding a folder: its own
   // held mesh must not intercept every outgoing ray.
-  await page.evaluate(() => {
-    const c = window.officeTestDevice.controllers.right!;
-    c.position.set(-0.35, 0.99, -0.9);
-    c.quaternion.set(0, 0, 0, 1);
-    c.updateButtonValue('trigger', 1);
-  });
-  await page.waitForTimeout(120);
-  await page.evaluate(() =>
-    window.officeTestDevice.controllers.right!.updateButtonValue('trigger', 0),
-  );
+  await triggerAt(-0.35, 0.99, -0.9);
   await expect(page.locator('#scene')).toHaveAttribute('data-xray', 'true');
   await page.evaluate(() => (window.officeTestDevice.stereoEnabled = true));
   await page

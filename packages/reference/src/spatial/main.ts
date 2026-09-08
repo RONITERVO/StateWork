@@ -425,8 +425,9 @@ async function prepareScene() {
     scene = new SpatialScene(
       $('#scene'),
       (action) => {
-        if (action.startsWith('select:')) setSelection(action.slice(7), true);
-        else void act(action);
+        if (action.startsWith('select:')) {
+          if (action.slice(7) !== selected) setSelection(action.slice(7), true);
+        } else void act(action);
       },
       (active) => {
         immersive = active;
