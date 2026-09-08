@@ -1,0 +1,27 @@
+{
+  "name": "@statework/tools",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Headless CLI and stdio MCP tools for StateWork",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "statework": "dist/cli.js",
+    "statework-mcp": "dist/mcp.js"
+  },
+  "dependencies": {
+    "@statework/core": "0.1.0",
+    "@statework/sdk": "0.1.0",
+    "@statework/node": "0.1.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.5.4"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

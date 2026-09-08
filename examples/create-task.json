@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "requestId": "capture-first-task",
+  "expectedRevision": 0,
+  "commands": [
+    {
+      "type": "item.create",
+      "item": {
+        "id": "first-task",
+        "kind": "task",
+        "title": "Make next week a little clearer",
+        "status": "ready",
+        "effortMinutes": 20
+      }
+    }
+  ]
+}

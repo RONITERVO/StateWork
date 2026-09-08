@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "composite": true, "rootDir": "src", "outDir": "dist", "types": ["node"] },
+  "references": [{ "path": "../core" }, { "path": "../sdk" }, { "path": "../node" }],
+  "include": ["src"]
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.statework/
+artifacts/
+test-results/
+playwright-report/
+.env
+*.sqlite*
+*.db*
+*.tgz

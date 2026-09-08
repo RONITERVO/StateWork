@@ -1,0 +1,26 @@
+{
+  "name": "@statework/sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Validated StateWork service, perception adapters and typed HTTP client",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@statework/core": "0.1.0",
+    "zod": "4.5.4"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

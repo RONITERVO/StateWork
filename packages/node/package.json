@@ -1,0 +1,26 @@
+{
+  "name": "@statework/node",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Transactional local SQLite adapter and credentials for StateWork",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@statework/core": "0.1.0",
+    "@statework/sdk": "0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

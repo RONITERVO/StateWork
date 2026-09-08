@@ -1,0 +1,24 @@
+:root {
+  --paper: #fafaf6;
+  --white: #fff;
+  --rail: #f0f1e9;
+  --ink: #29372d;
+  --muted: #656e63;
+  --green: #2e533f;
+  --clay: #8f553a;
+  --line: #dde1d5;
+  --hover: #e8ecdf;
+  --focus: #9c6726;
+  color-scheme: light;
+}
+html[data-contrast='high'] {
+  --paper: #fff;
+  --white: #fff;
+  --rail: #eef0e8;
+  --ink: #121b14;
+  --muted: #343f34;
+  --green: #143b24;
+  --line: #767e72;
+  --hover: #e1e9d9;
+  --focus: #802e00;
+}

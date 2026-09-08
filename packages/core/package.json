@@ -1,0 +1,22 @@
+{
+  "name": "@statework/core",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pure work graph, transitions and semantic observations",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}
