@@ -8,9 +8,11 @@
     "dev": "vite --host 127.0.0.1"
   },
   "dependencies": {
-    "@statework/sdk": "0.1.0"
+    "@statework/sdk": "0.1.0",
+    "three": "0.185.1"
   },
   "devDependencies": {
+    "@types/three": "0.185.4",
     "vite": "8.2.2"
   }
 }

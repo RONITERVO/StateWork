@@ -46,13 +46,13 @@ test('local work creation, detail editing, dependencies, views, persistence and 
 test('keyboard entry, accessible views, preference persistence, narrow reflow and no external requests', async ({
   page,
   browserName,
+  baseURL,
 }) => {
   const external: string[] = [];
   await page.setViewportSize({ width: 1440, height: 1000 });
   mkdirSync('artifacts/screenshots', { recursive: true });
   page.on('request', (r) => {
-    if (!r.url().startsWith('http://127.0.0.1:4181') && !r.url().startsWith('data:'))
-      external.push(r.url());
+    if (!r.url().startsWith(baseURL!) && !r.url().startsWith('data:')) external.push(r.url());
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'All work', exact: true })).toBeVisible();

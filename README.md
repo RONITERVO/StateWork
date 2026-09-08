@@ -20,6 +20,10 @@ npm start
 
 Open **[127.0.0.1:4180](http://127.0.0.1:4180)**. The browser connects to the local service automatically. An original example workspace helps you explore; choose **New workspace** for your own work. Set `STATEWORK_DEMO=0` before the first start to omit the example.
 
+Prefer working in 3D? Open **[StateWork Spatial](http://127.0.0.1:4180/spatial/)**, fill in a project, and follow its work branches. It adds a stationary WebXR view with controller selection, a clear next step, prerequisite links, and optional sound. Desktop and phone controls use the same work and history. **Local PC VR developer preview; physical headset validation is still pending.** [Setup, controls and extension guide](docs/SPATIAL.md).
+
+![StateWork Spatial desktop preview with a next step, work branches and prerequisite controls. This is a desktop capture, not a headset capture.](docs/images/spatial-desktop.png)
+
 Capture something with **Add work**. Open it to edit its status, notes, tags, dates, effort or schedule. Link prerequisites and navigate directly between related work. **Next actions** shows unfinished tasks whose prerequisites are clear. **Archive** keeps work and its connections available for restoration. **Save view** preserves the current query and presentation.
 
 Reading & interaction offers text size, contrast, detail, motion, page size and time zone settings. Everything is reachable through standard keyboard controls. Text view offers plain text and on-demand local browser speech when a local voice exists. Focus view offers one actionable task at a time. There is no mandatory spatial, audio, color-only, drag or timed interaction.
@@ -61,7 +65,7 @@ The packages are **not published to npm**. These imports work in the checkout. `
 | `@statework/node` | Transactional SQLite adapter, local credentials, database backups, original example data |
 | `@statework/server` | Loopback HTTP API, same-origin browser bootstrap, OpenAPI and reference client hosting |
 | `@statework/tools` | CLI and real stdio MCP server using the shared service |
-| `@statework/reference` | Six accessible browser views, editing and quick navigation |
+| `@statework/reference` | Six browser views plus the Spatial/WebXR layer, fill-in setup, editing and quick navigation |
 
 ```mermaid
 flowchart LR
@@ -88,6 +92,7 @@ npm run cli -- observe personal
 - [Architecture, invariants and extension seams](docs/ARCHITECTURE.md)
 - [SDK and API contract](docs/API.md)
 - [Perception and interaction contract](docs/PERCEPTION.md)
+- [Spatial / VR setup and developer guide](docs/SPATIAL.md)
 - [CLI and MCP integration](docs/TOOLS.md)
 - [Data ownership, export and full backup](docs/DATA.md)
 - [Acceptance evidence and current limits](docs/ACCEPTANCE.md)

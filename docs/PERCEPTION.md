@@ -19,7 +19,7 @@ The same item can be a DOM button, spoken choice, braille label, tactile cue or 
 | Braille / tactile | Ordered strings, stable IDs, semantic cue data | Translation, device driver, routing keys, tactile vocabulary |
 | Switch / keyboard | Sequential navigation targets, labeled actions, untimed forms | Single-switch scanning and dwell settings; reference browser uses standard Tab navigation |
 | Gaze / alternative motor input | Stable action targets and IDs; no drag requirement | Calibration, dwell, confirmation and device-specific hit targets |
-| Spatial / XR | Deterministic 3D projection with labels and semantic links | XR rendering, comfort, locomotion, reachable targets and hardware testing |
+| Spatial / XR | Deterministic projection plus the Spatial layer: WebXR sessions, target-ray selection, stationary arc, DOM index and recenter | Hardware compatibility, stereo/performance/comfort testing; standalone host and additional device inputs |
 | Agents / automation | Structured observations, same commands, real MCP tools | Intent, permissions and safe handling of untrusted work text |
 
 ## Profile and adapter contract
@@ -53,6 +53,6 @@ The supplied `textAdapter` emits text consumable by a speech or braille adapter;
 
 The client uses native inputs, buttons, dialog focus containment, a skip link, explicit labels, live save/error messages and standard keyboard navigation. Search has Ctrl/⌘+K; it is suppressed while a dialog is open. No action depends on hover, color, audio or dragging. CSS honors reduced motion; the default experience has no animation. Work is escaped before insertion into HTML, and unknown extensions are never rendered as markup.
 
-Time zone and wording localization remain adapter concerns. The current UI and built-in text summaries are English. `language` is a preference contract and selects a local speech voice when available; it does not claim a translated UI. Browser speech is opt-in, uses an explicitly local voice, and may be unavailable. Native speech input, single-switch scanning, physical braille/haptics and XR are not implemented in the reference client.
+Time zone and wording localization remain adapter concerns. The current UI and built-in text summaries are English. `language` is a preference contract and selects a local speech voice when available; it does not claim a translated UI. Browser speech is opt-in, uses an explicitly local voice, and may be unavailable. Native speech input, single-switch scanning and physical braille/haptics are not implemented in the reference client. The separate [Spatial layer](SPATIAL.md) implements WebXR and controller target-ray selection; real headset testing remains pending.
 
 Design reference: [W3C WCAG 2.2](https://www.w3.org/TR/WCAG22/), particularly text alternatives, sensory characteristics, keyboard access, reflow and focus. The test record documents checks performed; no blanket WCAG conformance certification is claimed.
