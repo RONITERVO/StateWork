@@ -20,9 +20,9 @@ npm start
 
 Open **[127.0.0.1:4180](http://127.0.0.1:4180)**. The browser connects to the local service automatically. An original example workspace helps you explore; choose **New workspace** for your own work. Set `STATEWORK_DEMO=0` before the first start to omit the example.
 
-Prefer working in 3D? Open **[StateWork Spatial](http://127.0.0.1:4180/spatial/)**, fill in a project, and follow its work branches. It adds a stationary WebXR view with controller selection, a clear next step, prerequisite links, and optional sound. Desktop and phone controls use the same work and history. **Local PC VR developer preview; physical headset validation is still pending.** [Setup, controls and extension guide](docs/SPATIAL.md).
+Prefer working in 3D? Open **[StateWork Office](http://127.0.0.1:4180/spatial/)** and fill in a project. Work at a furnished 1980s desk: open filing cabinets, hold folders, earn prerequisite keys, reveal dependencies with X-ray and bring related files into Quick View. The telephone brings your next step; the stamp records completion. Desktop, phone and VR controls share the same work and history. **Local PC VR developer preview; tested with Quest runtime emulation, physical headset validation pending.** [Setup, controls and extension guide](docs/SPATIAL.md).
 
-![StateWork Spatial desktop preview with a next step, work branches and prerequisite controls. This is a desktop capture, not a headset capture.](docs/images/spatial-desktop.png)
+![Original 1980s office with a held folder, dependency X-ray and related files in Quick View. Desktop WebGL capture with fictional work.](docs/images/office-dependencies.png)
 
 Capture something with **Add work**. Open it to edit its status, notes, tags, dates, effort or schedule. Link prerequisites and navigate directly between related work. **Next actions** shows unfinished tasks whose prerequisites are clear. **Archive** keeps work and its connections available for restoration. **Save view** preserves the current query and presentation.
 
@@ -43,10 +43,12 @@ work.execute('personal', {
   schemaVersion: 1,
   requestId: 'capture-1',
   expectedRevision: 0,
-  commands: [{
-    type: 'item.create',
-    item: { id: 'draft', kind: 'task', title: 'Write a first draft', status: 'ready' },
-  }],
+  commands: [
+    {
+      type: 'item.create',
+      item: { id: 'draft', kind: 'task', title: 'Write a first draft', status: 'ready' },
+    },
+  ],
 });
 
 const observation = work.observe('personal', { query: { actionable: true } });
@@ -58,14 +60,14 @@ Exact retries return the original result. A changed workspace produces a conflic
 
 The packages are **not published to npm**. These imports work in the checkout. `npm run release:local` creates local package tarballs and tests them together in a fresh installation.
 
-| Package | Responsibility |
-| --- | --- |
-| `@statework/core` | Dependency-free model, deterministic transitions, graph invariants, queries, semantic observations |
-| `@statework/sdk` | Runtime validation, trusted connection service, storage contract, memory adapter, perception negotiation, HTTP client |
-| `@statework/node` | Transactional SQLite adapter, local credentials, database backups, original example data |
-| `@statework/server` | Loopback HTTP API, same-origin browser bootstrap, OpenAPI and reference client hosting |
-| `@statework/tools` | CLI and real stdio MCP server using the shared service |
-| `@statework/reference` | Six browser views plus the Spatial/WebXR layer, fill-in setup, editing and quick navigation |
+| Package                | Responsibility                                                                                                        |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `@statework/core`      | Dependency-free model, deterministic transitions, graph invariants, queries, semantic observations                    |
+| `@statework/sdk`       | Runtime validation, trusted connection service, storage contract, memory adapter, perception negotiation, HTTP client |
+| `@statework/node`      | Transactional SQLite adapter, local credentials, database backups, original example data                              |
+| `@statework/server`    | Loopback HTTP API, same-origin browser bootstrap, OpenAPI and reference client hosting                                |
+| `@statework/tools`     | CLI and real stdio MCP server using the shared service                                                                |
+| `@statework/reference` | Six browser views plus the Spatial/WebXR layer, fill-in setup, editing and quick navigation                           |
 
 ```mermaid
 flowchart LR

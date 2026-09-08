@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Interactive office
+
+- Replaced the floating work arc with an original furnished 1980s office: drawers, folder racks, held files, brass keys, completion stamp, desk light and next-step telephone.
+- Added dependency X-ray, reachable Quick View, return navigation, pins, file-all, complete cabinet/sheet/key paging and phone equivalents. Keys and locks derive from real prerequisite records, including cancellation, archive and reopening rules.
+- Added controller grip attachment, near/ray grabs, release physics, tracking-loss recovery, in-room comfort controls and layered X-ray picking.
+- Added geometry/key/visibility/disposal tests and real WebGL/Quest-runtime emulation checks. IWER is test-only. Hardware comfort and performance remain unqualified.
+
 ## Unreleased — Spatial developer preview
 
 - Added `/spatial/`: editable project setup, one next step, shape/word/color states, prerequisite and resource navigation, status actions with undo, search, pagination and export through the existing local SDK.
