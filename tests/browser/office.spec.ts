@@ -168,6 +168,9 @@ test('IWER Quest controllers enter, ray-pick, hold, release, lose tracking and e
       '\nwindow.officeTestDevice = new IWER.XRDevice(IWER.metaQuest3); window.officeTestDevice.installRuntime({forceInstall:true,polyfillLayers:false});',
   });
   await setup(page, 'Quest emulation test');
+  // Exercise stereo input at a modest framebuffer size on CPU-only CI.
+  // Desktop visual evidence remains full-size; this test makes no FPS claim.
+  await page.setViewportSize({ width: 960, height: 720 });
   await page.getByRole('button', { name: 'Enter VR', exact: true }).click();
   await expect(page.locator('canvas[data-immersive="true"]')).toBeVisible();
   // Target the CRT file shortcut from the right controller. IWER places the
