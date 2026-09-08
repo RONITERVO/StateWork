@@ -4,6 +4,23 @@ Local verification on **2026-09-08**, Windows 11 (`10.0.26200`), AMD Ryzen 9 795
 
 ## Passed
 
+### Spatial addition — 2026-09-08
+
+Verified locally on the Windows/Node 25.4.0 environment above:
+
+- `npm run check`: 43 unit/backend/protocol tests, strict types, package boundaries, formatting, generated contracts and production build passed.
+- Spatial browser suite: **25 passed, 2 explicitly skipped** across Chromium, Firefox and WebKit. The simulated denied-XR-request case runs in Chromium only; its other two engine variants are skipped. These counts do not represent headset tests.
+- Browser evidence covers fill-in setup, dependencies, status/undo, resource links, persistence, workspace switching, export, stale writers, two lost command responses, lost setup responses, a lost refresh after a committed create, and retry from inside an editor. Failed workspace switches retain the old command target and selection.
+- axe reported no violations for the tested default Spatial DOM view. Keyboard dialog focus, 390-pixel reflow, next-step-first ordering and silent defaults passed in all three engines. Actual browser inspection confirmed that tapping a step on a phone brings its requirement/actions panel into view.
+- The twelve existing Classic view browser scenarios passed across all three engines during this change. No external browser requests were observed in the local-only checks. `npm audit --omit=dev` reported zero known runtime vulnerabilities for the installed lockfile at verification time.
+- Local package smoke verification passed for SDK, SQLite, HTTP host, CLI and MCP. The new renderer has no dependency in those backend packages.
+
+The desktop screenshot in `docs/images/spatial-desktop.png` contains only fictional starter work. The private data directory and local credentials are excluded from the commit and release source allowlist.
+
+**No physical headset was available for validation.** Stereo rendering, target-device frame timing, real controller/hand behavior, tracking loss and sustained comfort remain unverified. The desktop preview and simulated permission failure do not establish those properties. [The Spatial guide](SPATIAL.md) records the required hardware matrix and the separate HTTPS host needed for standalone devices. Hosted CI results are recorded in repository Actions.
+
+### Original foundation
+
 | Area | Actual evidence |
 | --- | --- |
 | Build and package boundaries | `npm run check`: strict library/reference type checks, 36 tests, formatting, core/SDK/reference import and host-boundary checks, generated contracts, production build |

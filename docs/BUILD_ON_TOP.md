@@ -8,7 +8,7 @@ You do not have to adopt the reference UI to use StateWork. Start from an observ
 | A screen-reader or braille interface | `packages/core/src/observe.ts`, `examples/perception.mjs` | Read `summary`/`facts`, follow linear navigation IDs and map actions to device controls |
 | An audio landscape | `cueFor`, `PerceptionAdapter` | Bind cues to stable IDs and local sounds, with text equivalents, opt-in output and a stop control |
 | A physical desk display or tactile surface | `examples/perception.mjs`, `docs/TOOLS.md` | Provision a read-only connection, negotiate actual device capabilities, map semantic cues to the device |
-| A room-scale or spatial organizer | `spatialAdapter`, reference map code | Render projected IDs, preserve a textual index, then add device-specific picking and comfortable movement |
+| A room-scale or spatial organizer | [Spatial/WebXR layer](SPATIAL.md), `spatialAdapter` | Fill in the starter, use the stationary controller interface, replace its geometry while preserving IDs and DOM alternatives; verify actual headset behavior |
 | An agent work loop | `packages/tools/src/mcp.ts`, `docs/TOOLS.md` | Discover work, observe, read current versions and execute one bounded atomic batch |
 | A different browser interface | `WorkClient`, `schemas/openapi.json` | Consume complete typed observations and query state from the local API; keep all work writes on that API |
 | Company-specific workflow metadata | `WorkItem.extensions`, `docs/ARCHITECTURE.md` | Define a namespaced JSON schema, validate it in trusted code, preserve unknown namespaces on updates |
