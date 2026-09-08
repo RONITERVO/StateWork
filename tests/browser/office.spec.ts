@@ -51,11 +51,22 @@ async function xrInputFrame(page: Page) {
       }),
   );
 }
+async function stampComplete(page: Page) {
+  const saved = page.waitForResponse(
+    (response) => response.url().endsWith('/commands') && response.request().method() === 'POST',
+  );
+  await clickInRoom(page, [0.38, 1.046, 0.26]);
+  expect((await saved).status()).toBe(200);
+  // The API responds in milliseconds, but CPU-only WebGL can delay the DOM
+  // refresh beyond five seconds. Still require the actual saved state.
+  await expect(page.locator('#inspector .state')).toContainText('Done', { timeout: 15000 });
+}
 
 test('physical drawer picks, held X-ray, quick view, keys, locks and file-all', async ({
   page,
   browserName,
 }, info) => {
+  test.setTimeout(120000);
   test.skip(
     browserName !== 'chromium',
     'Actual WebGL interaction is covered in Chromium; all engines run the DOM workflow suite.',
@@ -98,8 +109,7 @@ test('physical drawer picks, held X-ray, quick view, keys, locks and file-all', 
     await select(page, label);
     await page.getByRole('button', { name: 'File all', exact: true }).click();
     // A real raycast against the wooden stamp, not a DOM completion button.
-    await clickInRoom(page, [0.38, 1.046, 0.26]);
-    await expect(page.locator('#inspector .state')).toContainText('Done');
+    await stampComplete(page);
   }
   await expect(page.locator('#office-keys')).toHaveText('KEY RING · 2');
   await select(page, 'Build first pass');
@@ -108,8 +118,7 @@ test('physical drawer picks, held X-ray, quick view, keys, locks and file-all', 
   await expect(page.locator('#office-feedback')).toContainText('unlocked');
   await expect(page.locator('#record-count')).toContainText('Revision 2');
   await page.getByRole('button', { name: 'File all', exact: true }).click();
-  await clickInRoom(page, [0.38, 1.046, 0.26]);
-  await expect(page.locator('#inspector .state')).toContainText('Done');
+  await stampComplete(page);
   await expect(page.locator('#record-count')).toContainText('Revision 3');
   await page.reload();
   await expect(page.locator('#office-keys')).toHaveText('KEY RING · 3');
