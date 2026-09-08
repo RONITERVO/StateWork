@@ -339,7 +339,9 @@ export class SpatialScene {
   }
   private invalidate() {
     if (this.disposed || this.session) return;
-    this.framesRemaining = 45;
+    // Procedural textures are ready synchronously. Two frames cover resize and
+    // hover updates; tick() keeps the loop alive for actual moving objects.
+    this.framesRemaining = 2;
     if (this.animation === null) this.animation = requestAnimationFrame(this.desktopFrame);
   }
   private desktopFrame = (time: number) => {
