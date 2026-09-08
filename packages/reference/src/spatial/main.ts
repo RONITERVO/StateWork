@@ -22,7 +22,11 @@ import {
 } from './model';
 import type { Filter } from './model';
 import type { SpatialScene, SpatialView } from './scene';
+import { officeCatalog } from './office-model';
+import type { OfficeCatalog } from './office-model';
+import type { OfficeFeedback } from './office-world';
 import './style.css';
+import './office.css';
 
 const $ = <T extends Element = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
@@ -50,6 +54,7 @@ let client: WorkClient;
 let spaces: Awaited<ReturnType<WorkClient['list']>> = [];
 let workspaceId = recalled('workspace');
 let state: WorkState | undefined;
+let filing: OfficeCatalog | undefined;
 let nodes: SemanticNode[] = [];
 let role: Role = 'reader';
 let selected = '';
@@ -105,13 +110,54 @@ $('#app').innerHTML =
     )}</div><div class="rail-bottom"><p class="eyebrow">MAKE IT YOURS</p><button data-action="comfort">Comfort</button><button data-action="export">↓ Export work</button><p class="muted"><small>Same work. Every view.<br>No account needed.</small></p></div></aside>
 <main id="main" tabindex="-1"><div class="heading"><div><p class="eyebrow">YOUR WORK, WITHIN REACH</p><h1 id="space-title">Make room to think.</h1><p class="muted" id="space-subtitle">One clear step. The whole picture nearby.</p></div><div class="actions"><button data-action="refresh" aria-label="Refresh work">↻</button><button data-action="add" class="primary" id="add-work">＋ Add step</button></div></div><p id="notice" class="status" role="status" aria-live="polite"></p><p id="error" class="error" role="alert" hidden></p><button id="retry" data-action="retry-save" hidden>Retry save</button>
 <section id="intro" class="intro" hidden><p class="eyebrow">A SPACE OF YOUR OWN</p><h2>Put your next project<br>in front of you.</h2><p class="muted">Name it. Add a few steps. See what is ready and what needs to happen first.</p><div class="actions"><button class="primary" data-action="setup">Create your space →</button><button data-action="help">Explore the controls</button></div><p class="muted" style="margin-top:24px;margin-bottom:0"><small>Use your screen now. Enter VR when a compatible headset is connected.</small></p></section>
-<div id="work" class="work-grid" hidden><div class="work-main"><section class="stage" aria-label="Spatial preview"><div class="stage-top"><p class="eyebrow">YOUR WORK MAP</p><div class="actions"><button data-action="comfort" aria-label="Comfort settings">Comfort</button><button id="enter-vr" data-action="enter" class="primary" disabled>Checking VR…</button></div></div><div id="scene"><p class="scene-error muted" id="scene-loading">Preparing the spatial view…</p></div><div class="scene-caption"><span id="xr-status">Checking this browser</span><span>Point · Select · Act</span></div></section><section class="task-index" aria-label="Work buttons"><div class="index-heading"><h2 id="index-title">All work</h2><label class="sr-only" for="find">Find a step</label><input id="find" type="search" placeholder="Find a step…" maxlength="240"></div><div id="cards" class="cards"></div><div id="pages" class="pagination"></div></section></div><aside class="work-aside" aria-label="Your direction"><section id="next-card" class="next-card"></section><section id="inspector" class="inspector" aria-label="Selected step"></section></aside></div>
+<div id="work" class="work-grid" hidden><div class="work-main"><section class="stage" aria-label="Spatial preview"><div class="stage-top"><p class="eyebrow">YOUR WORK MAP</p><div class="actions"><button data-action="comfort" aria-label="Comfort settings">Comfort</button><button id="enter-vr" data-action="enter" class="primary" disabled>Checking VR…</button></div></div><div id="scene"><p class="scene-error muted" id="scene-loading">Preparing the spatial view…</p></div><div class="scene-caption"><span id="xr-status">Checking this browser</span><span>Open · Hold · Follow keys</span></div></section><section class="task-index" aria-label="Work buttons"><div class="index-heading"><h2 id="index-title">All work</h2><label class="sr-only" for="find">Find a step</label><input id="find" type="search" placeholder="Find a step…" maxlength="240"></div><div id="cards" class="cards"></div><div id="pages" class="pagination"></div></section></div><aside class="work-aside" aria-label="Your direction"><section id="next-card" class="next-card"></section><section id="inspector" class="inspector" aria-label="Selected step"></section></aside></div>
 <footer class="footnote"><span id="record-count">Your work stays local.</span><div class="actions"><button data-action="export">Export</button><button data-action="audio" id="sound-toggle" aria-pressed="false">Sound off</button></div></footer></main></div>
 <dialog id="setup-dialog" aria-labelledby="setup-title"><form id="setup-form"><div class="dialog-heading"><div><p class="eyebrow">JUST FILL IN</p><h2 id="setup-title">Your space starts here.</h2></div><button type="button" data-close aria-label="Close setup">×</button></div><p class="muted">Edit the example, or start with a blank project. Nothing is saved until you create it.</p><div class="template-options"><button type="button" data-template="project" aria-pressed="true">◇ 3D project</button><button type="button" data-template="blank" aria-pressed="false">＋ Blank</button></div><label>Workspace name<input name="workspaceName" required maxlength="240" value="My studio"></label><label>Project name<input name="projectName" required maxlength="240" value="My next release"></label><fieldset><legend>Starting steps <small>— edit or leave empty</small></legend>${Array.from({ length: 5 }, (_, i) => `<label>Step ${i + 1}<input name="step${i}" maxlength="240" value="${starterTasks[i]}"></label>`).join('')}</fieldset><p class="muted"><small>The unchanged example links access → build → review → deliver. Editing the steps starts them independently; add prerequisites inside your space.</small></p><p class="form-error error" role="alert" hidden></p><div class="dialog-footer"><button type="button" data-close>Cancel</button><button class="primary" type="submit">Create space</button></div></form></dialog>
 <dialog id="edit-dialog" aria-labelledby="edit-title"><form id="edit-form"><div class="dialog-heading"><h2 id="edit-title">Add a step</h2><button type="button" data-close aria-label="Close step editor">×</button></div><input name="itemId" type="hidden"><label>Step name<input name="title" required maxlength="240" placeholder="A small, clear action"></label><div class="form-grid"><label>Kind<select name="kind"><option value="task">Task</option><option value="project">Project</option><option value="note">Note</option><option value="event">Event</option></select></label><label>Priority<select name="priority"><option value="1">Normal</option><option value="3">High</option><option value="2">Medium</option><option value="0">Low</option></select></label><label>Minutes<input name="minutes" type="number" min="0" max="525600"></label><label>Due date<input name="dueDate" type="date"></label></div><label>Notes / microsteps<textarea name="description" rows="4" maxlength="20000" placeholder="Keep the next action small."></textarea></label><label>Resource link<input name="resource" type="url" maxlength="2048" placeholder="https://…"></label><label id="parent-label">Inside project<select name="parent"><option value="">No project</option></select></label><p class="form-error error" role="alert" hidden></p><div class="dialog-footer"><button type="button" data-close>Cancel</button><button type="submit" class="primary">Save step</button></div></form></dialog>
 <dialog id="needs-dialog" aria-labelledby="needs-title"><form id="needs-form"><div class="dialog-heading"><h2 id="needs-title">What needs to happen first?</h2><button type="button" data-close aria-label="Close prerequisites">×</button></div><p class="muted">An account, tool, person or small task can be a prerequisite. Link an existing step, or create one.</p><label>Existing prerequisite<select name="existing"><option value="">Create a new prerequisite</option></select></label><label>New prerequisite<input name="title" maxlength="240" placeholder="Get project access"></label><label>Link to get it<input name="resource" type="url" maxlength="2048" placeholder="https://…"></label><p class="form-error error" role="alert" hidden></p><div class="dialog-footer"><button type="button" data-close>Cancel</button><button type="submit" class="primary">Link prerequisite</button></div></form></dialog>
-<dialog id="comfort-dialog" aria-labelledby="comfort-title"><div class="dialog-heading"><h2 id="comfort-title">Make yourself comfortable.</h2><button data-close aria-label="Close comfort settings">×</button></div><p class="muted">Sit or stand. Everything stays in front. No movement, dragging or timed selection is required.</p><div class="actions"><button data-action="large" id="large-toggle" aria-pressed="${large}">Larger VR text</button><button data-action="recenter">Recenter view</button><button data-action="audio" id="comfort-sound" aria-pressed="false">Sound off</button></div><p style="margin-top:20px" class="muted">Sound adds a short cue after a successful save. Every cue has a visible message. No microphone or speech service is used.</p><p class="muted">Use Classic views for adjustable text size, high contrast and a full text view. Your headset’s system control can always leave VR.</p></dialog>
-<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">A place for your next step.</h2><button data-close aria-label="Close help">×</button></div><p><strong>1. Fill in</strong> a workspace and a few steps.</p><p><strong>2. Select</strong> a card. Follow “Needs first” to unblock it.</p><p><strong>3. Start → Finish.</strong> Completed work stays in your records.</p><h3>Inside VR</h3><p>Point either controller and press its select / trigger button. Select a step, start or finish it, follow prerequisites, change pages, read more notes, recenter or exit. No thumbstick movement. Setup and editing use the normal browser forms outside immersive VR.</p><h3>Connect a headset</h3><p>Run StateWork on your PC and open this localhost address in a WebXR-capable browser connected to your headset. “Enter VR” becomes available when that browser reports immersive VR support.</p><p class="muted">This server is local to your PC. A standalone headset cannot reach the PC using its own localhost address. Standalone / company hosting requires a separate authenticated HTTPS host. This release does not provide remote access or sync.</p><h3>Your data</h3><p>Saved in the local StateWork database. Export a snapshot before moving computers. Import, archive, schedules and the complete history are available through Classic views and the shared API.</p><p class="muted">Headset comfort and device compatibility still need real hardware testing. The desktop preview is available even without VR.</p></dialog>`;
+<dialog id="comfort-dialog" aria-labelledby="comfort-title"><div class="dialog-heading"><h2 id="comfort-title">Make yourself comfortable.</h2><button data-close aria-label="Close comfort settings">×</button></div><p class="muted">Sit or stand. Everything stays in front. No movement, dragging or timed selection is required.</p><div class="actions"><button data-action="large" id="large-toggle" aria-pressed="${large}">Larger VR text</button><button data-action="recenter">Recenter view</button><button data-action="audio" id="comfort-sound" aria-pressed="false">Sound off</button></div><p style="margin-top:20px" class="muted">Sound adds a short cue for interactions and successful saves. Every cue has a visible message. No microphone or speech service is used.</p><p class="muted">Use Classic views for adjustable text size, high contrast and a full text view. Your headset’s system control can always leave VR.</p></dialog>
+<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">A place for your next step.</h2><button data-close aria-label="Close help">×</button></div><p><strong>1. Fill in</strong> a workspace and a few steps.</p><p><strong>2. Open a drawer</strong> and pick up a folder. Dependencies reveals its missing keys; Quick View brings related files forward.</p><p><strong>3. Start → Finish.</strong> Completed work stays in your records.</p><h3>Inside VR</h3><p>Point either controller and select a drawer, folder or key. Squeeze to grab nearby; release or choose Put down. Follow Dependencies → Quick View, earn keys by finishing requirements, then use the key ring and Done stamp. Back to folder retraces your path; File all tidies the office. The telephone brings your next step without making a call. Recenter, text size, sound and exit are on the control board. Setup and editing use browser forms outside VR. No locomotion or timed selection.</p><h3>Connect a headset</h3><p>Run StateWork on your PC and open this localhost address in a WebXR-capable browser connected to your headset. “Enter VR” becomes available when that browser reports immersive VR support.</p><p class="muted">This server is local to your PC. A standalone headset cannot reach the PC using its own localhost address. Standalone / company hosting requires a separate authenticated HTTPS host. This release does not provide remote access or sync.</p><h3>Your data</h3><p>Saved in the local StateWork database. Export a snapshot before moving computers. Import, archive, schedules and the complete history are available through Classic views and the shared API.</p><p class="muted">Headset comfort and device compatibility still need real hardware testing. The desktop preview is available even without VR.</p></dialog>`;
+
+const officeTools = document.createElement('div');
+officeTools.className = 'office-tools';
+officeTools.innerHTML = `<div class="office-readout"><span id="office-held">NO FOLDER IN HAND</span><span id="office-keys">KEY RING · 0</span><span id="office-bank">CABINETS · 1/1</span></div>
+<div class="actions" role="group" aria-label="Office interactions"><button data-action="office:hold">Pick up folder</button><button data-action="office:release">Put down</button><button data-action="office:dependencies" id="office-xray" aria-pressed="false">Dependencies / X-ray</button><button data-action="office:quick" id="office-quick" aria-pressed="false">Quick View</button><button data-action="office:unlock">Use key ring</button><button data-action="office:pin">Pin folder</button><button data-action="office:file-all">File all</button><button data-action="office-fullscreen">Full screen</button></div>
+<div class="actions" role="group" aria-label="Look around office" style="margin-top:8px"><button data-action="look:left">← Look left</button><button data-action="look:desk">Desk</button><button data-action="look:files">Cabinets</button><button data-action="look:right">Look right →</button><button data-action="office:cabinets-previous">Previous bank</button><button data-action="office:cabinets-next">Next bank</button></div>
+<p id="office-feedback" class="office-hint" role="status">Open a drawer. Pick up a folder. Follow its keys.</p>`;
+$('#scene').after(officeTools);
+officeTools
+  .querySelector('.actions')!
+  .insertAdjacentHTML('beforeend', '<button data-action="office:back">Back to folder</button>');
+officeTools.insertAdjacentHTML(
+  'beforeend',
+  '<details class="office-pages"><summary>More controls</summary><div class="actions"><button data-action="office:quick-previous">Previous related</button><span id="office-related-page">1/1</span><button data-action="office:quick-next">Next related</button><button data-action="office:keys-previous">Previous keys</button><span id="office-key-page">1/1</span><button data-action="office:keys-next">Next keys</button></div></details>',
+);
+officeTools.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
+  if (button.dataset.action !== 'office-fullscreen') button.disabled = true;
+});
+const cabinetIndex = document.createElement('details');
+cabinetIndex.className = 'cabinet-index';
+cabinetIndex.innerHTML =
+  '<summary>Cabinet controls · keyboard & touch</summary><div class="cabinet-list" id="cabinet-list"></div>';
+$('.stage').after(cabinetIndex);
+function updateOfficeControls(feedback: OfficeFeedback) {
+  officeTools.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
+    button.disabled = false;
+  });
+  if ($('#office-feedback').textContent !== feedback.message) cue();
+  const file = filing?.files.find((file) => file.id === feedback.held);
+  $('#office-held').textContent = file ? `HOLDING · ${file.label}` : 'NO FOLDER IN HAND';
+  $('#office-keys').textContent = `KEY RING · ${feedback.keys}`;
+  $('#office-bank').textContent = `CABINETS · ${feedback.cabinetPage}`;
+  $('#office-related-page').textContent = feedback.relatedPage;
+  $('#office-key-page').textContent = feedback.keyPage;
+  $('#office-feedback').textContent = feedback.message;
+  $('#office-xray').setAttribute('aria-pressed', String(feedback.xray));
+  $('#office-quick').setAttribute('aria-pressed', String(feedback.quickView));
+  $('#scene').dataset.held = feedback.held ?? '';
+  $('#scene').dataset.xray = String(feedback.xray);
+  $('#scene').dataset.quickView = String(feedback.quickView);
+}
 
 function showDialog(id: string) {
   lastFocus = document.activeElement as HTMLElement;
@@ -154,13 +200,14 @@ function selectedNode() {
   const offset = queryItems(state, { archived: true }).findIndex((i) => i.id === selected);
   return observe(state, { id: 'spatial-view', role }, { archived: true }, offset, 1).nodes[0];
 }
-function setSelection(id: string) {
+function setSelection(id: string, stayInRoom = false) {
   if (!state?.items.some((i) => i.id === id)) return;
+  scene?.inspect(id);
   selected = id;
   detailPage = 0;
   relationPage = 0;
   render();
-  if (!immersive && matchMedia('(max-width: 690px)').matches) {
+  if (!stayInRoom && !immersive && matchMedia('(max-width: 690px)').matches) {
     const heading = $('#inspector h2');
     heading?.setAttribute('tabindex', '-1');
     $('#inspector').scrollIntoView({ behavior: 'instant', block: 'start' });
@@ -223,6 +270,7 @@ function updateScene() {
     { id: 'edit', label: 'Edit ↗', enabled: !!item && role !== 'reader' },
   ];
   scene.update({
+    catalog: filing!,
     title: state.workspace.title,
     nodes: filtered.slice(page * 6, page * 6 + 6),
     selected: node,
@@ -281,6 +329,12 @@ function render() {
   $('#sound-toggle').setAttribute('aria-pressed', String(sound));
   $('#comfort-sound').setAttribute('aria-pressed', String(sound));
   if (!state) return;
+  $('#cabinet-list').innerHTML = (filing?.cabinets ?? [])
+    .map(
+      (cabinet) =>
+        `<section class="cabinet-card"><h3>${esc(cabinet.label)}</h3><p>${cabinet.fileIds.length} folders · ${cabinet.missingKeys.length ? `${cabinet.missingKeys.length} missing keys` : 'keys ready'}</p><div class="actions">${[0, 1, 2].map((index) => `<button data-action="room:drawer:${esc(cabinet.id)}/${index}">Drawer ${index + 1}</button>`).join('')}${cabinet.requiredKeys.length ? `<button data-action="room:lock:${esc(cabinet.id)}">Unlock cabinet</button>` : ''}</div></section>`,
+    )
+    .join('');
   const filtered = visibleNodes(nodes, filter, search);
   page = Math.min(page, Math.max(0, Math.ceil(filtered.length / 6) - 1));
   $('#cards').innerHTML =
@@ -349,6 +403,7 @@ async function refresh(target = workspaceId) {
   remember('workspace', workspaceId);
   role = spaces.find((s) => s.id === workspaceId)?.role ?? 'reader';
   nodes = state ? semanticNodes(state, role) : [];
+  filing = state ? officeCatalog(state, role) : undefined;
   if (!selected || !state?.items.some((n) => n.id === selected))
     selected = state ? (nextTask(state, new Date().toISOString())?.id ?? nodes[0]?.id ?? '') : '';
   render();
@@ -370,13 +425,15 @@ async function prepareScene() {
     scene = new SpatialScene(
       $('#scene'),
       (action) => {
-        void act(action);
+        if (action.startsWith('select:')) setSelection(action.slice(7), true);
+        else void act(action);
       },
       (active) => {
         immersive = active;
         $('#enter-vr').textContent = active ? 'Exit VR' : 'Enter VR';
       },
       report,
+      updateOfficeControls,
     );
     $('#scene-loading').hidden = true;
     updateScene();
@@ -496,6 +553,31 @@ function openEdit(item?: WorkItem) {
   showDialog('edit-dialog');
 }
 async function act(action: string) {
+  if (action === 'next-focus' && state) {
+    const next = nextTask(state, new Date().toISOString());
+    if (next) {
+      setSelection(next.id, true);
+      scene?.officeAction('office:hold');
+    } else say('No actionable task. Review Needs first or your completed records.');
+    return;
+  }
+  if (action.startsWith('office:') || action.startsWith('room:')) {
+    scene?.officeAction(action.startsWith('room:') ? action.slice(5) : action);
+    return;
+  }
+  if (action.startsWith('look:')) {
+    scene?.look(action.slice(5) as 'left' | 'right' | 'desk' | 'files');
+    return;
+  }
+  if (action === 'office-fullscreen') {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await $('.stage').requestFullscreen();
+    } catch {
+      say('Use your browser full-screen control to expand the office.');
+    }
+    return;
+  }
   if (action === 'enter') {
     try {
       if (immersive) await scene?.exit();

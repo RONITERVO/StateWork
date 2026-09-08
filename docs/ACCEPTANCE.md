@@ -4,6 +4,19 @@ Local verification on **2026-09-08**, Windows 11 (`10.0.26200`), AMD Ryzen 9 795
 
 ## Passed
 
+### Interactive office — 2026-09-09
+
+- `npm run check`: **51 tests passed**, plus strict types, package boundaries, formatting, contracts and production build on Windows/Node 25.4.0.
+- Full browser suite: **40 passed, 8 explicitly skipped** across Chromium, Firefox and WebKit. Three actual WebGL/VR office scenarios and the denied-XR case run in Chromium; the other engines exercise browser work, keyboard, reflow and accessibility. The twelve Chromium office/Spatial scenarios also passed after the X-ray stereo correction.
+- Real mouse rays opened a cabinet, picked its physical folder and used the wooden stamp to finish both prerequisites, earn two keys, unlock the dependent file and complete it. Reset and reload retained the correct records and revisions.
+- Repeated pickup → X-ray → Quick View → file-all cycles stayed within the initial GPU geometry/texture counts (allowing only a small hover-geometry tolerance). A 390-pixel held-folder screenshot was inspected. These checks do not establish target-headset frame rate.
+- Unit/geometry checks cover 606 records including archives, complete trace traversal, every prerequisite key, waived keys, revocation, SDK completion gates, actual grip-parent transforms, hidden-file ray rejection, off-sheet retrieval, all key pages and disposal events. Overlay picking follows what is drawn through cabinets. X-ray avoids Three.js eye-reserved layers 1 and 2.
+- IWER 2.3.0 emulated a Quest session with actual WebXR frames: enter, controller ray pickup, grip attachment, squeeze release, X-ray, stereo rendering, disconnection, hidden-session recovery and exit. The stereo image was inspected in both eyes. IWER is injected only by tests and is absent from the product bundle.
+- Final focused rerun: the one-controller held-file/X-ray scenario passed, as did Spatial keyboard/accessibility/reflow checks on all three engines (**4 passed, 2 emulation-only skips**). A controller ray excludes its own held object so it can still reach desk controls.
+- Fictional desktop and emulated stereo captures are in `docs/images/office-dependencies.png` and `docs/images/office-xr-emulated.png`. No school records, personal workspace snapshots, credentials or local shortcut paths are included.
+
+**Physical headset testing remains unperformed.** This is working desktop software and a software-tested PC VR developer preview, not a hardware performance/comfort certification. See [office controls and extension seams](SPATIAL.md).
+
 ### Spatial addition — 2026-09-08
 
 Verified locally on the Windows/Node 25.4.0 environment above:
@@ -21,23 +34,23 @@ The desktop screenshot in `docs/images/spatial-desktop.png` contains only fictio
 
 ### Original foundation
 
-| Area | Actual evidence |
-| --- | --- |
-| Build and package boundaries | `npm run check`: strict library/reference type checks, 36 tests, formatting, core/SDK/reference import and host-boundary checks, generated contracts, production build |
-| Deterministic domain | Input immutability, repeated-result equality, stable navigation/order, dependency and containment cycles, single parent, duplicate IDs, completion and reopening rules |
-| Atomicity and concurrency | Failed batches leave no items/events/receipts; staged SQLite callback failure rolls back; two SQLite connections reject stale writers |
-| Durability | SQLite close/reopen retains state and retry receipts; exact retries add no event; online backup restores state and authentication hashes |
-| Permissions | Reader rejection, actor/workspace isolation, strict input rejection of actor/role fields, permission revocation before retries, token revocation |
-| Validation | Real leap dates, invalid dates/zones/intervals, unknown fields, cyclic/deep JSON, namespaced extensions, duplicate/broken imported graphs, optional-undefined normalization |
-| HTTP and schema | Local authentication, Host/origin/bootstrap checks, bounded/malformed inputs, API loop, full response validation, resolved OpenAPI references |
-| MCP | Actual subprocess transport: discovery, create, observe, mutation, exact retry, conflict and resource discovery |
-| Node compatibility | All 36 backend/protocol tests passed on Node 24.13.0 and 25.4.0 |
-| Browser workflows | 12 scenarios passed across Chromium, Firefox and WebKit: creation/editing/completion, persistence, all six views, export/import, saved queries, archive/restore, escaped text and dependency navigation |
-| Keyboard and reflow | Skip link, search shortcut, dialog Escape, focus/navigation, 375 px viewport in all six views; 200% text scale reflow in list/board/timeline/focus/text |
-| Automated accessibility | axe WCAG 2 A/AA, 2.1 AA, 2.2 AA tags: no reported violations in the six default desktop views on the three tested browser engines |
-| Local-only browser behavior | Browser tests observed no requests outside the local server; no external fonts, scripts or data services |
-| Examples | Headless dependency loop and perception negotiation/fallback ran successfully |
-| Dependency audit | `npm audit --omit=dev`: no known vulnerabilities reported for the installed runtime dependency set at verification time |
+| Area                         | Actual evidence                                                                                                                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build and package boundaries | `npm run check`: strict library/reference type checks, 36 tests, formatting, core/SDK/reference import and host-boundary checks, generated contracts, production build                                  |
+| Deterministic domain         | Input immutability, repeated-result equality, stable navigation/order, dependency and containment cycles, single parent, duplicate IDs, completion and reopening rules                                  |
+| Atomicity and concurrency    | Failed batches leave no items/events/receipts; staged SQLite callback failure rolls back; two SQLite connections reject stale writers                                                                   |
+| Durability                   | SQLite close/reopen retains state and retry receipts; exact retries add no event; online backup restores state and authentication hashes                                                                |
+| Permissions                  | Reader rejection, actor/workspace isolation, strict input rejection of actor/role fields, permission revocation before retries, token revocation                                                        |
+| Validation                   | Real leap dates, invalid dates/zones/intervals, unknown fields, cyclic/deep JSON, namespaced extensions, duplicate/broken imported graphs, optional-undefined normalization                             |
+| HTTP and schema              | Local authentication, Host/origin/bootstrap checks, bounded/malformed inputs, API loop, full response validation, resolved OpenAPI references                                                           |
+| MCP                          | Actual subprocess transport: discovery, create, observe, mutation, exact retry, conflict and resource discovery                                                                                         |
+| Node compatibility           | All 36 backend/protocol tests passed on Node 24.13.0 and 25.4.0                                                                                                                                         |
+| Browser workflows            | 12 scenarios passed across Chromium, Firefox and WebKit: creation/editing/completion, persistence, all six views, export/import, saved queries, archive/restore, escaped text and dependency navigation |
+| Keyboard and reflow          | Skip link, search shortcut, dialog Escape, focus/navigation, 375 px viewport in all six views; 200% text scale reflow in list/board/timeline/focus/text                                                 |
+| Automated accessibility      | axe WCAG 2 A/AA, 2.1 AA, 2.2 AA tags: no reported violations in the six default desktop views on the three tested browser engines                                                                       |
+| Local-only browser behavior  | Browser tests observed no requests outside the local server; no external fonts, scripts or data services                                                                                                |
+| Examples                     | Headless dependency loop and perception negotiation/fallback ran successfully                                                                                                                           |
+| Dependency audit             | `npm audit --omit=dev`: no known vulnerabilities reported for the installed runtime dependency set at verification time                                                                                 |
 
 The WebKit run uncovered a skipped anchor in its default keyboard behavior. The reference skip link and map anchors now have explicit zero tab stops. Desktop list/map and mobile/large-text screenshots were inspected locally; generated evidence is under `artifacts/screenshots/`. Playwright HTML/trace output is under `playwright-report/` and `test-results/` and is ignored by Git.
 

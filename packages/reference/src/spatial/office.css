@@ -1,0 +1,145 @@
+.work-grid {
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+#scene {
+  height: min(68vh, 740px);
+  min-height: 460px;
+  background: #9fa99c;
+}
+.stage {
+  border-color: #727966;
+}
+.stage-top {
+  background: #253d35;
+}
+.office-tools {
+  background: #1c3029;
+  border-top: 1px solid #6c745e;
+  padding: 12px 16px;
+}
+.office-tools .actions {
+  gap: 7px;
+}
+.office-tools button {
+  font-size: 12px;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: #334a3c;
+  border-color: #67785d;
+  color: #f5e8c5;
+}
+.office-tools button[aria-pressed='true'] {
+  background: #5c7561;
+  border-color: #d7bc74;
+  box-shadow: inset 0 -3px 0 #d7bc74;
+}
+.office-readout {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font:
+    12px/1.5 'Courier New',
+    monospace;
+  color: #e6d4a7;
+  margin-bottom: 10px;
+}
+.office-hint {
+  color: #d5decf;
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+.cabinet-index {
+  margin: 16px 0 0;
+  color: var(--muted);
+}
+.cabinet-index summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--ink);
+}
+.cabinet-list {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.cabinet-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.cabinet-card h3 {
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+.cabinet-card button {
+  font-size: 12px;
+  padding: 7px 10px;
+  min-height: 44px;
+}
+.stage:fullscreen {
+  background: #10151e;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+}
+.stage:fullscreen #scene {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.stage:fullscreen .scene-caption {
+  display: none;
+}
+.stage:fullscreen .office-tools {
+  flex-shrink: 0;
+}
+@media (max-width: 1180px) {
+  .work-grid {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+  #scene {
+    min-height: 430px;
+  }
+}
+@media (max-width: 920px) {
+  .work-grid {
+    display: block;
+  }
+  .work-aside {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .inspector {
+    margin-top: 0;
+  }
+  .cabinet-list {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 690px) {
+  .work-grid {
+    display: flex;
+  }
+  .work-aside {
+    display: contents;
+  }
+  #scene {
+    height: 430px;
+    min-height: 430px;
+  }
+  .office-tools button {
+    font-size: 12px;
+  }
+  .office-readout {
+    display: grid;
+    gap: 4px;
+  }
+}
