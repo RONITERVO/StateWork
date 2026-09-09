@@ -1,4 +1,5 @@
 import { WorkError, isFinished } from './model.js';
+import { applyInstructionCommand, latestPacket, packetIssues } from './instructions.js';
 import type { CommandRequest, CommandResult, Principal, WorkItem, WorkState } from './model.js';
 const structuredClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -59,6 +60,12 @@ export function transition(
   };
   for (const command of request.commands) {
     switch (command.type) {
+      case 'source.capture':
+      case 'packet.save':
+      case 'packet.review':
+      case 'packet.check':
+        applyInstructionCommand(next, command, actor, at);
+        break;
       case 'item.create': {
         if (next.items.some((i) => i.id === command.item.id))
           throw new WorkError('CONFLICT', 'Item ID already exists.');
@@ -153,6 +160,19 @@ export function transition(
       .map((r) => r.from),
   );
   for (const item of next.items) {
+    const packet = latestPacket(next, item.id);
+    if (
+      item.status === 'done' &&
+      state.items.find((i) => i.id === item.id)?.status !== 'done' &&
+      packet &&
+      (packetIssues(next, packet).length ||
+        packet.steps.some((s) => !packet.checks.some((c) => c.stepId === s.id)))
+    )
+      throw new WorkError(
+        'BLOCKED',
+        'Review and check the work packet before completing this task.',
+        { itemId: item.id, packetId: packet.id },
+      );
     if (item.status === 'done' && blockedIds.has(item.id))
       throw new WorkError(
         'BLOCKED',

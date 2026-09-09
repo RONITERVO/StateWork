@@ -5,12 +5,14 @@ import type { OfficeFeedback, OfficeTarget } from './office-world';
 import type { OfficeCatalog, OfficeHand } from './office-model';
 import type { DetectiveView } from './detective-board';
 import type { CalendarView } from './calendar';
+import type { PacketDeskView } from './packet-view';
 import { moveInOffice, officeLayout, snapTurn, stickVector } from './office-layout';
 import type { RoomPoint } from './office-layout';
 
 export interface SpatialView {
   board?: DetectiveView;
   calendar?: CalendarView;
+  packet?: PacketDeskView;
   movement?: boolean;
   title: string;
   nodes: SemanticNode[];
@@ -390,6 +392,9 @@ export class SpatialScene {
     this.invalidate();
   }
   update(view: SpatialView) {
+    this.renderer.domElement.dataset.packetOpen = String(view.packet?.open ?? false);
+    this.renderer.domElement.dataset.packetPage = String(view.packet?.page ?? 0);
+    this.renderer.domElement.dataset.packetStep = String(view.packet?.step ?? 0);
     this.walking = view.movement !== false;
     if (!this.walking) this.stopMovement();
     this.office.update(view);

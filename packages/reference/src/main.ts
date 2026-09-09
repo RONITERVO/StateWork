@@ -377,7 +377,7 @@ function renderContent() {
     );
     const item = actionable[0];
     content.innerHTML = item
-      ? `<div class="focus-view"><p class="eyebrow">JUST ONE THING</p>${taskCard(item, true)}<div class="focus-actions"><button class="primary" data-toggle="${esc(item.id)}">✓ Mark complete</button><button data-open="${esc(item.id)}">Open the context ↗</button></div><p class="muted">${actionable.length - 1} more actionable ${actionable.length === 2 ? 'item' : 'items'} on this page. They can wait.</p></div>`
+      ? `<div class="focus-view"><p class="eyebrow">JUST ONE THING</p>${taskCard(item, true)}<div class="focus-actions"><a class="button" href="/instructions/?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(item.id)}">Follow instructions / Print →</a><button class="primary" data-toggle="${esc(item.id)}">✓ Mark complete</button><button data-open="${esc(item.id)}">Open the context ↗</button></div><p class="muted">${actionable.length - 1} more actionable ${actionable.length === 2 ? 'item' : 'items'} on this page. They can wait.</p></div>`
       : '<div class="empty"><h2>No clear next step on this page</h2><p>Choose Next actions to find unblocked work, or open the list to resolve prerequisites.</p><button data-filter="next">Show next actions</button></div>';
   } else
     content.innerHTML = `<div class="text-view"><div class="text-actions"><button data-action="copy-text">Copy as text</button>${'speechSynthesis' in window ? '<button data-action="speak">Read aloud</button><button data-action="stop-speech">Stop reading</button>' : ''}</div><pre>${esc(textAdapter.render(observation, profile))}</pre><ol class="text-links">${items.map((i) => `<li><button data-open="${esc(i.id)}">Open ${esc(i.title)}</button></li>`).join('')}</ol><p class="view-note">Speech uses your browser’s local voices when available. Your work is never sent to a speech service by StateWork.</p></div>`;
@@ -411,7 +411,7 @@ function renderDetails() {
           .map((i) => `<option value="${esc(i.id)}">${esc(i.title)}</option>`)
           .join('')}</select><button type="submit">＋ Link</button></form>`
       : ''
-  }</section><div class="detail-bottom"><button data-archive="${esc(item.id)}" ${writable ? '' : 'disabled'}>${item.archived ? 'Restore from archive' : 'Move to archive'}</button><span>Version ${item.version}</span></div>`;
+  }</section><a class="button" href="/instructions/?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(item.id)}">Work packet / Print →</a><div class="detail-bottom"><button data-archive="${esc(item.id)}" ${writable ? '' : 'disabled'}>${item.archived ? 'Restore from archive' : 'Move to archive'}</button><span>Version ${item.version}</span></div>`;
 }
 function openDialog(id: string) {
   const dialog = $<HTMLDialogElement>(`#${id}-dialog`);
@@ -713,10 +713,10 @@ async function submit(form: HTMLFormElement) {
     announce('Preferences applied.');
   } else if (form.id === 'import-form') {
     const file = data.get('file') as File;
-    if (file.size > 1_000_000)
+    if (file.size > 16 * 1024 * 1024)
       throw new WorkError(
         'LIMIT',
-        'Browser imports support snapshots up to 1 MB. Use the CLI for larger workspaces.',
+        'Browser imports support snapshots up to 16 MiB. Use the CLI for larger workspaces.',
       );
     const imported = await client.import(JSON.parse(await file.text()), {
       id: uid(),

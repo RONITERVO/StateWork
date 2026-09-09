@@ -5,7 +5,7 @@ import { openLocal, seedDemo } from '@statework/node';
 import { textAdapter, defaultProfile, WorkError } from '@statework/sdk';
 import type { Role } from '@statework/core';
 const [op, ...args] = process.argv.slice(2);
-const help = `StateWork — local work graph\n\n  list\n  create <workspace-id> <title>\n  demo\n  observe <workspace-id> [query.json]\n  snapshot <workspace-id>\n  command <workspace-id> <request.json|->\n  events <workspace-id> [after]\n  export <workspace-id> <new-file.json>\n  import <snapshot.json> <new-workspace-id> <title>\n  backup <new-file.sqlite>\n  grant <workspace-id> <actor-id> <reader|editor|owner>\n  token <actor-id> <label>\n\nSTATEWORK_HOME selects the local data directory. Commands and MCP use the same domain and database.\nToken/grant are trusted provisioning operations for developers with local filesystem access.\n`;
+const help = `StateWork — local work graph\n\n  list\n  create <workspace-id> <title>\n  demo\n  observe <workspace-id> [query.json]\n  snapshot <workspace-id>\n  instructions <workspace-id> <task-id>\n  command <workspace-id> <request.json|->\n  events <workspace-id> [after]\n  export <workspace-id> <new-file.json>\n  import <snapshot.json> <new-workspace-id> <title>\n  backup <new-file.sqlite>\n  grant <workspace-id> <actor-id> <reader|editor|owner>\n  token <actor-id> <label>\n\nSTATEWORK_HOME selects the local data directory. Commands and MCP use the same domain and database.\nToken/grant are trusted provisioning operations for developers with local filesystem access.\n`;
 if (!op || op === 'help' || op === '--help') {
   process.stdout.write(help);
   process.exit(0);
@@ -42,6 +42,9 @@ try {
     }
     case 'snapshot':
       result = connection.snapshot(arg(0));
+      break;
+    case 'instructions':
+      result = connection.instructions(arg(0), arg(1));
       break;
     case 'command':
       result = connection.execute(arg(0), json(arg(1)));

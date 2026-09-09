@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { openLocal, seedDemo } from '@statework/node';
+import { openLocal, seedDemo, codexPacketAssistant } from '@statework/node';
 import { createServer } from './index.js';
 const local = openLocal();
 if (process.env.STATEWORK_DEMO !== '0') seedDemo(local.service.connect('local-owner'));
@@ -10,6 +10,7 @@ const app = await createServer({
   service: local.service,
   authenticate: (t) => local.store.authenticate(t),
   localToken: local.token,
+  packetAssistant: process.env.STATEWORK_CODEX === '0' ? undefined : codexPacketAssistant(),
   port,
   staticRoot: fileURLToPath(new URL('../../reference/dist', import.meta.url)),
 });

@@ -1,0 +1,314 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "taskId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "contextKey": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "outcome": {
+      "type": "string",
+      "maxLength": 12000
+    },
+    "requirements": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 12000
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "account",
+              "software",
+              "person",
+              "material",
+              "information"
+            ]
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "check": {
+            "type": "string",
+            "maxLength": 12000
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "citations": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourceId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                },
+                "quote": {
+                  "type": "string",
+                  "maxLength": 12000
+                },
+                "location": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "sourceId",
+                "quote",
+                "location"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "detail",
+          "kind",
+          "itemId",
+          "url",
+          "check",
+          "confirmed",
+          "citations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "steps": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 12000
+          },
+          "expected": {
+            "type": "string",
+            "maxLength": 12000
+          },
+          "ifBlocked": {
+            "type": "string",
+            "maxLength": 12000
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 525600
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actionUrl": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "requires": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+            }
+          },
+          "citations": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourceId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                },
+                "quote": {
+                  "type": "string",
+                  "maxLength": 12000
+                },
+                "location": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "sourceId",
+                "quote",
+                "location"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "instruction",
+          "expected",
+          "ifBlocked",
+          "minutes",
+          "actionUrl",
+          "requires",
+          "citations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "finish": {
+      "type": "string",
+      "maxLength": 12000
+    },
+    "questions": {
+      "maxItems": 200,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,159}$"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "resolve": {
+            "type": "string",
+            "maxLength": 12000
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "answer": {
+            "type": "string",
+            "maxLength": 12000
+          },
+          "citations": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourceId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                },
+                "quote": {
+                  "type": "string",
+                  "maxLength": 12000
+                },
+                "location": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "sourceId",
+                "quote",
+                "location"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "question",
+          "resolve",
+          "url",
+          "answer",
+          "citations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "sourceIds": {
+      "maxItems": 2000,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+      }
+    },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "codex",
+        "import"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "taskId",
+    "contextKey",
+    "title",
+    "outcome",
+    "requirements",
+    "steps",
+    "finish",
+    "questions",
+    "sourceIds",
+    "origin"
+  ],
+  "additionalProperties": false
+}

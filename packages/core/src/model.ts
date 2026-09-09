@@ -1,3 +1,4 @@
+import type { Instructions, InstructionCommand } from './instructions.js';
 export const SCHEMA_VERSION = 1 as const;
 export type ItemKind = 'task' | 'project' | 'note' | 'event';
 export type Status = 'inbox' | 'ready' | 'active' | 'done' | 'cancelled';
@@ -83,8 +84,11 @@ export interface WorkState {
   items: WorkItem[];
   relations: Relation[];
   views: SavedView[];
+  /** Optional additive source/packet store; old workspaces remain valid without it. */
+  instructions?: Instructions;
 }
 export type Command =
+  | InstructionCommand
   | { type: 'item.create'; item: ItemInput }
   | { type: 'item.update'; id: string; expectedVersion: number; patch: ItemPatch }
   | { type: 'item.archive'; id: string; expectedVersion: number; archived: boolean }

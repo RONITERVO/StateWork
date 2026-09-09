@@ -4,6 +4,18 @@ Local verification on **2026-09-08**, Windows 11 (`10.0.26200`), AMD Ryzen 9 795
 
 ## Passed
 
+### Work packets and optional local Codex — 2026-09-09
+
+- `npm run check`: **94 unit/backend tests passed** with strict types, boundaries, formatting, generated contracts and production build on Windows/Node 25.4.0.
+- Full browser regression: **81 passed, 18 explicitly skipped** across Chromium, Firefox and WebKit. The final packet workflow, source inclusion/coverage repair, print layout and room word wrapping were rechecked: **13 passed, 2 explicitly skipped**. XR emulation runs in Chromium only.
+- Evidence covers manual authoring, source provenance, exact quotations, coverage decisions, stale context, prerequisite/Done gates, ordered checks, undo/reopen, retained revisions, SQLite reload/export/import, reader/actor isolation, retry receipts, file extraction, public-address restrictions, async jobs and cancellation. A snapshot over the normal 1 MiB command limit imported through the dedicated snapshot route.
+- The actual local Codex CLI used an existing ChatGPT sign-in and produced a fictional three-step, three-citation draft with one unresolved question in about 25 seconds. No personal records or credentials were supplied. Fake-process tests verify structured stdin, disabled tool/config flags, credential environment removal, cancellation and temporary-file cleanup. Paid model calls are absent from CI.
+- A real public `example.com` capture succeeded; PDF, DOCX and UTF-8 extraction tests passed. Extraction is text only and emits coverage warnings. Source and assistant results remain previews until a writer explicitly saves them.
+- axe reported no violations on the reviewed packet page. Desktop, phone, both emulated eye images and every page of the two-page fictional print sample were visually inspected. Browser PDF output is not a certified tagged accessible PDF; the HTML route remains available.
+- Clean npm tarball installation passed SDK, SQLite, server, CLI, MCP and the packaged source worker without workspace symlinks. The fictional headless work-packet example completed successfully. Public screenshots contain only the kit-workshop fixture.
+
+Human review remains necessary: textual citation validation cannot prove factual correctness, semantic support or knowledge of every real-world requirement. Existing browser/connector sign-in is not inherited by the product. Authorized research uses a separate brief/context/import handoff. Physical headset comfort and performance remain unverified. See [workflow and developer contract](WORK_PACKETS.md).
+
 ### Wall calendar and daily planning — 2026-09-09
 
 - `npm run check`: **76 unit/backend tests passed**, with strict types, package boundaries, formatting, generated contracts and production build on Windows/Node 25.4.0.

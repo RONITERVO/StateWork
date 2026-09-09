@@ -1,4 +1,11 @@
-import { WorkClient, WorkError, observe, queryItems } from '@statework/sdk';
+import {
+  WorkClient,
+  WorkError,
+  observe,
+  queryItems,
+  latestPacket,
+  packetIssues,
+} from '@statework/sdk';
 import type {
   Command,
   CommandRequest,
@@ -27,6 +34,7 @@ import type { OfficeCatalog } from './office-model';
 import type { OfficeFeedback } from './office-world';
 import { DetectiveBoard } from './detective-board';
 import { WorkCalendar } from './calendar';
+import { packetDeskView } from './packet-view';
 import './calendar.css';
 import './style.css';
 import './office.css';
@@ -76,6 +84,10 @@ let movement = recalled('movement') !== 'false';
 let sound = false;
 let audioContext: AudioContext | undefined;
 let detailPage = 0;
+let packetOpen = false;
+let packetStep = 0;
+let packetPage = 0;
+let packetTask = '';
 let relationPage = 0;
 let pending: { workspace: string; request: CommandRequest } | null = null;
 let setupPending: {
@@ -165,7 +177,7 @@ officeTools
   .querySelector('.actions')!
   .insertAdjacentHTML(
     'afterbegin',
-    '<button data-action="cal:open-view" class="primary">Calendar</button><button data-action="board:open-view">Detective board</button>',
+    '<button data-action="packet:open">Work packet / Print</button><button data-action="packet:read">Read in room</button><button data-action="cal:open-view" class="primary">Calendar</button><button data-action="board:open-view">Detective board</button>',
   );
 officeTools
   .querySelector('[aria-label="Look around office"]')!
@@ -281,6 +293,11 @@ function updateScene() {
   if (!scene || !state) return;
   const node = selectedNode(),
     item = selectedItem();
+  if (packetTask !== item?.id) {
+    packetTask = item?.id ?? '';
+    packetStep = 0;
+    packetPage = 0;
+  }
   const filtered = visibleNodes(nodes, filter, search);
   const legal = node?.actions.find((a) => a.id === 'complete' || a.id === 'reopen');
   const parts = item?.description.match(/[\s\S]{1,180}/g) ?? [];
@@ -328,6 +345,14 @@ function updateScene() {
   scene.update({
     board: caseBoard.view,
     calendar: calendar.view,
+    packet: packetDeskView(
+      state,
+      item?.id ?? '',
+      packetStep,
+      packetPage,
+      packetOpen,
+      !busy && !pending && role !== 'reader',
+    ),
     movement,
     catalog: filing!,
     title: state.workspace.title,
@@ -437,6 +462,14 @@ function render() {
     );
     $('#inspector').innerHTML =
       `${stateBadge(node)}<h2 style="margin-top:12px">${esc(item.title)}</h2>${item.dueDate ? `<p class="muted">Due ${esc(item.dueDate)}</p>` : ''}${item.schedule ? `<p class="muted">${esc(new Date(item.schedule.start).toLocaleString())} · scheduled</p>` : ''}<div class="actions">${!['done', 'cancelled', 'active'].includes(item.status) ? `<button class="primary" data-action="start" ${!canWrite || blocked ? 'disabled' : ''}>Start</button>` : ''}${legal ? `<button data-action="${legal.id === 'reopen' ? 'reopen' : 'complete'}" ${!canWrite || !legal.enabled ? 'disabled' : ''}>${legal.id === 'reopen' ? 'Reopen' : 'Finish'}</button>` : ''}<button data-action="edit" ${!canWrite ? 'disabled' : ''}>Edit</button></div>${legal?.reason ? `<p class="muted" style="margin-top:12px">${esc(legal.reason)}</p>` : ''}${item.description ? `<h3>Small steps / notes</h3><p class="notes">${esc(item.description)}</p>` : ''}${link ? `<a id="resource-link" class="button" style="margin-top:16px;width:100%" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Open resource ↗</a><small>${esc(new URL(link).hostname)}</small>` : ''}<h3>Needs first</h3><div class="links">${prerequisites.map((r) => `<div><button data-action="select:${esc(r.targetId)}">◇ ${esc(r.targetLabel)}</button><button data-action="unlink:${esc(r.id)}" aria-label="Remove prerequisite: ${esc(r.targetLabel)}" ${!canWrite ? 'disabled' : ''}>Unlink</button></div>`).join('') || '<p class="muted">No prerequisites.</p>'}<button data-action="needs" ${!canWrite ? 'disabled' : ''}>＋ Add prerequisite</button></div>${otherLinks.length ? `<h3>Connected work</h3><div class="links">${otherLinks.map((r) => `<button data-action="select:${esc(r.targetId)}">${r.kind === 'contains' ? (r.direction === 'outgoing' ? '↳' : '↑') : '↔'} ${esc(r.targetLabel)}</button>`).join('')}</div>` : ''}`;
+  }
+  if (item) {
+    const packet = latestPacket(state, item.id);
+    const gaps = packet ? packetIssues(state, packet).length : 0;
+    $('#inspector').insertAdjacentHTML(
+      'afterbegin',
+      `<div class="actions"><button class="primary" data-action="packet:open">${packet ? (gaps ? '◇ Review instructions' : '▶ Follow instructions') : 'Build instructions'} / Print</button></div>`,
+    );
   }
   updateScene();
   if (restoreFocus && focusAction) {
@@ -626,6 +659,68 @@ function openEdit(item?: WorkItem) {
   showDialog('edit-dialog');
 }
 async function act(action: string) {
+  if (action.startsWith('packet:') && action !== 'packet:open') {
+    const item = selectedItem();
+    if (action === 'packet:read') {
+      packetOpen = true;
+      scene?.navigate('desk');
+    }
+    if (action === 'packet:close') packetOpen = false;
+    if (state && item) {
+      const view = packetDeskView(
+        state,
+        item.id,
+        packetStep,
+        packetPage,
+        true,
+        !busy && !pending && role !== 'reader',
+      );
+      if (action === 'packet:previous-page') packetPage = Math.max(0, view.page - 1);
+      if (action === 'packet:next-page') packetPage = Math.min(view.pages - 1, view.page + 1);
+      if (action === 'packet:previous-step') {
+        packetStep = Math.max(0, view.step - 1);
+        packetPage = 0;
+      }
+      if (action === 'packet:next-step') {
+        packetStep = Math.min(view.steps - 1, view.step + 1);
+        packetPage = 0;
+      }
+      if (
+        action === 'packet:check' &&
+        view.canCheck &&
+        !view.checked &&
+        view.packetId &&
+        view.stepId
+      ) {
+        busy = true;
+        try {
+          await command([
+            {
+              type: 'packet.check',
+              id: view.packetId,
+              stepId: view.stepId,
+              checked: true,
+              evidence: '',
+            },
+          ]);
+          packetStep = Math.min(view.steps - 1, view.step + 1);
+          packetPage = 0;
+        } finally {
+          busy = false;
+        }
+      }
+    }
+    render();
+    return;
+  }
+  if (action === 'packet:open') {
+    if (immersive) await scene?.exit();
+    const task = selectedItem() ?? calendar.next;
+    location.assign(
+      `/instructions/?workspace=${encodeURIComponent(workspaceId)}${task ? `&task=${encodeURIComponent(task.id)}` : ''}`,
+    );
+    return;
+  }
   if (action === 'board:open-view' && immersive) await scene?.exit();
   if (action === 'cal:open-view' && immersive) await scene?.exit();
   if (action.startsWith('cal:')) {

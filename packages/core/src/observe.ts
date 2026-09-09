@@ -1,5 +1,6 @@
 import { isFinished, WorkError } from './model.js';
 import type { Principal, Query, Relation, WorkItem, WorkState } from './model.js';
+import { latestPacket, packetIssues } from './instructions.js';
 
 export interface SemanticNode {
   id: string;
@@ -125,12 +126,34 @@ export function observe(
       .filter((i) => !isFinished(i));
     const writable = principal.role !== 'reader';
     const finished = isFinished(item);
+    const packet = latestPacket(state, item.id);
+    const instructionGaps = packet ? packetIssues(state, packet) : [];
+    const packetPending =
+      !!packet &&
+      (instructionGaps.length > 0 ||
+        packet.steps.some((s) => !packet.checks.some((c) => c.stepId === s.id)));
     return {
       id: item.id,
       label: item.title,
       kind: item.kind,
       summary: `${item.title}. ${item.kind}. ${item.status}.${item.dueDate ? ` Due ${item.dueDate}.` : ''}${blocked.length ? ` Waiting for ${blocked.map((i) => i.title).join(', ')}.` : ''}`,
       facts: [
+        ...(packet
+          ? [
+              { key: 'packet.id', label: 'Work packet', value: packet.id },
+              {
+                key: 'packet.ready',
+                label: 'Instructions reviewed and current',
+                value: instructionGaps.length === 0,
+              },
+              {
+                key: 'packet.checked',
+                label: 'Instruction results checked',
+                value: packet.checks.length,
+              },
+              { key: 'packet.steps', label: 'Instruction steps', value: packet.steps.length },
+            ]
+          : []),
         { key: 'status', label: 'Status', value: item.status },
         { key: 'priority', label: 'Priority', value: item.priority },
         { key: 'blocked', label: 'Waiting for prerequisites', value: blocked.length > 0 },
@@ -167,14 +190,18 @@ export function observe(
         {
           id: finished ? 'reopen' : 'complete',
           label: finished ? 'Move to ready' : 'Mark complete',
-          enabled: writable && (finished ? !completedDependents.has(item.id) : !blocked.length),
+          enabled:
+            writable &&
+            (finished ? !completedDependents.has(item.id) : !blocked.length && !packetPending),
           reason: !writable
             ? 'Read-only connection'
             : blocked.length && !finished
               ? 'Finish prerequisites first'
               : finished && completedDependents.has(item.id)
                 ? 'Reopen completed dependents in the same batch first'
-                : undefined,
+                : !finished && packetPending
+                  ? 'Open the work packet; review instructions and check each result'
+                  : undefined,
         },
         {
           id: item.archived ? 'restore' : 'archive',

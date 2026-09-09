@@ -236,7 +236,7 @@ describe('local HTTP boundary', () => {
   it('publishes a versioned OpenAPI contract covering each public operation', () => {
     const spec = openapi();
     expect(spec.openapi).toBe('3.1.0');
-    expect(Object.keys(spec.paths)).toHaveLength(8);
+    expect(Object.keys(spec.paths)).toHaveLength(15);
     expect(spec.components.schemas.CommandRequest).toHaveProperty('properties');
     const walk = (node: unknown): void => {
       if (node && typeof node === 'object')

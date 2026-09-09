@@ -18,9 +18,17 @@ import {
   importSchema,
   errorSchema,
   parse,
+  instructionResultSchema,
+  packetInputSchema,
+  workPacketSchema,
+  sourceInputSchema,
+  sourceExtractSchema,
+  sourceFetchSchema,
 } from '@statework/sdk';
 import type { WorkService } from '@statework/sdk';
 import { existsSync } from 'node:fs';
+import type { PacketAssistant } from '@statework/node';
+import { instructionRoutes } from './instructions.js';
 interface Options {
   service: WorkService;
   authenticate: (token: string) => string | undefined;
@@ -29,6 +37,7 @@ interface Options {
   port?: number;
   /** Trusted host configuration; the personal app retains the 600/minute default. */
   requestsPerMinute?: number;
+  packetAssistant?: PacketAssistant;
 }
 export async function createServer(options: Options) {
   const app = Fastify({
@@ -124,6 +133,7 @@ export async function createServer(options: Options) {
       });
       const connection = (header: string | undefined) =>
         options.service.connect(options.authenticate(header!.slice(7))!);
+      await instructionRoutes(api, connection, options.packetAssistant);
       api.get('/workspaces', async (r) => connection(r.headers.authorization).list());
       api.post('/workspaces', async (r, reply) =>
         reply.code(201).send(connection(r.headers.authorization).create(r.body)),
@@ -154,7 +164,7 @@ export async function createServer(options: Options) {
           .header('Content-Disposition', 'attachment; filename="statework-snapshot.json"')
           .send(connection(r.headers.authorization).export(r.params.id)),
       );
-      api.post('/import', async (r, reply) => {
+      api.post('/import', { bodyLimit: 20 * 1024 * 1024 }, async (r, reply) => {
         const body = parse(importSchema, r.body);
         return reply
           .code(201)
@@ -203,6 +213,10 @@ export function openapi() {
     Snapshot: snapshotSchema,
     Import: importSchema,
     Error: errorSchema,
+    InstructionResult: instructionResultSchema,
+    PacketInput: packetInputSchema,
+    WorkPacket: workPacketSchema,
+    SourceInput: sourceInputSchema,
   };
   const schemas = Object.fromEntries(
     Object.entries(definitions).map(([name, definition]) => {
@@ -242,6 +256,123 @@ export function openapi() {
       schemas,
     },
     paths: {
+      '/workspaces/{id}/instructions/{taskId}': {
+        parameters: [
+          pathParam,
+          { name: 'taskId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        get: {
+          operationId: 'workInstructions',
+          description:
+            'Read task context, source captures, latest packet, computed gaps and revision history.',
+          responses: response({ $ref: '#/components/schemas/InstructionResult' }),
+        },
+      },
+      '/workspaces/{id}/instructions/{taskId}/prompt': {
+        parameters: [
+          pathParam,
+          { name: 'taskId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        get: {
+          operationId: 'instructionResearchBrief',
+          responses: response({
+            type: 'object',
+            required: ['prompt'],
+            properties: { prompt: { type: 'string' } },
+          }),
+        },
+      },
+      '/workspaces/{id}/assistant': {
+        parameters: [pathParam],
+        get: {
+          operationId: 'instructionAssistant',
+          responses: response({
+            type: 'object',
+            required: ['available', 'name', 'message'],
+            properties: {
+              available: { type: 'boolean' },
+              name: { type: 'string' },
+              message: { type: 'string' },
+            },
+          }),
+        },
+      },
+      '/workspaces/{id}/instructions/{taskId}/draft': {
+        parameters: [
+          pathParam,
+          { name: 'taskId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        post: {
+          operationId: 'draftInstructions',
+          description:
+            'Explicitly send selected context to the optional host assistant. Returns a short-lived job, never writes work. Writer role required. Uses the local Codex sign-in when configured.',
+          responses: response(
+            {
+              type: 'object',
+              required: ['id', 'state'],
+              properties: { id: { type: 'string' }, state: { type: 'string' } },
+            },
+            '202',
+          ),
+        },
+      },
+      '/workspaces/{id}/drafts/{jobId}': {
+        parameters: [
+          pathParam,
+          { name: 'jobId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        get: {
+          operationId: 'instructionDraftStatus',
+          description:
+            'Only the initiating actor can read this job. Jobs expire after 30 minutes or host restart.',
+          responses: response({
+            type: 'object',
+            properties: {
+              state: { enum: ['running', 'done', 'failed', 'cancelled'] },
+              packet: { anyOf: [{ $ref: '#/components/schemas/PacketInput' }, { type: 'null' }] },
+              error: { type: ['string', 'null'] },
+            },
+          }),
+        },
+        delete: {
+          operationId: 'cancelInstructionDraft',
+          responses: response({ type: 'object', properties: { state: { const: 'cancelled' } } }),
+        },
+      },
+      '/workspaces/{id}/sources/extract': {
+        parameters: [pathParam],
+        post: {
+          operationId: 'extractSourceText',
+          description:
+            'Locally extract an explicitly supplied file, at most 8 MiB. Does not save a capture. PDF/DOCX text excludes visual information; review warnings.',
+          requestBody: body(jsonSchema(sourceExtractSchema)),
+          responses: response({
+            type: 'object',
+            properties: {
+              content: { type: 'string' },
+              warnings: { type: 'array', items: { type: 'string' } },
+            },
+          }),
+        },
+      },
+      '/workspaces/{id}/sources/fetch': {
+        parameters: [pathParam],
+        post: {
+          operationId: 'capturePublicSource',
+          description:
+            'Fetch one public URL without cookies. Redirects are checked; private/local networks blocked. Returned HTML is untrusted data. Does not save a capture.',
+          requestBody: body(jsonSchema(sourceFetchSchema)),
+          responses: response({
+            type: 'object',
+            properties: {
+              content: { type: 'string' },
+              warnings: { type: 'array', items: { type: 'string' } },
+              url: { type: 'string' },
+              html: { type: 'boolean' },
+            },
+          }),
+        },
+      },
       '/workspaces': {
         get: {
           operationId: 'listWorkspaces',
