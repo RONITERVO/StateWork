@@ -17,13 +17,18 @@ npm run cli -- import personal-snapshot.json personal-copy "Imported work"
 npm run cli -- backup statework-backup.sqlite
 npm run cli -- handoff personal task-id
 npm run cli -- files personal
+npm run cli -- storage personal
 npm run cli -- source personal capture-id
 npm run cli -- file-export personal asset-id original-file.pdf
 npm run cli -- bundle-export personal personal-bundle.json
 npm run cli -- bundle-import personal-bundle.json another-copy "Work and files"
+npm run cli -- package-export personal personal-files
+npm run cli -- package-import personal-files full-copy "Work and all originals"
 ```
 
 `command` accepts a JSON file or `-` for stdin. `observe` optionally accepts a query JSON file. Mutation input is the complete versioned command request, including revision and request ID. CLI successes use stdout; errors use stderr and a nonzero exit code. Export/backup refuses an existing destination. Paths are ordinary trusted local CLI paths, not HTTP-controlled paths.
+
+`storage` separates actual stored bytes from repeated file identities and reports transfer limits. Use `package-export` for collections beyond the inline JSON limits; the directory contains a small manifest and full-quality originals stored by SHA-256. Preserve both `manifest.json` and `blobs`. `package-import` creates a new workspace only after every declared original is validated. Node hosts can use `exportFilePackage(connection, id, newDirectory)` and `importFilePackage(connection, directory, target)` from `@statework/node`.
 
 For a read-only adapter, trusted provisioning can create a distinct identity:
 

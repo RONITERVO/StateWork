@@ -46,7 +46,7 @@ export function workerHandoff(
       ...(packet?.checks ?? []).flatMap((c) => (c.outputs ?? []).map((o) => o.assetId)),
     ]);
     const assets = (state.instructions?.assets ?? [])
-      .filter((a) => assetIds.has(a.id))
+      .filter((a) => !a.archive && assetIds.has(a.id))
       .map((a) => ({
         ...a,
         available: environment.availableAssetIds?.includes(a.id) ?? false,

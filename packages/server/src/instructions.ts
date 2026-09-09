@@ -9,6 +9,7 @@ import {
   workerEnvironmentSchema,
   reconcilePacketProposal,
   packetInputSchema,
+  FILE_LIMIT,
 } from '@statework/sdk';
 import type { WorkConnection, PacketInput } from '@statework/sdk';
 
@@ -45,7 +46,7 @@ export async function instructionRoutes(
   };
   const decodeFile = (base64: string) => {
     const bytes = Buffer.from(base64, 'base64');
-    if (bytes.byteLength > 64 * 1024 * 1024) throw new WorkError('LIMIT', 'File exceeds 64 MiB.');
+    if (bytes.byteLength > FILE_LIMIT) throw new WorkError('LIMIT', 'File exceeds 128 MiB.');
     if (bytes.toString('base64') !== base64)
       throw new WorkError('VALIDATION', 'File encoding is invalid.');
     return new Uint8Array(bytes);
@@ -61,6 +62,9 @@ export async function instructionRoutes(
   );
   api.get<{ Params: { id: string } }>('/workspaces/:id/assets', async (r) =>
     connection(r.headers.authorization).assetManifest(r.params.id),
+  );
+  api.get<{ Params: { id: string } }>('/workspaces/:id/storage', async (r) =>
+    connection(r.headers.authorization).storageInfo(r.params.id),
   );
   api.get<{ Params: { id: string } }>('/workspaces/:id/bundle', async (r) =>
     connection(r.headers.authorization).exportBundle(r.params.id),
@@ -100,7 +104,7 @@ export async function instructionRoutes(
   );
   api.post<{ Params: { id: string } }>(
     '/workspaces/:id/assets',
-    { bodyLimit: 90 * 1024 * 1024 },
+    { bodyLimit: 180 * 1024 * 1024 },
     async (r, reply) => {
       const c = editor(r.headers.authorization, r.params.id);
       const { base64, ...input } = parse(assetUploadSchema, r.body);
@@ -109,7 +113,7 @@ export async function instructionRoutes(
   );
   api.post<{ Params: { id: string; assetId: string } }>(
     '/workspaces/:id/assets/:assetId/restore',
-    { bodyLimit: 90 * 1024 * 1024 },
+    { bodyLimit: 180 * 1024 * 1024 },
     async (r) => {
       const c = editor(r.headers.authorization, r.params.id);
       return c.restoreAsset(

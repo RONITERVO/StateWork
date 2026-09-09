@@ -3,12 +3,16 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { WorkError } from '@statework/core';
 import type { DomainEvent, Role, WorkState } from '@statework/core';
 import type { AssetBytes, Receipt, Transaction, WorkspaceStore } from '@statework/sdk';
+import { FILE_LIMIT, fileStorageLimits } from '@statework/sdk';
+import type { FileStorageOptions } from '@statework/sdk';
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
 export class SqliteStore implements WorkspaceStore {
   readonly assetSupport = true as const;
+  readonly fileLimits;
   readonly upgradeBackup: string | null;
   private db: DatabaseSync;
-  constructor(path: string) {
+  constructor(path: string, options: FileStorageOptions = {}) {
+    this.fileLimits = fileStorageLimits(options);
     this.db = new DatabaseSync(path);
     this.db.exec(
       'PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;',
@@ -51,7 +55,7 @@ export class SqliteStore implements WorkspaceStore {
       )
       .all(actorId) as { id: string; title: string; revision: number; role: Role }[];
   }
-  create(state: WorkState, actorId: string, assets: AssetBytes[] = []): void {
+  create(state: WorkState, actorId: string, assets: Iterable<AssetBytes> = []): void {
     this.transaction(() => {
       if (this.db.prepare('SELECT id FROM workspaces WHERE id=?').get(state.workspace.id))
         throw new WorkError('CONFLICT', 'Workspace ID already exists.');
@@ -143,6 +147,12 @@ export class SqliteStore implements WorkspaceStore {
               .prepare('SELECT length(bytes) AS size FROM assets WHERE workspace_id=? AND sha256=?')
               .get(workspaceId, digest) as { size: number } | undefined
           )?.size,
+        assetUsage: () =>
+          this.db
+            .prepare(
+              'SELECT coalesce(sum(length(bytes)),0) AS bytes,count(*) AS count FROM assets WHERE workspace_id=?',
+            )
+            .get(workspaceId) as { bytes: number; count: number },
         putAsset: (digest, bytes) => this.putAsset(workspaceId, digest, bytes),
       });
     });
@@ -159,7 +169,7 @@ export class SqliteStore implements WorkspaceStore {
   }
   private putAsset(workspaceId: string, digest: string, bytes: Uint8Array): void {
     if (
-      bytes.byteLength > 64 * 1024 * 1024 ||
+      bytes.byteLength > FILE_LIMIT ||
       createHash('sha256').update(bytes).digest('hex') !== digest
     )
       throw new WorkError('VALIDATION', 'File size or digest is invalid.');
@@ -169,8 +179,8 @@ export class SqliteStore implements WorkspaceStore {
     const total = this.db
       .prepare('SELECT coalesce(sum(length(bytes)),0) AS size FROM assets WHERE workspace_id=?')
       .get(workspaceId) as { size: number };
-    if (total.size - (existing?.size ?? 0) + bytes.byteLength > 256 * 1024 * 1024)
-      throw new WorkError('LIMIT', 'Workspace files exceed 256 MiB.');
+    if (total.size - (existing?.size ?? 0) + bytes.byteLength > this.fileLimits.workspaceBytes)
+      throw new WorkError('LIMIT', 'Workspace files exceed the configured file quota.');
     this.db
       .prepare(
         'INSERT INTO assets VALUES(?,?,?) ON CONFLICT(workspace_id,sha256) DO UPDATE SET bytes=excluded.bytes',

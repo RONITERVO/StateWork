@@ -236,7 +236,8 @@ describe('local HTTP boundary', () => {
   it('publishes a versioned OpenAPI contract covering each public operation', () => {
     const spec = openapi();
     expect(spec.openapi).toBe('3.1.0');
-    expect(Object.keys(spec.paths)).toHaveLength(22);
+    expect(Object.keys(spec.paths)).toHaveLength(23);
+    expect(spec.paths['/workspaces/{id}/storage'].get.operationId).toBe('fileStorageInfo');
     expect(spec.paths['/workspaces/{id}/instructions/{taskId}/handoff'].post.operationId).toBe(
       'workerHandoff',
     );

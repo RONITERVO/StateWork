@@ -22,7 +22,23 @@ Use **Files → Workspace + files**, or `npm run cli -- bundle-export personal p
 
 The versioned `statework.bundle` includes the snapshot, deduplicated original file bytes and an explicit missing-file list. Import checks every digest and file identity before atomically creating a new workspace. A snapshot or packet export preserves file metadata but does not include bytes. Restore a missing file only with bytes matching its saved digest; replacement files receive new identities.
 
-Limits are 64 MiB per file and 256 MiB of unique bytes per workspace. Base64 increases JSON transfer size; the bundle import route accepts up to 380 MiB. Use a full database backup to retain events, receipts and memberships as well.
+Inline JSON bundles retain their 64 MiB per-file and 256 MiB total limits. Base64 increases transfer size; the bundle import route accepts up to 380 MiB. Larger collections use a portable directory package. Use a full database backup to retain events, receipts and memberships as well.
+
+## Larger collections: portable directory
+
+```sh
+npm run cli -- storage personal
+npm run cli -- package-export personal personal-files
+npm run cli -- package-import personal-files personal-copy "Work and files"
+```
+
+The new destination contains `manifest.json` and `blobs/<sha256>` files. Keep them together. `statework.file-package` version 1 preserves the snapshot, original bytes and explicit missing identities. Export reads one consistent workspace revision; import validates every declared size and digest while creating a new workspace atomically. A failed import leaves no partial workspace. No credentials, memberships, events or receipts are included.
+
+Files remain at full original quality: there is no resizing, recompression or conversion. Identical bytes are stored once per workspace while distinct source locators and task associations remain intact. Directory transfer reads one original at a time, avoiding an enormous base64 JSON string. Paths are supplied only through trusted local CLI/Node helpers; source metadata cannot choose host paths.
+
+Current storage supports 128 MiB per file and defaults to 2 GiB of unique bytes per workspace. `STATEWORK_WORKSPACE_FILE_LIMIT_BYTES` sets a deliberate local-host workspace quota; `storage` reports the effective quota and usage. This controls stored originals, independently of the smaller inline JSON transfer bounds. Allow disk space for backups, SQLite transaction files and temporary package imports. Earlier builds still enforce the smaller per-file schema and cannot read a newer snapshot containing files larger than 64 MiB; use a current build for those maps.
+
+Archiving removes an incidental file from active suggestions and lists while preserving exact bytes, identity and history. Archive only after replacing current instructions that still use the file. Archived bytes still count toward storage and remain in portable exports; archiving is reversible organization, not disk-space reclamation. File downloads remain available for historical references.
 
 ## Full database backup
 

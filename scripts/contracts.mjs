@@ -9,6 +9,7 @@ import {
   sourceInputSchema,
   workerHandoffSchema,
   fileBundleSchema,
+  filePackageSchema,
 } from '@statework/sdk';
 mkdirSync('schemas', { recursive: true });
 for (const [name, schema] of Object.entries({
@@ -20,6 +21,7 @@ for (const [name, schema] of Object.entries({
   'source-capture.schema': jsonSchema(sourceInputSchema),
   'worker-handoff.schema': jsonSchema(workerHandoffSchema),
   'file-bundle.schema': jsonSchema(fileBundleSchema),
+  'file-package.schema': jsonSchema(filePackageSchema),
 }))
   writeFileSync(`schemas/${name}.json`, JSON.stringify(schema, null, 2) + '\n');
 console.log('Exported versioned OpenAPI and JSON Schema contracts.');

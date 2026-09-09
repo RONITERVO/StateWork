@@ -1,6 +1,6 @@
 import { WorkError, isFinished } from './model.js';
 import type { Command, Principal, Relation, WorkItem, WorkState } from './model.js';
-import { registerAsset } from './resources.js';
+import { archiveAsset, packetAssetIds, registerAsset, relinkAsset } from './resources.js';
 import type { AssetInput, WorkAsset, WorkReference } from './resources.js';
 import type {
   ExecutionContract,
@@ -109,6 +109,8 @@ export interface Instructions {
 }
 export type InstructionCommand =
   | { type: 'asset.register'; asset: AssetInput }
+  | { type: 'asset.archive'; id: string; archived: boolean; reason: string }
+  | { type: 'asset.relink'; id: string; taskIds: string[]; reason: string }
   | { type: 'source.capture'; source: SourceInput }
   | { type: 'packet.save'; packet: PacketInput; expectedPacketId: string | null }
   | { type: 'packet.review'; id: string }
@@ -237,8 +239,8 @@ export function packetContext(state: WorkState, taskId: string): PacketContext {
     ...keyData,
     items: keyData.items.map((i) => ({ ...i, status: null })),
   });
-  const assets = (state.instructions?.assets ?? []).filter((a) =>
-    a.taskIds.some((id) => ids.has(id)),
+  const assets = (state.instructions?.assets ?? []).filter(
+    (a) => !a.archive && a.taskIds.some((id) => ids.has(id)),
   );
   return { task, items, relations, sources, assets, links, key, procedureKey };
 }
@@ -396,6 +398,10 @@ export function applyInstructionCommand(
   const data = (state.instructions ??= { sources: [], packets: [] });
   if (command.type === 'asset.register') {
     registerAsset(state, command.asset, actor, at);
+  } else if (command.type === 'asset.archive') {
+    archiveAsset(state, command.id, command.archived, command.reason, actor, at);
+  } else if (command.type === 'asset.relink') {
+    relinkAsset(state, command.id, command.taskIds);
   } else if (command.type === 'source.capture') {
     if (data.sources.length >= 2000)
       throw new WorkError('LIMIT', 'This workspace supports 2,000 source captures.');
@@ -429,6 +435,12 @@ export function applyInstructionCommand(
       throw new WorkError('CONFLICT', 'Task context changed. Reconcile the draft before saving.');
     if (packet.sourceIds.some((id) => !data.sources.some((s) => s.id === id)))
       throw new WorkError('NOT_FOUND', 'Packet references an unavailable source.');
+    const assetIds = packetAssetIds(state, packet);
+    if (data.assets?.some((a) => a.archive && assetIds.has(a.id)))
+      throw new WorkError(
+        'BLOCKED',
+        'Restore archived files before using them in current instructions.',
+      );
     data.packets.push({
       ...packet,
       revision: (latest?.revision ?? 0) + 1,
@@ -512,7 +524,7 @@ export function applyInstructionCommand(
                 (o) => o.id === output.outputId && o.stepId === step.id,
               ) ||
               !data.assets?.some(
-                (a) => a.id === output.assetId && a.taskIds.includes(packet.taskId),
+                (a) => !a.archive && a.id === output.assetId && a.taskIds.includes(packet.taskId),
               )
             )
               throw new WorkError(

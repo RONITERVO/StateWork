@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { instructionUrl } from '@statework/core';
+import { FILE_LIMIT, FILE_BASE64_LIMIT } from './files.js';
 
 // Kept independent of schemas.ts so the command union can include these contracts.
 const id = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/);
@@ -38,17 +39,17 @@ export const assetInputSchema = z.strictObject({
     .string()
     .max(120)
     .regex(/^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/),
-  size: z
-    .number()
-    .int()
-    .min(0)
-    .max(64 * 1024 * 1024),
+  size: z.number().int().min(0).max(FILE_LIMIT),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
   description: text,
   locator: z.string().max(2048),
   replaces: id.nullable(),
 });
-export const workAssetSchema = assetInputSchema.extend({ capturedAt: instant, capturedBy: id });
+export const workAssetSchema = assetInputSchema.extend({
+  capturedAt: instant,
+  capturedBy: id,
+  archive: z.strictObject({ at: instant, by: id, reason: text.trim().min(1) }).optional(),
+});
 export const workReferenceSchema = z.strictObject({
   id,
   label,
@@ -87,9 +88,9 @@ export const assetUploadSchema = z.strictObject({
   requestId: id,
   expectedRevision: z.number().int().min(0),
   asset: assetInputSchema.omit({ size: true, sha256: true }),
-  base64: z.string().max(89478488),
+  base64: z.string().max(FILE_BASE64_LIMIT),
 });
-export const assetRestoreSchema = z.strictObject({ base64: z.string().max(89478488) });
+export const assetRestoreSchema = z.strictObject({ base64: z.string().max(FILE_BASE64_LIMIT) });
 export const sourceInputSchema = z.strictObject({
   id,
   taskIds: ids(100).min(1),
@@ -217,6 +218,18 @@ export const instructionsSchema = z.strictObject({
 });
 export const instructionCommandSchemas = [
   z.strictObject({ type: z.literal('asset.register'), asset: assetInputSchema }),
+  z.strictObject({
+    type: z.literal('asset.archive'),
+    id,
+    archived: z.boolean(),
+    reason: text.trim().min(1),
+  }),
+  z.strictObject({
+    type: z.literal('asset.relink'),
+    id,
+    taskIds: ids(100).min(1),
+    reason: text.trim().min(1),
+  }),
   z.strictObject({ type: z.literal('source.capture'), source: sourceInputSchema }),
   z.strictObject({
     type: z.literal('packet.save'),

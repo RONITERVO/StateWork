@@ -67,6 +67,8 @@ export function transition(
     switch (command.type) {
       case 'source.capture':
       case 'asset.register':
+      case 'asset.archive':
+      case 'asset.relink':
       case 'packet.confirm':
       case 'packet.save':
       case 'packet.review':

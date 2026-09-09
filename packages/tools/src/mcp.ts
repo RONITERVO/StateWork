@@ -55,7 +55,7 @@ server.registerTool(
   'work_attach_file',
   {
     description:
-      'Attach an original input or result file up to 1 MiB using canonical base64, a new asset ID, expectedRevision and retry requestId. Bytes and immutable metadata commit atomically. For larger files use HTTP or CLI (64 MiB limit). This does not mark a result checked or authorize external actions. No host file paths are accepted.',
+      'Attach an original input or result file up to 1 MiB using canonical base64, a new asset ID, expectedRevision and retry requestId. Bytes and immutable metadata commit atomically. For larger files use HTTP or CLI (128 MiB limit). This does not mark a result checked or authorize external actions. No host file paths are accepted.',
     inputSchema: {
       workspaceId: idSchema,
       upload: assetUploadSchema.extend({ base64: z.string().max(1398104) }),

@@ -5,7 +5,13 @@ import { SqliteStore } from './sqlite.js';
 export function openLocal(directory = process.env.STATEWORK_HOME ?? '.statework') {
   const home = resolve(directory);
   mkdirSync(home, { recursive: true, mode: 0o700 });
-  const store = new SqliteStore(join(home, 'statework.sqlite'));
+  const quota = process.env.STATEWORK_WORKSPACE_FILE_LIMIT_BYTES;
+  if (quota !== undefined && !/^[1-9]\d*$/.test(quota))
+    throw new Error('STATEWORK_WORKSPACE_FILE_LIMIT_BYTES must be a positive integer byte count.');
+  const store = new SqliteStore(
+    join(home, 'statework.sqlite'),
+    quota === undefined ? {} : { workspaceFileLimit: Number(quota) },
+  );
   const tokenPath = join(home, 'local-token');
   let token: string;
   if (existsSync(tokenPath)) {

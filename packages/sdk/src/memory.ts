@@ -1,6 +1,8 @@
 import { WorkError } from '@statework/core';
 import type { DomainEvent, Role, WorkState } from '@statework/core';
 import type { AssetBytes, Receipt, Transaction, WorkspaceStore } from './service.js';
+import { FILE_LIMIT, fileStorageLimits } from './files.js';
+import type { FileStorageOptions } from './files.js';
 interface RecordState {
   state: WorkState;
   members: Map<string, Role>;
@@ -10,7 +12,11 @@ interface RecordState {
 }
 export class MemoryStore implements WorkspaceStore {
   readonly assetSupport = true as const;
+  readonly fileLimits;
   private records = new Map<string, RecordState>();
+  constructor(options: FileStorageOptions = {}) {
+    this.fileLimits = fileStorageLimits(options);
+  }
   list(actorId: string) {
     return [...this.records.values()]
       .filter((r) => r.members.has(actorId))
@@ -21,15 +27,21 @@ export class MemoryStore implements WorkspaceStore {
         role: r.members.get(actorId)!,
       }));
   }
-  create(state: WorkState, actorId: string, assets: AssetBytes[] = []): void {
+  create(state: WorkState, actorId: string, assets: Iterable<AssetBytes> = []): void {
     if (this.records.has(state.workspace.id))
       throw new WorkError('CONFLICT', 'Workspace ID already exists.');
+    const originals = new Map<string, Uint8Array>();
+    let total = 0;
+    for (const asset of assets) {
+      total = this.checkAsset(originals, asset.sha256, asset.bytes, total);
+      originals.set(asset.sha256, new Uint8Array(asset.bytes));
+    }
     this.records.set(state.workspace.id, {
       state: structuredClone(state),
       members: new Map([[actorId, 'owner']]),
       receipts: new Map(),
       events: [],
-      assets: new Map(assets.map((a) => [a.sha256, new Uint8Array(a.bytes)])),
+      assets: originals,
     });
   }
   grant(workspaceId: string, actorId: string, role: Role): void {
@@ -42,7 +54,11 @@ export class MemoryStore implements WorkspaceStore {
       role = record?.members.get(actorId);
     if (!record || !role)
       throw new WorkError('NOT_FOUND', 'Workspace is unavailable to this connection.');
-    const staged = structuredClone(record);
+    // Bytes are private and immutable after insertion. Clone the map, not every blob on reads.
+    const staged = {
+      ...structuredClone({ ...record, assets: undefined }),
+      assets: new Map(record.assets),
+    };
     const key = (actor: string, request: string) => JSON.stringify([actor, request]);
     const result = fn({
       state: staged.state,
@@ -60,18 +76,34 @@ export class MemoryStore implements WorkspaceStore {
         return bytes ? new Uint8Array(bytes) : undefined;
       },
       assetSize: (digest) => staged.assets.get(digest)?.byteLength,
+      assetUsage: () => ({
+        bytes: [...staged.assets.values()].reduce((n, bytes) => n + bytes.byteLength, 0),
+        count: staged.assets.size,
+      }),
       putAsset: (digest, bytes) => {
-        if (
-          !staged.assets.has(digest) &&
-          [...staged.assets.values()].reduce((n, b) => n + b.byteLength, 0) + bytes.byteLength >
-            256 * 1024 * 1024
-        )
-          throw new WorkError('LIMIT', 'Workspace files exceed 256 MiB.');
+        this.checkAsset(
+          staged.assets,
+          digest,
+          bytes,
+          [...staged.assets.values()].reduce((n, b) => n + b.byteLength, 0),
+        );
         staged.assets.set(digest, new Uint8Array(bytes));
       },
     });
     this.records.set(id, staged);
     return result;
+  }
+  private checkAsset(
+    assets: Map<string, Uint8Array>,
+    digest: string,
+    bytes: Uint8Array,
+    total: number,
+  ) {
+    if (bytes.byteLength > FILE_LIMIT) throw new WorkError('LIMIT', 'File exceeds 128 MiB.');
+    const next = total - (assets.get(digest)?.byteLength ?? 0) + bytes.byteLength;
+    if (next > this.fileLimits.workspaceBytes)
+      throw new WorkError('LIMIT', 'Workspace files exceed the configured file quota.');
+    return next;
   }
   close(): void {}
 }

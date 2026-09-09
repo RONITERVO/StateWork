@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Full-quality work files
+
+- Keep exact originals up to 128 MiB each with a default 2 GiB workspace quota, configurable by the local host. Report unique storage, repeated identities and missing originals separately.
+- Add portable directory packages with per-file verified, atomic import/export. Retain bounded legacy JSON bundles and avoid whole-collection base64 strings. Exercise a 551 MiB round trip under a constrained JavaScript heap.
+- Archive incidental assets reversibly after current references are removed; preserve original bytes and historical evidence. Show shared course files separately and keep archived items out of active suggestions.
+- Extend the map-building skill with source-supported file-purpose review and isolated package auditing. Preserve full quality and source relationships when reusing identical bytes.
+
 ## Unreleased — Map-building skill
 
 - Add a reusable Codex skill for researching original records into a fresh StateWork workspace, with private source/requirement ledgers, exact inputs, connected instructions and explicit unknowns.
