@@ -28,6 +28,10 @@ The **Detective board** connects the complete workspace on the right wall. Open 
 
 ![A fictional 1,020-record workspace grouped into 20 project cards, with cross-project requirements and remembered investigation controls.](docs/images/detective-company.png)
 
+The **wall calendar** gives each day an ordered recommendation plan, even without deadlines. Start with four focused hours on weekdays; shorten today with one click. Prerequisites come first, real appointments stay fixed, and completed work stays recorded. Month/week views, resource links and file actions work on screen and in the room. Developers can reuse the read-only planner through core, SDK or HTTP. [Calendar and planner guide](docs/CALENDAR.md).
+
+![A fictional work plan with quick time-left controls and a large month calendar.](docs/images/calendar-wall.png)
+
 Capture something with **Add work**. Open it to edit its status, notes, tags, dates, effort or schedule. Link prerequisites and navigate directly between related work. **Next actions** shows unfinished tasks whose prerequisites are clear. **Archive** keeps work and its connections available for restoration. **Save view** preserves the current query and presentation.
 
 Reading & interaction offers text size, contrast, detail, motion, page size and time zone settings. Everything is reachable through standard keyboard controls. Text view offers plain text and on-demand local browser speech when a local voice exists. Focus view offers one actionable task at a time. There is no mandatory spatial, audio, color-only, drag or timed interaction.
@@ -66,7 +70,7 @@ The packages are **not published to npm**. These imports work in the checkout. `
 
 | Package                | Responsibility                                                                                                        |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `@statework/core`      | Dependency-free model, deterministic transitions, graph invariants, queries, semantic observations                    |
+| `@statework/core`      | Dependency-free model, deterministic transitions, graph invariants, queries, semantic observations, daily planning                    |
 | `@statework/sdk`       | Runtime validation, trusted connection service, storage contract, memory adapter, perception negotiation, HTTP client |
 | `@statework/node`      | Transactional SQLite adapter, local credentials, database backups, original example data                              |
 | `@statework/server`    | Loopback HTTP API, same-origin browser bootstrap, OpenAPI and reference client hosting                                |

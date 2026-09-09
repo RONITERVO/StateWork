@@ -1,9 +1,10 @@
-import { emptyState, observe, transition, WorkError } from '@statework/core';
+import { emptyState, observe, planWork, transition, WorkError } from '@statework/core';
 import type { CommandResult, DomainEvent, Role, WorkState } from '@statework/core';
 import {
   createWorkspaceSchema,
   idSchema,
   observeSchema,
+  planOptionsSchema,
   parse,
   requestSchema,
   snapshotSchema,
@@ -100,6 +101,10 @@ export class WorkConnection {
     return this.with(workspaceId, (tx) =>
       observe(tx.state, { id: this.actorId, role: tx.role }, p.query, p.offset, p.limit),
     );
+  }
+  plan(workspaceId: string, input: unknown) {
+    const options = parse(planOptionsSchema, input);
+    return this.with(workspaceId, (tx) => planWork(tx.state, options));
   }
   events(
     workspaceId: string,

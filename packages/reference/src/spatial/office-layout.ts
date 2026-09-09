@@ -29,6 +29,7 @@ export const officeLayout: OfficeLayout = {
   stations: {
     desk: { x: 0, z: 2.32, yaw: 0, label: 'Desk' },
     board: { x: 0.8, z: 1.65, yaw: -Math.atan2(2.98, 1.9), label: 'Detective board' },
+    calendar: { x: 1, z: -0.72, yaw: Math.PI, label: 'Wall calendar' },
     window: { x: -2.35, z: -0.15, yaw: Math.PI / 2, label: 'Window' },
   },
   radius: 0.19,

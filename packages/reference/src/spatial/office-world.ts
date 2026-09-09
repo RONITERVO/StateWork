@@ -12,6 +12,7 @@ import type { OfficeHand, OfficeIntent, OfficeSession } from './office-model';
 import { stateMark } from './model';
 import type { SpatialView } from './scene';
 import { DetectiveWall } from './detective-wall';
+import { CalendarWall } from './calendar-wall';
 
 export interface OfficeTarget {
   mesh: THREE.Mesh;
@@ -48,8 +49,9 @@ export class OfficeWorld {
   readonly root = new THREE.Group();
   private workTargets: OfficeTarget[] = [];
   private detective = new DetectiveWall();
+  private calendar = new CalendarWall();
   get targets(): OfficeTarget[] {
-    return [...this.workTargets, ...this.detective.targets];
+    return [...this.workTargets, ...this.detective.targets, ...this.calendar.targets];
   }
   private staticArt = new OfficeArt();
   private dynamicArt = new OfficeArt();
@@ -86,7 +88,13 @@ export class OfficeWorld {
   ) {
     this.root.name = 'StateWork interactive office';
     this.shell = makeOfficeShell(this.staticArt);
-    this.root.add(this.shell, this.content, this.traceLines, this.detective.root);
+    this.root.add(
+      this.shell,
+      this.content,
+      this.traceLines,
+      this.detective.root,
+      this.calendar.root,
+    );
     this.lamp.position.set(1.2, 1.26, -0.12);
     this.lamp.layers.enableAll();
     this.root.add(this.lamp);
@@ -148,6 +156,7 @@ export class OfficeWorld {
   }
   update(view: SpatialView) {
     this.detective.update(view.board, view.large, view.movement !== false);
+    this.calendar.update(view.calendar);
     const oldKeys = new Set(this.view?.catalog.keys.map((k) => k.id) ?? []);
     const switched = this.view?.catalog.workspaceId !== view.catalog.workspaceId;
     this.view = view;
@@ -1144,6 +1153,7 @@ export class OfficeWorld {
   }
   dispose() {
     this.detective.dispose();
+    this.calendar.dispose();
     this.clearDynamic();
     this.staticArt.dispose();
     this.root.removeFromParent();

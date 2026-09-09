@@ -1,0 +1,339 @@
+.calendar-dialog {
+  width: min(1500px, 98vw);
+  max-width: 98vw;
+  height: 94dvh;
+  max-height: 94dvh;
+  padding: 0;
+  background: #f3efdf;
+  color: #233d34;
+  border: 2px solid #647c6b;
+  border-radius: 16px;
+}
+.calendar-dialog::backdrop {
+  background: #14251fe6;
+}
+.calendar-dialog button,
+.calendar-dialog .button {
+  background: #fffdf4;
+  color: #233d34;
+  border: 1px solid #829182;
+  min-height: 44px;
+  font-size: 14px;
+}
+.calendar-dialog button:disabled {
+  opacity: 0.48;
+}
+.calendar-dialog button:hover,
+.calendar-dialog .button:hover {
+  background: #dde8d7;
+  color: #233d34;
+}
+.calendar-dialog button[aria-pressed='true']:hover {
+  background: #234b3b;
+  color: #fffdf4;
+}
+.calendar-dialog button[aria-pressed='true'] {
+  background: #234b3b;
+  color: #fffdf4;
+  border-color: #234b3b;
+}
+.calendar-dialog button:focus-visible,
+.calendar-dialog a:focus-visible,
+.calendar-dialog summary:focus-visible {
+  outline: 3px solid #a34522;
+  outline-offset: 2px;
+}
+.cal-shell {
+  padding: 24px;
+}
+.cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.cal-header .eyebrow,
+.cal-day .eyebrow {
+  color: #486554;
+}
+.cal-header h2 {
+  font-size: 32px;
+  margin: 5px 0 18px;
+}
+.cal-toolbar,
+.cal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cal-toolbar {
+  margin: 12px 0 24px;
+}
+.cal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(290px, 1fr);
+  gap: 28px;
+}
+.cal-overview {
+  display: flex;
+  flex-direction: column;
+}
+.cal-capacity {
+  order: -1;
+}
+.cal-weekdays,
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+.cal-weekdays {
+  font: 600 11px monospace;
+  text-align: center;
+  padding: 8px 0;
+}
+.calendar-dialog .cal-cell {
+  min-width: 0;
+  min-height: 92px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 3px;
+  text-align: left;
+  border-radius: 8px;
+}
+.cal-cell strong {
+  font-size: 20px;
+}
+.cal-cell small {
+  font-size: 10px;
+}
+.cal-cell.cal-today {
+  box-shadow: inset 0 0 0 2px #234b3b;
+}
+.cal-cell.cal-outside:not([aria-pressed='true']) {
+  background: #e2e2d6;
+  color: #566658;
+}
+.cal-marks {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  font: 600 11px monospace;
+}
+.cal-marks span {
+  border-radius: 4px;
+  padding: 3px;
+  background: #ece8d9;
+  color: #233d34;
+}
+.cal-marks .cal-suggest {
+  background: #cde3c7;
+}
+.cal-marks .cal-fixed {
+  background: #d1def1;
+  color: #263c60;
+}
+.cal-marks .cal-due {
+  background: #f5d2ae;
+  color: #633617;
+}
+.cal-week .cal-cell {
+  min-height: 170px;
+}
+.cal-key,
+.cal-status {
+  font-size: 12px;
+  margin: 14px 0;
+}
+.cal-capacity {
+  border: 1px solid #a5af99;
+  border-radius: 12px;
+  padding: 18px;
+  margin: 24px 0;
+}
+.cal-capacity h3,
+.cal-task h3 {
+  margin: 0 0 8px;
+}
+.cal-capacity p,
+.cal-capacity details p,
+.cal-unplaced p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.calendar-dialog summary {
+  cursor: pointer;
+  padding: 12px 0;
+  min-height: 44px;
+}
+.cal-day {
+  border-left: 1px solid #afb69f;
+  padding-left: 24px;
+}
+.cal-day > h2 {
+  font-size: 26px;
+}
+.cal-day > p {
+  font-size: 13px;
+}
+.cal-task {
+  background: #fffdf6;
+  border: 1px solid #a3b298;
+  border-left: 4px solid #547f59;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.cal-task.cal-blocked {
+  border-left-color: #ab6f30;
+}
+.cal-task-head {
+  display: flex;
+  gap: 12px;
+}
+.cal-order {
+  display: grid;
+  place-items: center;
+  background: #234b3b;
+  color: #fffdf4;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+.cal-task h3 {
+  font-size: 19px;
+  overflow-wrap: anywhere;
+}
+.cal-task p {
+  font-size: 13px;
+  margin: 3px 0 14px;
+  line-height: 1.65;
+}
+.cal-task .cal-actions {
+  margin-top: 10px;
+}
+.cal-requirements {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.cal-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cal-appointment {
+  border: 1px solid #91a4bb;
+  border-left: 4px solid #476594;
+  background: #e2e9ed;
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.cal-alert {
+  color: #873c22;
+  font-weight: bold;
+}
+.cal-empty {
+  padding: 40px 14px;
+  text-align: center;
+  border: 1px dashed #7d9279;
+  border-radius: 12px;
+  margin-top: 18px;
+}
+.cal-review-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.cal-review-row button:first-child {
+  flex: 1;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.cal-unplaced {
+  max-height: 500px;
+  overflow: auto;
+}
+.cal-status {
+  position: sticky;
+  bottom: 0;
+  background: #f3efdf;
+  padding: 8px;
+  min-height: 30px;
+}
+.calendar-dialog h3 {
+  color: #233d34;
+}
+@media (max-width: 820px) {
+  .cal-shell {
+    padding: 12px;
+  }
+  .cal-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .cal-overview {
+    display: contents;
+  }
+  .cal-capacity {
+    order: 0;
+  }
+  .cal-day {
+    order: 1;
+  }
+  .cal-weekdays {
+    order: 2;
+  }
+  .cal-grid {
+    order: 3;
+  }
+  .cal-key {
+    order: 4;
+  }
+  .cal-unplaced {
+    order: 5;
+  }
+  .cal-day {
+    border: 0;
+    border-top: 1px solid #afb69f;
+    padding: 20px 0;
+  }
+  .cal-header h2 {
+    font-size: 24px;
+  }
+  .calendar-dialog .cal-cell {
+    padding: 5px;
+    min-height: 82px;
+  }
+  .cal-grid {
+    gap: 3px;
+  }
+  .cal-marks {
+    font-size: 9px;
+  }
+  .cal-marks span {
+    padding: 2px;
+  }
+  .cal-key {
+    font-size: 11px;
+  }
+  .cal-week .cal-cell {
+    min-height: 110px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .calendar-dialog * {
+    scroll-behavior: auto;
+  }
+}

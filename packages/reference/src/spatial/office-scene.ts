@@ -4,11 +4,13 @@ import { OfficeWorld } from './office-world';
 import type { OfficeFeedback, OfficeTarget } from './office-world';
 import type { OfficeCatalog, OfficeHand } from './office-model';
 import type { DetectiveView } from './detective-board';
+import type { CalendarView } from './calendar';
 import { moveInOffice, officeLayout, snapTurn, stickVector } from './office-layout';
 import type { RoomPoint } from './office-layout';
 
 export interface SpatialView {
   board?: DetectiveView;
+  calendar?: CalendarView;
   movement?: boolean;
   title: string;
   nodes: SemanticNode[];
@@ -368,9 +370,9 @@ export class SpatialScene {
       this.recenterPending = true;
     } else this.look('desk');
   }
-  look(direction: 'left' | 'right' | 'desk' | 'files' | 'board') {
-    if (direction === 'board') {
-      this.navigate('board');
+  look(direction: 'left' | 'right' | 'desk' | 'files' | 'board' | 'calendar') {
+    if (direction === 'board' || direction === 'calendar') {
+      this.navigate(direction);
       return;
     }
     if (this.session) {

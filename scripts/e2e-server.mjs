@@ -12,6 +12,9 @@ const app = await createServer({
   authenticate: (t) => local.store.authenticate(t),
   localToken: local.token,
   port,
+  // One isolated host serves every synthetic browser/workspace in this test run.
+  // Production starts without this override and retains its personal-use budget.
+  requestsPerMinute: 60000,
   staticRoot: resolve('packages/reference/dist'),
 });
 await app.listen({ host: '127.0.0.1', port });

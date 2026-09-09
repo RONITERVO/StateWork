@@ -30,6 +30,95 @@ export const zoneSchema = z
 export const scheduleSchema = z
   .strictObject({ start: instantSchema, end: instantSchema, timeZone: zoneSchema })
   .refine((s) => s.end > s.start, 'Schedule end must follow start.');
+export const planOptionsSchema = z.strictObject({
+  now: instantSchema,
+  timeZone: zoneSchema,
+  days: z.number().int().min(1).max(90).optional(),
+  dailyMinutes: z.number().int().min(0).max(720).optional(),
+  todayMinutes: z.number().int().min(0).max(720).optional(),
+  workDays: z
+    .array(z.number().int().min(0).max(6))
+    .max(7)
+    .refine((v) => new Set(v).size === v.length)
+    .optional(),
+  defaultMinutes: z.number().int().min(5).max(240).optional(),
+  blockMinutes: z.number().int().min(5).max(240).optional(),
+  notBefore: z
+    .record(idSchema, dateSchema)
+    .refine((v) => Object.keys(v).length <= 10000)
+    .optional(),
+  preferred: z
+    .array(idSchema)
+    .max(10000)
+    .refine((v) => new Set(v).size === v.length)
+    .optional(),
+});
+const planCount = z.number().int().nonnegative();
+export const workPlanSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  workspaceId: idSchema,
+  revision: planCount,
+  generatedAt: instantSchema,
+  timeZone: zoneSchema,
+  today: dateSchema,
+  days: z
+    .array(
+      z.strictObject({
+        date: dateSchema,
+        workDay: z.boolean(),
+        capacityMinutes: planCount,
+        loggedMinutes: planCount,
+        plannedMinutes: planCount,
+        freeMinutes: planCount,
+        overlapMinutes: z.number().nonnegative(),
+        suggestionLimitReached: z.boolean(),
+        suggestions: z
+          .array(
+            z.strictObject({
+              id: idSchema,
+              minutes: z.number().int().positive(),
+              order: z.number().int().positive(),
+              reason: z.enum(['chosen', 'deadline', 'continue', 'priority', 'unlocks', 'ready']),
+              estimated: z.boolean(),
+              continuation: z.boolean(),
+              conditional: z.boolean(),
+              completesEstimate: z.boolean(),
+              deadline: dateSchema.nullable(),
+              late: z.boolean(),
+            }),
+          )
+          .max(100),
+        commitments: z.array(
+          z.strictObject({
+            id: idSchema,
+            start: instantSchema,
+            end: instantSchema,
+            needsFirst: z.boolean(),
+          }),
+        ),
+        deadlines: z.array(idSchema),
+      }),
+    )
+    .min(1)
+    .max(90),
+  unplaced: z.array(
+    z.strictObject({
+      id: idSchema,
+      remainingMinutes: planCount,
+      reason: z.enum(['prerequisites', 'later', 'capacity']),
+    }),
+  ),
+  scheduleIssues: z.array(
+    z.strictObject({ id: idSchema, reason: z.enum(['past_slot', 'prerequisite_timing']) }),
+  ),
+  counts: z.strictObject({
+    openTasks: planCount,
+    fixed: planCount,
+    fullyProjected: planCount,
+    partiallyProjected: planCount,
+    unplaced: planCount,
+  }),
+});
 const status = z.enum(['inbox', 'ready', 'active', 'done', 'cancelled']);
 const kind = z.enum(['task', 'project', 'note', 'event']);
 const extensionKey = z

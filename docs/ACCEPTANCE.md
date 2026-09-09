@@ -4,6 +4,19 @@ Local verification on **2026-09-08**, Windows 11 (`10.0.26200`), AMD Ryzen 9 795
 
 ## Passed
 
+### Wall calendar and daily planning — 2026-09-09
+
+- `npm run check`: **76 unit/backend tests passed**, with strict types, package boundaries, formatting, generated contracts and production build on Windows/Node 25.4.0.
+- Full integration suite: **68 passed, 16 explicitly skipped** across Chromium, Firefox and WebKit. New coverage includes reader-only planning, one-click capacity, prerequisites, explicit progress, completion, reload, keyboard dates, phone reflow and WebGL-unavailable fallback. The final exhausted-estimate accounting regression and the complete Chromium calendar workflow passed. Final phone/settings polish was rechecked by all calendar scenarios: **11 passed, 4 explicitly skipped** across the same engines.
+- Real desktop rays selected the rear-wall time controls, held the actual suggested folder and opened the screen view. IWER controller rays reached the wall station, changed remaining time, held the suggested file and exited VR into screen actions. Both physical-wall scenarios also passed with Chromium software rendering. Stereo emulation was visually inspected; physical headset qualification remains pending.
+- Pure tests cover deadline-free dependency order, chosen/urgent prerequisite chains, defers, 4-hour weekdays, late starts, long/unknown estimates, explicit progress, completed allocations across reload/undo, real midnight/DST/leap/month boundaries, overnight and overlapping bookings, impossible/past fixed slots and a 10,000-task accounting check.
+- Clean package installation passed for the SDK, SQLite adapter, server, CLI and MCP. The live local office was restarted after a private online backup; workspace revisions and record counts stayed unchanged, and its new plan endpoint responded successfully.
+- Hosted traces exposed the shared browser fixture exceeding the normal 600-request/minute budget and a WebKit page startup using over 20 seconds of a 30-second test. The isolated test host now has its own explicit budget, the reader scenario has a bounded 60-second startup allowance, and the import workflow verifies that its dialog closed and the imported workspace is actually selected. Firefox/WebKit targeted checks passed locally.
+- The authenticated read-only plan endpoint validates options and its complete response contract, allows a reader, rejects unauthorized/unknown workspaces, and leaves state and events unchanged.
+- Fictional screenshots: `docs/images/calendar-wall.png` and `docs/images/calendar-xr-emulated.png`. Calendar controls were moved above the grid after visual inspection found that furniture obscured the original lower controls. Personal records and desktop launcher files remain ignored.
+
+See [calendar behavior, API and limits](CALENDAR.md). This provides day-level suggestions; it does not create appointments, infer completion, synchronize calendars or establish headset comfort.
+
 ### Detective board and room navigation — 2026-09-09
 
 - `npm run check`: **62 unit/backend/protocol tests**, strict types, package boundaries, formatting, contracts and production build passed on the Windows/Node 25.4.0 environment above. Subsequent focused graph checks, types, formatting and builds passed after the last routing and tracking refinements.
