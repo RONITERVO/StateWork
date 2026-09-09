@@ -4844,6 +4844,7 @@
                   "type": "string",
                   "enum": [
                     "prerequisites",
+                    "packet",
                     "later",
                     "capacity"
                   ]
@@ -4870,7 +4871,8 @@
                   "type": "string",
                   "enum": [
                     "past_slot",
-                    "prerequisite_timing"
+                    "prerequisite_timing",
+                    "packet"
                   ]
                 }
               },

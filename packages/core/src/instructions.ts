@@ -2,11 +2,17 @@ import { WorkError, isFinished } from './model.js';
 import type { Command, Principal, Relation, WorkItem, WorkState } from './model.js';
 import { registerAsset } from './resources.js';
 import type { AssetInput, WorkAsset, WorkReference } from './resources.js';
-import type { ExecutionContract, RequirementConfirmation, StepDecision } from './execution.js';
+import type {
+  ExecutionContract,
+  RequirementConfirmation,
+  StepDecision,
+  WorkerContext,
+} from './execution.js';
 import {
   dependentSteps,
   executionIssues,
   executionReadiness,
+  requiredStepAssets,
   validateExecution,
 } from './execution.js';
 
@@ -573,4 +579,29 @@ export function packetResultsComplete(state: WorkState, packet: WorkPacket): boo
       (s) => s.status === 'checked' || s.status === 'skipped',
     )
   );
+}
+/** A current action or a successful checked finish can proceed; future access is step-local.
+ * Snapshot-only callers must supply file availability to establish that required bytes exist. */
+export function packetActionable(
+  state: WorkState,
+  packet: WorkPacket,
+  worker: WorkerContext = {},
+): boolean {
+  const issues = packetIssues(state, packet);
+  if (issues.length) return false;
+  const available = new Set(worker.environment?.availableAssetIds ?? []);
+  const steps = executionReadiness(state, packet, worker.actorId ?? '', issues, {
+    ...worker.environment,
+    availableAssetIds: [...available],
+  });
+  if (packetResultsComplete(state, packet))
+    return (
+      !packet.execution ||
+      steps.every(
+        (step) =>
+          step.status === 'skipped' ||
+          [...requiredStepAssets(packet, step.id)].every((id) => available.has(id)),
+      )
+    );
+  return steps.some((step) => step.status === 'ready');
 }

@@ -1,0 +1,4 @@
+interface:
+  display_name: 'StateWork Map Builder'
+  short_description: 'Research work and build a complete, traceable map'
+  default_prompt: 'Use $statework-map to research my source records and build a StateWork map with exact inputs, short actions and explicit gaps.'

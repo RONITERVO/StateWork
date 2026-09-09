@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Map-building skill
+
+- Add a reusable Codex skill for researching original records into a fresh StateWork workspace, with private source/requirement ledgers, exact inputs, connected instructions and explicit unknowns.
+- Add a standalone memory-only map auditor and fictional source pack for independent skill trials. Keep personal research and tool transcripts outside public releases.
+- Make next actions, observations and calendar suggestions respect packet review, current prerequisites and stored files. Preserve independent preparation and conditional planning after projected task prerequisites, without changing actual completion records.
+
+See [map building](docs/MAP_SKILL.md) for installation, evaluation and recommendation limits.
+
 ## 0.2.0 — 2026-09-09
 
 - Preserve original input and result files with immutable SHA-256 identities, authenticated retrieval, complete portable bundles and automatic pre-migration SQLite backups.

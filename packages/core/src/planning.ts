@@ -1,5 +1,7 @@
 import { isFinished, WorkError } from './model.js';
 import type { Command, WorkItem, WorkState } from './model.js';
+import { latestPacket, packetActionable } from './instructions.js';
+import type { WorkerContext } from './execution.js';
 
 export const planningProgressNamespace = 'statework.planning/progress';
 const compareText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -60,9 +62,9 @@ export interface WorkPlan {
   unplaced: {
     id: string;
     remainingMinutes: number;
-    reason: 'prerequisites' | 'later' | 'capacity';
+    reason: 'prerequisites' | 'packet' | 'later' | 'capacity';
   }[];
-  scheduleIssues: { id: string; reason: 'past_slot' | 'prerequisite_timing' }[];
+  scheduleIssues: { id: string; reason: 'past_slot' | 'prerequisite_timing' | 'packet' }[];
   counts: {
     openTasks: number;
     fixed: number;
@@ -213,6 +215,7 @@ class Heap<T> {
 }
 interface Node {
   item: WorkItem;
+  packetBlocked: boolean;
   needs: string[];
   after: string[];
   pending: number;
@@ -225,7 +228,11 @@ interface Node {
   finish: number;
 }
 /** Deterministic, read-only day recommendations; projected completion is never a work mutation. */
-export function planWork(state: WorkState, options: PlanOptions): WorkPlan {
+export function planWork(
+  state: WorkState,
+  options: PlanOptions,
+  worker: WorkerContext = {},
+): WorkPlan {
   const now = Date.parse(options.now);
   const count = options.days ?? 42,
     daily = options.dailyMinutes ?? 240,
@@ -265,8 +272,10 @@ export function planWork(state: WorkState, options: PlanOptions): WorkPlan {
       logged[date] = (logged[date] ?? 0) + minutes;
     const remaining =
       item.effortMinutes === null ? fallback : Math.max(0, item.effortMinutes - progress.minutes);
+    const packet = latestPacket(state, item.id);
     nodes.set(item.id, {
       item,
+      packetBlocked: !isFinished(item) && !!packet && !packetActionable(state, packet, worker),
       needs: [],
       after: [],
       pending: 0,
@@ -331,12 +340,24 @@ export function planWork(state: WorkState, options: PlanOptions): WorkPlan {
   const endings = new Heap<{ id: string; at: number }>(
     (a, b) => a.at < b.at || (a.at === b.at && a.id < b.id),
   );
-  const issues = new Map<string, 'past_slot' | 'prerequisite_timing'>();
+  const issues = new Map<string, 'past_slot' | 'prerequisite_timing' | 'packet'>();
+
+  // Only projected task status changes here; actual checks, files and worker access stay real.
+  const projectedState = { ...state, items: state.items.map((item) => ({ ...item })) };
+  const projectedItems = new Map(projectedState.items.map((item) => [item.id, item]));
 
   let cursor = now;
   const enqueue = (id: string) => {
     const node = nodes.get(id)!;
-    if (node.item.kind !== 'task' || node.item.archived || isFinished(node.item) || node.pending)
+    const packet = latestPacket(state, id);
+    if (packet?.execution) node.packetBlocked = !packetActionable(projectedState, packet, worker);
+    if (
+      node.item.kind !== 'task' ||
+      node.item.archived ||
+      isFinished(node.item) ||
+      node.pending ||
+      node.packetBlocked
+    )
       return;
     if (node.item.schedule) {
       const start = Date.parse(node.item.schedule.start),
@@ -359,6 +380,7 @@ export function planWork(state: WorkState, options: PlanOptions): WorkPlan {
   const finish = (id: string, at: number) => {
     const node = nodes.get(id)!;
     node.finish = at;
+    projectedItems.get(id)!.status = 'done';
     for (const child of node.after) {
       const target = nodes.get(child)!;
       target.pending--;
@@ -414,7 +436,7 @@ export function planWork(state: WorkState, options: PlanOptions): WorkPlan {
           id: node.item.id,
           start: schedule.start,
           end: schedule.end,
-          needsFirst: node.conditional && !isFinished(node.item),
+          needsFirst: (node.conditional || node.packetBlocked) && !isFinished(node.item),
         });
         if (node.item.status !== 'cancelled') {
           const lo = Math.max(from, a),
@@ -545,7 +567,8 @@ export function planWork(state: WorkState, options: PlanOptions): WorkPlan {
     result.counts.openTasks++;
     if (node.item.schedule) {
       result.counts.fixed++;
-      if (Date.parse(node.item.schedule.end) <= now) issues.set(id, 'past_slot');
+      if (node.packetBlocked) issues.set(id, 'packet');
+      else if (Date.parse(node.item.schedule.end) <= now) issues.set(id, 'past_slot');
       else if (
         node.needs.some((need) => nodes.get(need)!.finish > Date.parse(node.item.schedule!.start))
       )
@@ -557,11 +580,13 @@ export function planWork(state: WorkState, options: PlanOptions): WorkPlan {
       result.unplaced.push({
         id,
         remainingMinutes: node.left,
-        reason: node.pending
-          ? 'prerequisites'
-          : defers.has(id) && defers.get(id)! > result.days.at(-1)!.date
-            ? 'later'
-            : 'capacity',
+        reason: node.packetBlocked
+          ? 'packet'
+          : node.pending
+            ? 'prerequisites'
+            : defers.has(id) && defers.get(id)! > result.days.at(-1)!.date
+              ? 'later'
+              : 'capacity',
       });
     }
   }

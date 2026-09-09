@@ -309,12 +309,24 @@ export class WorkConnection {
   observe(workspaceId: string, input: unknown = {}) {
     const p = parse(observeSchema, input);
     return this.with(workspaceId, (tx) =>
-      observe(tx.state, { id: this.actorId, role: tx.role }, p.query, p.offset, p.limit),
+      observe(tx.state, { id: this.actorId, role: tx.role }, p.query, p.offset, p.limit, {
+        availableAssetIds: this.availableAssets(tx),
+      }),
     );
   }
   plan(workspaceId: string, input: unknown) {
     const options = parse(planOptionsSchema, input);
-    return this.with(workspaceId, (tx) => planWork(tx.state, options));
+    return this.with(workspaceId, (tx) =>
+      planWork(tx.state, options, {
+        actorId: this.actorId,
+        environment: { availableAssetIds: this.availableAssets(tx) },
+      }),
+    );
+  }
+  private availableAssets(tx: Transaction): string[] {
+    return (tx.state.instructions?.assets ?? [])
+      .filter((asset) => tx.assetSize?.(asset.sha256) === asset.size)
+      .map((asset) => asset.id);
   }
   instructions(workspaceId: string, taskId: string) {
     parse(idSchema, taskId);

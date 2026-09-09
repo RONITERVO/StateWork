@@ -14,6 +14,7 @@ import type {
   WorkItem,
   WorkState,
   WorkerHandoff,
+  WorkerContext,
 } from '@statework/sdk';
 import {
   marks,
@@ -67,6 +68,7 @@ let client: WorkClient;
 let spaces: Awaited<ReturnType<WorkClient['list']>> = [];
 let workspaceId = recalled('workspace');
 let state: WorkState | undefined;
+let worker: WorkerContext = {};
 let filing: OfficeCatalog | undefined;
 let nodes: SemanticNode[] = [];
 let role: Role = 'reader';
@@ -267,7 +269,8 @@ function selectedNode() {
   const item = selectedItem();
   if (!item?.archived) return undefined;
   const offset = queryItems(state, { archived: true }).findIndex((i) => i.id === selected);
-  return observe(state, { id: 'spatial-view', role }, { archived: true }, offset, 1).nodes[0];
+  return observe(state, { id: '', role }, { archived: true }, offset, 1, worker.environment)
+    .nodes[0];
 }
 function setSelection(id: string, stayInRoom = false) {
   if (!state?.items.some((i) => i.id === id)) return;
@@ -493,6 +496,8 @@ async function refresh(target = workspaceId) {
   const freshSpaces = await client.list();
   const fresh =
     target && freshSpaces.some((s) => s.id === target) ? await client.snapshot(target) : undefined;
+  // This snapshot view has no authenticated actor identity. Do not inherit personal confirmations.
+  const assets = fresh?.instructions?.assets?.length ? await client.assets(target) : [];
   if (target !== workspaceId) {
     selected = '';
     page = 0;
@@ -500,20 +505,27 @@ async function refresh(target = workspaceId) {
   }
   spaces = freshSpaces;
   state = fresh;
+  worker = {
+    environment: {
+      availableAssetIds: assets.filter((asset) => asset.available).map((asset) => asset.id),
+    },
+  };
   workspaceId = fresh?.workspace.id ?? '';
   remember('workspace', workspaceId);
   role = spaces.find((s) => s.id === workspaceId)?.role ?? 'reader';
-  nodes = state ? semanticNodes(state, role) : [];
-  filing = state ? officeCatalog(state, role) : undefined;
+  nodes = state ? semanticNodes(state, role, worker) : [];
+  filing = state ? officeCatalog(state, role, worker) : undefined;
   if (state) {
     caseBoard.setWork(state);
-    calendar.setWork(state, role);
+    calendar.setWork(state, role, worker);
   } else {
     caseBoard.clear();
     calendar.clear();
   }
   if (!selected || !state?.items.some((n) => n.id === selected))
-    selected = state ? (nextTask(state, new Date().toISOString())?.id ?? nodes[0]?.id ?? '') : '';
+    selected = state
+      ? (nextTask(state, new Date().toISOString(), worker)?.id ?? nodes[0]?.id ?? '')
+      : '';
   render();
   if (state && !scene) await prepareScene();
   else if (scene) await checkVR();

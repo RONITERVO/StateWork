@@ -1,5 +1,12 @@
 import { MemoryStore, WorkService, observe, queryItems } from '@statework/sdk';
-import type { Command, Role, SemanticNode, WorkItem, WorkState } from '@statework/sdk';
+import type {
+  Command,
+  Role,
+  SemanticNode,
+  WorkItem,
+  WorkState,
+  WorkerContext,
+} from '@statework/sdk';
 
 export const resourceNamespace = 'statework.spatial/resource';
 export type Filter = 'all' | 'ready' | 'waiting' | 'done';
@@ -33,10 +40,17 @@ export function resourceFor(item: WorkItem): string | null {
   const ext = item.extensions[resourceNamespace];
   return ext && typeof ext === 'object' && !Array.isArray(ext) ? safeResource(ext.url) : null;
 }
-export function semanticNodes(state: WorkState, role: Role): SemanticNode[] {
+export function semanticNodes(
+  state: WorkState,
+  role: Role,
+  worker: WorkerContext = {},
+): SemanticNode[] {
   const nodes: SemanticNode[] = [];
   for (let offset = 0; offset < state.items.length; offset += 500)
-    nodes.push(...observe(state, { id: 'spatial-view', role }, {}, offset, 500).nodes);
+    nodes.push(
+      ...observe(state, { id: worker.actorId ?? '', role }, {}, offset, 500, worker.environment)
+        .nodes,
+    );
   return nodes;
 }
 export function visibleNodes(nodes: SemanticNode[], filter: Filter, search = '') {
@@ -52,8 +66,12 @@ export function visibleNodes(nodes: SemanticNode[], filter: Filter, search = '')
   });
 }
 /** A suggestion only. Never changes dates or completion when someone starts late. */
-export function nextTask(state: WorkState, now: string): WorkItem | undefined {
-  return queryItems(state, { actionable: true })
+export function nextTask(
+  state: WorkState,
+  now: string,
+  worker: WorkerContext = {},
+): WorkItem | undefined {
+  return queryItems(state, { actionable: true }, worker)
     .filter((i) => !i.schedule || i.schedule.start <= now)
     .sort(
       (a, b) =>

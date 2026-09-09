@@ -1,0 +1,7 @@
+{
+  "description": "Fictional mailbox export. All available folders and messages are listed here.",
+  "folders": {
+    "Inbox": ["inbox/course.eml", "inbox/reply.eml"],
+    "Sent": ["sent/enquiry.eml"]
+  }
+}

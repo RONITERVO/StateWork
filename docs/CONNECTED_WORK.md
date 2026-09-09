@@ -17,6 +17,10 @@ StateWork keeps the work definition, original inputs and result history together
 
 Undo removes the selected check and checks that depend on it, retaining independent results and the event history. Undo reopens a completed task. Revising the instructions resets review and checks; earlier revisions remain available.
 
+Calendar suggestions and Next actions respect packet blockers: a reviewed, current packet needs at least one ready action or a successfully checked finish. An independently ready preparation step can proceed while a later delivery still needs access. Tasks without packets retain their task-link rules. Authenticated SDK observations and plans use the current worker and stored file availability. The snapshot-based Spatial view and its calendar check the file manifest but have no authenticated worker identity, so personal access stays unconfirmed there; open Follow for the current worker's exact readiness. Missing files and required external-only inputs do not count as available. Planning remains a projection, never a completion record.
+
+Planning reports packet blockers with `reason: 'packet'` in `unplaced` or `scheduleIssues`. These are additional read-only result values; saved task statuses and snapshot schema versions are unchanged. Fixed appointments remain visible and consume their existing time even when their packet blocks execution.
+
 The short print mode starts with the route or its current evidence blocker. **Full evidence print** includes captured text and provenance. Neither paper mode embeds binary CAD inputs or inherits website access; use the original files or a complete workspace bundle. Mobile places the current action first. The VR packet reads the same stages, blockers and references, and checks simple ready actions; **Open / Print** carries the selected step to the full view for decisions, attachments and written evidence. Physical headset qualification remains separate from browser XR emulation.
 
 ## A fresh worker connection

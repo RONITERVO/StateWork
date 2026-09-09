@@ -7,6 +7,7 @@ import type {
   WorkItem,
   WorkPlan,
   WorkState,
+  WorkerContext,
 } from '@statework/sdk';
 import {
   calendarDates,
@@ -46,6 +47,7 @@ export interface CalendarView {
 export class WorkCalendar {
   readonly dialog = document.createElement('dialog');
   private state?: WorkState;
+  private worker: WorkerContext = {};
   private plan?: WorkPlan;
   private prefs = newCalendarPreferences();
   private nodes: SemanticNode[] = [];
@@ -108,7 +110,7 @@ export class WorkCalendar {
     const suggestion = this.today?.suggestions.find((s) => !s.conditional);
     return this.state?.items.find((i) => i.id === suggestion?.id);
   }
-  setWork(state: WorkState, role: 'owner' | 'editor' | 'reader') {
+  setWork(state: WorkState, role: 'owner' | 'editor' | 'reader', worker: WorkerContext = {}) {
     if (this.state?.workspace.id !== state.workspace.id) {
       try {
         this.prefs = restoreCalendarPreferences(
@@ -122,7 +124,8 @@ export class WorkCalendar {
       this.page = 0;
     }
     this.state = state;
-    this.nodes = semanticNodes(state, role);
+    this.worker = worker;
+    this.nodes = semanticNodes(state, role, worker);
     this.recalculate(false);
   }
   clear() {
@@ -145,7 +148,13 @@ export class WorkCalendar {
   private recalculate(notify = true) {
     if (!this.state) return;
     const oldToday = this.plan?.today;
-    this.plan = calendarPlan(this.state, this.prefs, new Date().toISOString(), this.zone);
+    this.plan = calendarPlan(
+      this.state,
+      this.prefs,
+      new Date().toISOString(),
+      this.zone,
+      this.worker,
+    );
     if (!this.selected || (oldToday && this.selected === oldToday && oldToday !== this.plan.today))
       this.selected = this.plan.today;
     if (!this.anchor || (oldToday && this.anchor === oldToday && oldToday !== this.plan.today))
@@ -225,14 +234,15 @@ export class WorkCalendar {
       const item = this.state.items.find((i) => i.id === arg),
         node = this.nodes.find((n) => n.id === arg);
       if (!item || !node || !this.canWrite() || this.saving) return true;
-      const ready = !node.relationships.some(
-        (r) =>
-          r.kind === 'depends_on' &&
-          r.direction === 'outgoing' &&
-          !isFinished(this.state!.items.find((i) => i.id === r.targetId)!),
-      );
+      const ready = !node.facts.some((fact) => fact.key === 'blocked' && fact.value === true);
       if (!ready || isFinished(item)) {
-        this.message = 'Finish the prerequisites first.';
+        this.message = 'Open the file to resolve its prerequisites or packet blocker.';
+        this.render();
+        return true;
+      }
+      const complete = node.actions.find((action) => action.id === 'complete');
+      if (kind === 'finish' && !complete?.enabled) {
+        this.message = complete?.reason ?? 'Open the work packet and check the results first.';
         this.render();
         return true;
       }
@@ -272,8 +282,13 @@ export class WorkCalendar {
           !isFinished(this.state!.items.find((i) => i.id === r.targetId)!),
       ) ?? [];
     const link = resourceFor(item),
-      disabled = !this.canWrite() || this.saving || isFinished(item) || requirements.length > 0;
-    return `<article class="cal-task ${requirements.length ? 'cal-blocked' : ''}"><div class="cal-task-head"><span class="cal-order">${s?.order ?? (isFinished(item) ? '✓' : '◇')}</span><div><h3>${esc(item.title)}</h3><p>${s ? `${s.estimated ? '≈ ' : ''}${s.minutes}m · ${s.conditional ? '◇ After prerequisites' : s.continuation ? '◐ Continue' : '○ Ready'}${s.late ? (s.deadline === item.dueDate ? ' · Past due' : ' · Overdue dependent') : ''}` : esc(item.status)}</p></div></div><div class="cal-actions">${this.button(`file:${item.id}`, 'Open file')}${this.button(`hold:${item.id}`, 'Hold file')}${link ? `<a class="button" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Resource ↗</a>` : ''}</div>${requirements.length ? `<div class="cal-requirements"><span>◇ Needs first</span>${requirements.map((r) => this.button(`file:${r.targetId}`, esc(r.targetLabel))).join('')}</div>` : ''}${s ? `<div class="cal-actions">${this.button(`start:${item.id}`, '▶ Start', disabled || item.status === 'active')}${this.button(`log:${item.id}:${s.minutes}`, `+ ${s.minutes}m worked`, disabled)}${this.button(`finish:${item.id}`, '✓ Finish', disabled)}</div><div class="cal-actions cal-secondary">${this.button(`choose:${item.id}`, '↑ Do next')}${this.button(`defer:${item.id}`, 'Tomorrow →')}${this.button(`defer:${item.id}:week`, 'Next week →')}</div>` : !isFinished(item) ? `<div class="cal-actions">${this.button(`choose:${item.id}`, '↑ Do next')}</div>` : ''}${item.description ? `<details data-cal-detail="notes:${esc(item.id)}"><summary>Notes / microsteps</summary><p class="cal-notes">${esc(item.description)}</p></details>` : ''}</article>`;
+      disabled =
+        !this.canWrite() ||
+        this.saving ||
+        isFinished(item) ||
+        node?.facts.some((fact) => fact.key === 'blocked' && fact.value === true),
+      canFinish = node?.actions.find((action) => action.id === 'complete')?.enabled;
+    return `<article class="cal-task ${requirements.length ? 'cal-blocked' : ''}"><div class="cal-task-head"><span class="cal-order">${s?.order ?? (isFinished(item) ? '✓' : '◇')}</span><div><h3>${esc(item.title)}</h3><p>${s ? `${s.estimated ? '≈ ' : ''}${s.minutes}m · ${s.conditional ? '◇ After prerequisites' : s.continuation ? '◐ Continue' : '○ Ready'}${s.late ? (s.deadline === item.dueDate ? ' · Past due' : ' · Overdue dependent') : ''}` : esc(item.status)}</p></div></div><div class="cal-actions">${this.button(`file:${item.id}`, 'Open file')}${this.button(`hold:${item.id}`, 'Hold file')}${link ? `<a class="button" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Resource ↗</a>` : ''}</div>${requirements.length ? `<div class="cal-requirements"><span>◇ Needs first</span>${requirements.map((r) => this.button(`file:${r.targetId}`, esc(r.targetLabel))).join('')}</div>` : ''}${s ? `<div class="cal-actions">${this.button(`start:${item.id}`, '▶ Start', disabled || item.status === 'active')}${this.button(`log:${item.id}:${s.minutes}`, `+ ${s.minutes}m worked`, disabled)}${this.button(`finish:${item.id}`, '✓ Finish', disabled || !canFinish)}</div><div class="cal-actions cal-secondary">${this.button(`choose:${item.id}`, '↑ Do next')}${this.button(`defer:${item.id}`, 'Tomorrow →')}${this.button(`defer:${item.id}:week`, 'Next week →')}</div>` : !isFinished(item) ? `<div class="cal-actions">${this.button(`choose:${item.id}`, '↑ Do next')}</div>` : ''}${item.description ? `<details data-cal-detail="notes:${esc(item.id)}"><summary>Notes / microsteps</summary><p class="cal-notes">${esc(item.description)}</p></details>` : ''}</article>`;
   }
   private render() {
     if (!this.state || !this.plan) return;
@@ -359,9 +374,20 @@ export class WorkCalendar {
     const review = [
       ...plan.scheduleIssues.map((i) => ({
         id: i.id,
-        label: i.reason === 'past_slot' ? 'Past appointment' : 'Prerequisites miss appointment',
+        label:
+          i.reason === 'packet'
+            ? 'Open work packet · resolve blocker'
+            : i.reason === 'past_slot'
+              ? 'Past appointment'
+              : 'Prerequisites miss appointment',
       })),
-      ...plan.unplaced.map((i) => ({ id: i.id, label: `${i.remainingMinutes}m · ${i.reason}` })),
+      ...plan.unplaced.map((i) => ({
+        id: i.id,
+        label:
+          i.reason === 'packet'
+            ? 'Open work packet · resolve blocker'
+            : `${i.remainingMinutes}m · ${i.reason}`,
+      })),
     ];
     const reviewPages = Math.max(1, Math.ceil(review.length / 40));
     this.reviewPage = Math.max(0, Math.min(this.reviewPage, reviewPages - 1));
@@ -394,7 +420,7 @@ export class WorkCalendar {
       )
       .join(
         '',
-      )}</div><div class="cal-actions">${[60, 120, 240, 360, 480].map((n) => this.button(`daily:${n}`, `${n / 60}h`, false, this.prefs.dailyMinutes === n)).join('')}</div>${this.button('reset-choices', 'Reset defers / choices')}<p>Focus time outside appointments. Unknown estimates use ≈30m. Suggestions assume prerequisites finish; actual work stays unchanged. Finished allocations use today's budget; only “worked” records time.</p></details></section><details class="cal-unplaced" data-cal-detail="review"><summary>Needs review · ${plan.unplaced.length + plan.scheduleIssues.length}</summary><p>Unplaced or partly planned within 90 days. Open a file to change its estimate, requirement or fixed schedule in Classic views.</p>${this.button('review-page:previous', '← Review', this.reviewPage === 0)} ${this.reviewPage + 1} / ${reviewPages} ${this.button('review-page:next', 'Review →', this.reviewPage + 1 >= reviewPages)}${review
+      )}</div><div class="cal-actions">${[60, 120, 240, 360, 480].map((n) => this.button(`daily:${n}`, `${n / 60}h`, false, this.prefs.dailyMinutes === n)).join('')}</div>${this.button('reset-choices', 'Reset defers / choices')}<p>Focus time outside appointments. Unknown estimates use ≈30m. Suggestions assume prerequisites finish; actual work stays unchanged. Packets need a ready action; check personal access in Follow. Finished allocations use today's budget; only “worked” records time.</p></details></section><details class="cal-unplaced" data-cal-detail="review"><summary>Needs review · ${plan.unplaced.length + plan.scheduleIssues.length}</summary><p>Unplaced or partly planned within 90 days. Open a file to change its estimate, requirement or fixed schedule in Classic views.</p>${this.button('review-page:previous', '← Review', this.reviewPage === 0)} ${this.reviewPage + 1} / ${reviewPages} ${this.button('review-page:next', 'Review →', this.reviewPage + 1 >= reviewPages)}${review
       .slice(this.reviewPage * 40, this.reviewPage * 40 + 40)
       .map(
         (i) =>
@@ -402,7 +428,7 @@ export class WorkCalendar {
       )
       .join(
         '',
-      )}</details></div><section class="cal-day" aria-label="Selected day"><p class="eyebrow">${this.selected === plan.today ? 'TODAY → NEXT' : esc(dateLabel(this.selected, { weekday: 'long', month: 'short', day: 'numeric' }))}</p><h2>${esc(capacity)}</h2><p>${esc(summary)}</p>${day?.overlapMinutes ? `<p class="cal-alert">▣ Appointments overlap · ${Math.ceil(day.overlapMinutes)}m</p>` : ''}${appointments.length ? `<h3>▣ Fixed appointments</h3>${appointments.map((i) => `<div class="cal-appointment">${this.button(`file:${i.id}`, esc(i.title))}<span>${esc(time(i.schedule!.start))} → ${esc(time(i.schedule!.end))} · ${esc(i.status)}</span></div>`).join('')}` : ''}${deadlines.length ? `<h3>◆ Due</h3>${deadlines.map((i) => this.button(`file:${i.id}`, `${isFinished(i) ? '✓ ' : ''}${esc(i.title)}`)).join('')}` : ''}${suggestions.length ? `<h3>○ Suggested order</h3>${suggestions.map((s) => this.card(items.get(s.id)!, s)).join('')}` : `<div class="cal-empty">${!day ? 'Past records and future facts stay visible.' : !day.capacityMinutes ? '✓ Leave room to rest.' : '◇ No ready suggestion. Open Needs review.'}</div>`}${day?.suggestionLimitReached ? '<p>100-block display limit reached. Remaining work is in Needs review.</p>' : ''}</section></div><p class="cal-status" role="status">${esc(this.message)}</p></div>`;
+      )}</details></div><section class="cal-day" aria-label="Selected day"><p class="eyebrow">${this.selected === plan.today ? 'TODAY → NEXT' : esc(dateLabel(this.selected, { weekday: 'long', month: 'short', day: 'numeric' }))}</p><h2>${esc(capacity)}</h2><p>${esc(summary)}</p>${day?.overlapMinutes ? `<p class="cal-alert">▣ Appointments overlap · ${Math.ceil(day.overlapMinutes)}m</p>` : ''}${appointments.length ? `<h3>▣ Fixed appointments</h3>${appointments.map((i) => `<div class="cal-appointment">${this.button(`file:${i.id}`, esc(i.title))}<span>${esc(time(i.schedule!.start))} → ${esc(time(i.schedule!.end))} · ${this.nodes.find((node) => node.id === i.id)?.facts.some((fact) => fact.key === 'blocked' && fact.value === true) ? 'Needs attention' : esc(i.status)}</span></div>`).join('')}` : ''}${deadlines.length ? `<h3>◆ Due</h3>${deadlines.map((i) => this.button(`file:${i.id}`, `${isFinished(i) ? '✓ ' : ''}${esc(i.title)}`)).join('')}` : ''}${suggestions.length ? `<h3>○ Suggested order</h3>${suggestions.map((s) => this.card(items.get(s.id)!, s)).join('')}` : `<div class="cal-empty">${!day ? 'Past records and future facts stay visible.' : !day.capacityMinutes ? '✓ Leave room to rest.' : '◇ No ready suggestion. Open Needs review.'}</div>`}${day?.suggestionLimitReached ? '<p>100-block display limit reached. Remaining work is in Needs review.</p>' : ''}</section></div><p class="cal-status" role="status">${esc(this.message)}</p></div>`;
     for (const key of expanded) {
       const detail = this.dialog.querySelector<HTMLDetailsElement>(
         `[data-cal-detail="${CSS.escape(key)}"]`,

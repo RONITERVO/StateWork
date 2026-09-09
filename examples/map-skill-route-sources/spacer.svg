@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360">
+  <title>Spacer — complete dimensioned specification</title>
+  <rect width="600" height="360" fill="white"/>
+  <g fill="none" stroke="black" stroke-width="2">
+    <rect x="100" y="100" width="400" height="160"/>
+    <path d="M100 70V90 M500 70V90 M100 80H500 M70 100H90 M70 260H90 M80 100V260"/>
+  </g>
+  <g fill="black" font-family="sans-serif" font-size="22">
+    <text x="210" y="50">Length 50 mm</text>
+    <text x="110" y="295">Width 20 mm · Thickness 4 mm</text>
+    <text x="120" y="175">Solid rectangular prism</text>
+    <text x="90" y="335">No holes, fillets or chamfers. All dimensions exact.</text>
+  </g>
+</svg>

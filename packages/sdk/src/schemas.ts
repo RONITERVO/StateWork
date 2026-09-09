@@ -118,11 +118,14 @@ export const workPlanSchema = z.strictObject({
     z.strictObject({
       id: idSchema,
       remainingMinutes: planCount,
-      reason: z.enum(['prerequisites', 'later', 'capacity']),
+      reason: z.enum(['prerequisites', 'packet', 'later', 'capacity']),
     }),
   ),
   scheduleIssues: z.array(
-    z.strictObject({ id: idSchema, reason: z.enum(['past_slot', 'prerequisite_timing']) }),
+    z.strictObject({
+      id: idSchema,
+      reason: z.enum(['past_slot', 'prerequisite_timing', 'packet']),
+    }),
   ),
   counts: z.strictObject({
     openTasks: planCount,

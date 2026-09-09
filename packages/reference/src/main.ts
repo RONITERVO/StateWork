@@ -240,7 +240,11 @@ async function refreshObservation(attempt = 0) {
       : '';
 }
 const badge = (i: WorkItem) =>
-  `<span class="status status-${i.status}">${i.status === 'inbox' ? 'Inbox' : i.status === 'ready' ? 'Ready' : i.status === 'active' ? 'In progress' : i.status === 'done' ? 'Done' : 'Cancelled'}</span>`;
+  i.status !== 'done' &&
+  i.status !== 'cancelled' &&
+  nodeFor(i.id)?.facts.some((f) => f.key === 'blocked' && f.value === true)
+    ? '<span class="status status-inbox">Needs attention</span>'
+    : `<span class="status status-${i.status}">${i.status === 'inbox' ? 'Inbox' : i.status === 'ready' ? 'Ready' : i.status === 'active' ? 'In progress' : i.status === 'done' ? 'Done' : 'Cancelled'}</span>`;
 const due = (i: WorkItem) =>
   i.dueDate
     ? new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
@@ -281,7 +285,7 @@ function renderContent() {
           .map((t) => `<span class="tag">${esc(t)}</span>`)
           .join(
             '',
-          )}${waiting ? '<span class="waiting">↳ Waiting for a prerequisite</span>' : ''}${profile.detail === 'expanded' ? `<p>${esc(i.description)}</p>` : ''}</div></div></div><div>${badge(i)}</div><span class="date-label">${esc(due(i))}</span><button class="open-arrow" data-open="${esc(i.id)}" aria-label="Open ${esc(i.title)}">↗</button></li>`;
+          )}${waiting ? '<span class="waiting">↳ Prerequisites or work packet need attention</span>' : ''}${profile.detail === 'expanded' ? `<p>${esc(i.description)}</p>` : ''}</div></div></div><div>${badge(i)}</div><span class="date-label">${esc(due(i))}</span><button class="open-arrow" data-open="${esc(i.id)}" aria-label="Open ${esc(i.title)}">↗</button></li>`;
       })
       .join('')}</ul>`;
   else if (mode === 'board')
@@ -377,7 +381,7 @@ function renderContent() {
     );
     const item = actionable[0];
     content.innerHTML = item
-      ? `<div class="focus-view"><p class="eyebrow">JUST ONE THING</p>${taskCard(item, true)}<div class="focus-actions"><a class="button" href="/instructions/?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(item.id)}">Follow instructions / Print →</a><button class="primary" data-toggle="${esc(item.id)}">✓ Mark complete</button><button data-open="${esc(item.id)}">Open the context ↗</button></div><p class="muted">${actionable.length - 1} more actionable ${actionable.length === 2 ? 'item' : 'items'} on this page. They can wait.</p></div>`
+      ? `<div class="focus-view"><p class="eyebrow">JUST ONE THING</p>${taskCard(item, true)}<div class="focus-actions"><a class="button" href="/instructions/?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(item.id)}">Follow instructions / Print →</a><button class="primary" data-toggle="${esc(item.id)}" ${nodeFor(item.id)?.actions.find((action) => action.id === 'complete')?.enabled ? '' : 'disabled'}>✓ Mark complete</button><button data-open="${esc(item.id)}">Open the context ↗</button></div><p class="muted">${actionable.length - 1} more actionable ${actionable.length === 2 ? 'item' : 'items'} on this page. They can wait.</p></div>`
       : '<div class="empty"><h2>No clear next step on this page</h2><p>Choose Next actions to find unblocked work, or open the list to resolve prerequisites.</p><button data-filter="next">Show next actions</button></div>';
   } else
     content.innerHTML = `<div class="text-view"><div class="text-actions"><button data-action="copy-text">Copy as text</button>${'speechSynthesis' in window ? '<button data-action="speak">Read aloud</button><button data-action="stop-speech">Stop reading</button>' : ''}</div><pre>${esc(textAdapter.render(observation, profile))}</pre><ol class="text-links">${items.map((i) => `<li><button data-open="${esc(i.id)}">Open ${esc(i.title)}</button></li>`).join('')}</ol><p class="view-note">Speech uses your browser’s local voices when available. Your work is never sent to a speech service by StateWork.</p></div>`;
