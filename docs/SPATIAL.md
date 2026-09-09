@@ -42,6 +42,8 @@ Browser controls include search, filters, Start, Finish, Undo, editing, direct r
 
 ## Filing and keys
 
+The right wall now holds a complete-work **Detective board**, with project groups, requirements, downstream impact, unblock leads and persistent memory pins. See [the board and movement guide](DETECTIVE_BOARD.md) for controls, coverage and extension points.
+
 - Every item has one folder, including projects and archived records. Its nearest containing project supplies the cabinet; uncontained records go in **Unfiled / inbox**. Nested projects have their own cabinets.
 - Three cabinets form a bank, with twelve folders per cabinet sheet. Paging reaches the complete catalog, independently of search and the six-card browser page.
 - A completed prerequisite supplies one key for every dependent. Cancelled prerequisites have explicitly waived keys, matching existing backend rules. An archived unfinished prerequisite still needs a key.
@@ -63,7 +65,7 @@ Connect a headset to the PC running StateWork. Open the loopback address in a br
 | File-index clipboard                                      | Follow relationships, page notes, or leave VR to open the browser editor/resource link                |
 | **Recenter**, **Text size**, **Sound**, **Exit VR** board | Controls stay inside the room; the headset's system exit also works                                   |
 
-The renderer uses `local` reference space and places the room relative to current head height and horizontal facing. It makes no floor-height assumption. There is no locomotion, automatic camera rotation, dwell activation or mandatory two-handed interaction. Tracking loss, a hidden session and exit return held objects safely. The key-ring control avoids juggling objects.
+The renderer uses `local` reference space and places the room relative to current head height and horizontal facing. It makes no floor-height assumption. Optional locomotion uses the left thumbstick; the right stick snap-turns. With one controller, its stick moves and wall buttons turn. Desk/board stations remain available while free movement is paused. Desktop uses WASD, Q/E and right-drag. Tracking loss, a hidden session and exit return held objects safely and require neutral input before walking resumes. There is no dwell activation or mandatory two-handed interaction.
 
 Quick View stays in room coordinates: recenter after changing seat or position. Original neutral controller grips avoid remote model downloads. Hand tracking, gaze input, haptic drivers and standalone hosting are extension opportunities, not supplied device integrations.
 

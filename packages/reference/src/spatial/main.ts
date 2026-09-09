@@ -25,8 +25,10 @@ import type { SpatialScene, SpatialView } from './scene';
 import { officeCatalog } from './office-model';
 import type { OfficeCatalog } from './office-model';
 import type { OfficeFeedback } from './office-world';
+import { DetectiveBoard } from './detective-board';
 import './style.css';
 import './office.css';
+import './detective.css';
 
 const $ = <T extends Element = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
@@ -67,6 +69,7 @@ let immersive = false;
 let message = '';
 let failure = '';
 let large = recalled('large') === 'true';
+let movement = recalled('movement') !== 'false';
 // Audio always starts silent, even on a shared browser. Opt in once each visit.
 let sound = false;
 let audioContext: AudioContext | undefined;
@@ -115,9 +118,17 @@ $('#app').innerHTML =
 <dialog id="setup-dialog" aria-labelledby="setup-title"><form id="setup-form"><div class="dialog-heading"><div><p class="eyebrow">JUST FILL IN</p><h2 id="setup-title">Your space starts here.</h2></div><button type="button" data-close aria-label="Close setup">×</button></div><p class="muted">Edit the example, or start with a blank project. Nothing is saved until you create it.</p><div class="template-options"><button type="button" data-template="project" aria-pressed="true">◇ 3D project</button><button type="button" data-template="blank" aria-pressed="false">＋ Blank</button></div><label>Workspace name<input name="workspaceName" required maxlength="240" value="My studio"></label><label>Project name<input name="projectName" required maxlength="240" value="My next release"></label><fieldset><legend>Starting steps <small>— edit or leave empty</small></legend>${Array.from({ length: 5 }, (_, i) => `<label>Step ${i + 1}<input name="step${i}" maxlength="240" value="${starterTasks[i]}"></label>`).join('')}</fieldset><p class="muted"><small>The unchanged example links access → build → review → deliver. Editing the steps starts them independently; add prerequisites inside your space.</small></p><p class="form-error error" role="alert" hidden></p><div class="dialog-footer"><button type="button" data-close>Cancel</button><button class="primary" type="submit">Create space</button></div></form></dialog>
 <dialog id="edit-dialog" aria-labelledby="edit-title"><form id="edit-form"><div class="dialog-heading"><h2 id="edit-title">Add a step</h2><button type="button" data-close aria-label="Close step editor">×</button></div><input name="itemId" type="hidden"><label>Step name<input name="title" required maxlength="240" placeholder="A small, clear action"></label><div class="form-grid"><label>Kind<select name="kind"><option value="task">Task</option><option value="project">Project</option><option value="note">Note</option><option value="event">Event</option></select></label><label>Priority<select name="priority"><option value="1">Normal</option><option value="3">High</option><option value="2">Medium</option><option value="0">Low</option></select></label><label>Minutes<input name="minutes" type="number" min="0" max="525600"></label><label>Due date<input name="dueDate" type="date"></label></div><label>Notes / microsteps<textarea name="description" rows="4" maxlength="20000" placeholder="Keep the next action small."></textarea></label><label>Resource link<input name="resource" type="url" maxlength="2048" placeholder="https://…"></label><label id="parent-label">Inside project<select name="parent"><option value="">No project</option></select></label><p class="form-error error" role="alert" hidden></p><div class="dialog-footer"><button type="button" data-close>Cancel</button><button type="submit" class="primary">Save step</button></div></form></dialog>
 <dialog id="needs-dialog" aria-labelledby="needs-title"><form id="needs-form"><div class="dialog-heading"><h2 id="needs-title">What needs to happen first?</h2><button type="button" data-close aria-label="Close prerequisites">×</button></div><p class="muted">An account, tool, person or small task can be a prerequisite. Link an existing step, or create one.</p><label>Existing prerequisite<select name="existing"><option value="">Create a new prerequisite</option></select></label><label>New prerequisite<input name="title" maxlength="240" placeholder="Get project access"></label><label>Link to get it<input name="resource" type="url" maxlength="2048" placeholder="https://…"></label><p class="form-error error" role="alert" hidden></p><div class="dialog-footer"><button type="button" data-close>Cancel</button><button type="submit" class="primary">Link prerequisite</button></div></form></dialog>
-<dialog id="comfort-dialog" aria-labelledby="comfort-title"><div class="dialog-heading"><h2 id="comfort-title">Make yourself comfortable.</h2><button data-close aria-label="Close comfort settings">×</button></div><p class="muted">Sit or stand. Everything stays in front. No movement, dragging or timed selection is required.</p><div class="actions"><button data-action="large" id="large-toggle" aria-pressed="${large}">Larger VR text</button><button data-action="recenter">Recenter view</button><button data-action="audio" id="comfort-sound" aria-pressed="false">Sound off</button></div><p style="margin-top:20px" class="muted">Sound adds a short cue for interactions and successful saves. Every cue has a visible message. No microphone or speech service is used.</p><p class="muted">Use Classic views for adjustable text size, high contrast and a full text view. Your headset’s system control can always leave VR.</p></dialog>
-<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">A place for your next step.</h2><button data-close aria-label="Close help">×</button></div><p><strong>1. Fill in</strong> a workspace and a few steps.</p><p><strong>2. Open a drawer</strong> and pick up a folder. Dependencies reveals its missing keys; Quick View brings related files forward.</p><p><strong>3. Start → Finish.</strong> Completed work stays in your records.</p><h3>Inside VR</h3><p>Point either controller and select a drawer, folder or key. Squeeze to grab nearby; release or choose Put down. Follow Dependencies → Quick View, earn keys by finishing requirements, then use the key ring and Done stamp. Back to folder retraces your path; File all tidies the office. The telephone brings your next step without making a call. Recenter, text size, sound and exit are on the control board. Setup and editing use browser forms outside VR. No locomotion or timed selection.</p><h3>Connect a headset</h3><p>Run StateWork on your PC and open this localhost address in a WebXR-capable browser connected to your headset. “Enter VR” becomes available when that browser reports immersive VR support.</p><p class="muted">This server is local to your PC. A standalone headset cannot reach the PC using its own localhost address. Standalone / company hosting requires a separate authenticated HTTPS host. This release does not provide remote access or sync.</p><h3>Your data</h3><p>Saved in the local StateWork database. Export a snapshot before moving computers. Import, archive, schedules and the complete history are available through Classic views and the shared API.</p><p class="muted">Headset comfort and device compatibility still need real hardware testing. The desktop preview is available even without VR.</p></dialog>`;
+<dialog id="comfort-dialog" aria-labelledby="comfort-title"><div class="dialog-heading"><h2 id="comfort-title">Make yourself comfortable.</h2><button data-close aria-label="Close comfort settings">×</button></div><p class="muted">Sit or stand. The desk and board have one-click stations. Free movement is optional; no dragging or timed selection is required.</p><div class="actions"><button data-action="large" id="large-toggle" aria-pressed="${large}">Larger VR text</button><button data-action="recenter">Recenter view</button><button data-action="audio" id="comfort-sound" aria-pressed="false">Sound off</button></div><p style="margin-top:20px" class="muted">Sound adds a short cue for interactions and successful saves. Every cue has a visible message. No microphone or speech service is used.</p><p class="muted">Use Classic views for adjustable text size, high contrast and a full text view. Your headset’s system control can always leave VR.</p></dialog>
+<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">A place for your next step.</h2><button data-close aria-label="Close help">×</button></div><p><strong>1. Fill in</strong> a workspace and a few steps.</p><p><strong>2. Open a drawer</strong> and pick up a folder. Dependencies reveals its missing keys; Quick View brings related files forward.</p><p><strong>3. Start → Finish.</strong> Completed work stays in your records.</p><h3>Inside VR</h3><p>Point either controller and select a drawer, folder or key. Squeeze to grab nearby; release or choose Put down. Follow Dependencies → Quick View, earn keys by finishing requirements, then use the key ring and Done stamp. Back to folder retraces your path; File all tidies the office. The telephone brings your next step without making a call. Recenter, text size, sound and exit are on the control board. The right-wall detective board shows the whole case. Open groups, follow Needs first or What follows, and pin files to remember. Left stick moves; right stick turns 45°. With one controller, its stick moves and the wall buttons turn. Pause free movement at any time. On desktop: WASD, Q/E and right-drag. Setup and editing use browser forms outside VR.</p><h3>Connect a headset</h3><p>Run StateWork on your PC and open this localhost address in a WebXR-capable browser connected to your headset. “Enter VR” becomes available when that browser reports immersive VR support.</p><p class="muted">This server is local to your PC. A standalone headset cannot reach the PC using its own localhost address. Standalone / company hosting requires a separate authenticated HTTPS host. This release does not provide remote access or sync.</p><h3>Your data</h3><p>Saved in the local StateWork database. Export a snapshot before moving computers. Import, archive, schedules and the complete history are available through Classic views and the shared API.</p><p class="muted">Headset comfort and device compatibility still need real hardware testing. The desktop preview is available even without VR.</p></dialog>`;
 
+const caseBoard = new DetectiveBoard(
+  () => updateScene(),
+  (id) => setSelection(id, true),
+  (id) => {
+    setSelection(id, true);
+    scene?.officeAction('office:hold');
+  },
+);
 const officeTools = document.createElement('div');
 officeTools.className = 'office-tools';
 officeTools.innerHTML = `<div class="office-readout"><span id="office-held">NO FOLDER IN HAND</span><span id="office-keys">KEY RING · 0</span><span id="office-bank">CABINETS · 1/1</span></div>
@@ -127,13 +138,27 @@ officeTools.innerHTML = `<div class="office-readout"><span id="office-held">NO F
 $('#scene').after(officeTools);
 officeTools
   .querySelector('.actions')!
+  .insertAdjacentHTML(
+    'afterbegin',
+    '<button data-action="board:open-view" class="primary">Detective board</button>',
+  );
+officeTools
+  .querySelector('[aria-label="Look around office"]')!
+  .insertAdjacentHTML('afterbegin', '<button data-action="look:board">Board on wall</button>');
+officeTools.insertAdjacentHTML(
+  'beforeend',
+  `<details class="office-pages"><summary>Move around · WASD / sticks</summary><div class="actions" role="group" aria-label="Room movement"><button data-action="move:forward">↑ Forward</button><button data-action="move:left">← Step left</button><button data-action="move:back">↓ Backward</button><button data-action="move:right">Step right →</button><button data-action="move:turn-left">Turn left</button><button data-action="move:turn-right">Turn right</button><button data-action="move:desk">Back to desk</button><button data-action="move:toggle" id="movement-toggle" aria-pressed="${movement}">${movement ? 'Free move on' : 'Free move off'}</button></div><p class="office-hint">WASD moves · Q/E turns · right-drag looks. VR: left stick moves, right stick snap-turns. One controller: stick moves; use the wall's turn buttons.</p></details>`,
+);
+officeTools
+  .querySelector('.actions')!
   .insertAdjacentHTML('beforeend', '<button data-action="office:back">Back to folder</button>');
 officeTools.insertAdjacentHTML(
   'beforeend',
   '<details class="office-pages"><summary>More controls</summary><div class="actions"><button data-action="office:quick-previous">Previous related</button><span id="office-related-page">1/1</span><button data-action="office:quick-next">Next related</button><button data-action="office:keys-previous">Previous keys</button><span id="office-key-page">1/1</span><button data-action="office:keys-next">Next keys</button></div></details>',
 );
 officeTools.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
-  if (button.dataset.action !== 'office-fullscreen') button.disabled = true;
+  if (!['office-fullscreen', 'board:open-view'].includes(button.dataset.action ?? ''))
+    button.disabled = true;
 });
 const cabinetIndex = document.createElement('details');
 cabinetIndex.className = 'cabinet-index';
@@ -204,6 +229,7 @@ function setSelection(id: string, stayInRoom = false) {
   if (!state?.items.some((i) => i.id === id)) return;
   scene?.inspect(id);
   selected = id;
+  caseBoard.focus(id);
   detailPage = 0;
   relationPage = 0;
   render();
@@ -270,6 +296,8 @@ function updateScene() {
     { id: 'edit', label: 'Edit ↗', enabled: !!item && role !== 'reader' },
   ];
   scene.update({
+    board: caseBoard.view,
+    movement,
     catalog: filing!,
     title: state.workspace.title,
     nodes: filtered.slice(page * 6, page * 6 + 6),
@@ -404,6 +432,8 @@ async function refresh(target = workspaceId) {
   role = spaces.find((s) => s.id === workspaceId)?.role ?? 'reader';
   nodes = state ? semanticNodes(state, role) : [];
   filing = state ? officeCatalog(state, role) : undefined;
+  if (state) caseBoard.setWork(state);
+  else caseBoard.clear();
   if (!selected || !state?.items.some((n) => n.id === selected))
     selected = state ? (nextTask(state, new Date().toISOString())?.id ?? nodes[0]?.id ?? '') : '';
   render();
@@ -427,6 +457,7 @@ async function prepareScene() {
       (action) => {
         if (action.startsWith('select:')) {
           if (action.slice(7) !== selected) setSelection(action.slice(7), true);
+          else caseBoard.focus(action.slice(7));
         } else void act(action);
       },
       (active) => {
@@ -554,6 +585,20 @@ function openEdit(item?: WorkItem) {
   showDialog('edit-dialog');
 }
 async function act(action: string) {
+  if (action === 'board:open-view' && immersive) await scene?.exit();
+  if (caseBoard.action(action)) return;
+  if (action === 'move:toggle') {
+    movement = !movement;
+    remember('movement', String(movement));
+    $('#movement-toggle').setAttribute('aria-pressed', String(movement));
+    $('#movement-toggle').textContent = movement ? 'Free move on' : 'Free move off';
+    updateScene();
+    return;
+  }
+  if (action.startsWith('move:')) {
+    scene?.navigate(action.slice(5));
+    return;
+  }
   if (action === 'next-focus' && state) {
     const next = nextTask(state, new Date().toISOString());
     if (next) {
@@ -567,7 +612,7 @@ async function act(action: string) {
     return;
   }
   if (action.startsWith('look:')) {
-    scene?.look(action.slice(5) as 'left' | 'right' | 'desk' | 'files');
+    scene?.look(action.slice(5) as 'left' | 'right' | 'desk' | 'files' | 'board');
     return;
   }
   if (action === 'office-fullscreen') {

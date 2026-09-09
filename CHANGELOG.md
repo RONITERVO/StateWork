@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Detective board and room navigation
+
+- Added a right-wall cork-and-thread investigation board over the complete workspace, with lossless project/group drill-down, archived/completed evidence and explicit coverage.
+- Added upstream requirements, downstream impact, exact unblock counts, persistent per-workspace pins, investigation memory, sources and full-screen search/zoom/pan/keyboard/touch controls.
+- Added WASD and standard XR thumbstick locomotion, 45° snap turns, one-controller and seated stations, movement pause, furniture/wall collision and focus/tracking recovery.
+- Separated room layout and navigation rules for future connected rooms. The local backend, command history and permissions remain shared by every view.
+- Added large-graph, routing, memory, browser-role, physical ray and emulated controller tests. Physical headset qualification remains pending.
+
 ## Unreleased — Interactive office
 
 - Replaced the floating work arc with an original furnished 1980s office: drawers, folder racks, held files, brass keys, completion stamp, desk light and next-step telephone.

@@ -4,6 +4,20 @@ Local verification on **2026-09-08**, Windows 11 (`10.0.26200`), AMD Ryzen 9 795
 
 ## Passed
 
+### Detective board and room navigation — 2026-09-09
+
+- `npm run check`: **62 unit/backend/protocol tests**, strict types, package boundaries, formatting, contracts and production build passed on the Windows/Node 25.4.0 environment above. Subsequent focused graph checks, types, formatting and builds passed after the last routing and tracking refinements.
+- Full browser regression: **57 passed, 12 explicitly skipped** across Chromium, Firefox and WebKit. The four new detective-board scenarios passed on all three engines; the two new physical room/controller scenarios run in Chromium. After final arrow-routing polish, the twelve board checks passed again.
+- A pure 10,000-record dependency chain retained every record and edge through bounded group drill-down. Converging paths count distinct impact once; available leads distinguish direct unlocking from wider unfinished reach. Tests cover stable positions, filters, archives, removed remembered records, twelve-pin limits, ranked groups and workspace memory isolation.
+- Routing checks examine every ordered pair among 32 cards and reject segments crossing unrelated cards. Incoming/outgoing ports and gutter lanes are separated to avoid misleading adjacent arrows.
+- A **1,020-record / 20-project / 1,999-link** fictional workspace passed real browser import, complete coverage, group drill-down, cross-project requirements, source links, pinning, archived/completed counts and workspace switching. This verifies functional coverage, not a company workload or latency guarantee.
+- Reader-role browser tests permit investigation/pins while disabling work mutations; no command request is sent. Existing backend permission and identity tests remain authoritative. Phone keyboard/focus/reflow and WebGL-unavailable board scenarios reported no axe violations for the tested WCAG A/AA tags.
+- Actual desktop rays selected a wall card and its physical pin control. Keyboard movement, full rotations, furniture bounds, input-focus/blur stops, movement pause and desk/board stations passed. Pure layout tests cover normalized diagonals, dead zones, snap rearming and an adjoining-room boundary.
+- IWER exercised standard thumbstick movement, one snap per tilt, the physical wall station, card selection after rig movement, a held file during one-controller movement, tracking/visibility recovery requiring neutral input, and the physical Screen view exit. Both navigation scenarios also passed Chromium software rendering (`--use-angle=swiftshader`). The final controller scenario used stereo output; both eye images were inspected.
+- Fictional captures are in `docs/images/detective-company.png`, `docs/images/detective-wall.png` and `docs/images/detective-xr-emulated.png`. The first two show the latest card routing; the stereo capture records the controller/navigation verification before that final routing-only polish. Personal records and local launcher files remain ignored.
+
+**Physical headset testing remains unperformed.** The board, movement and room-extension seam are functional developer features; emulation does not establish headset comfort, sustained frame rate, eye comfort or universal accessibility. [Controls, graph semantics and extension limits](DETECTIVE_BOARD.md). Hosted results are recorded in the pull request checks.
+
 ### Interactive office — 2026-09-09
 
 - `npm run check`: **51 tests passed**, plus strict types, package boundaries, formatting, contracts and production build on Windows/Node 25.4.0.

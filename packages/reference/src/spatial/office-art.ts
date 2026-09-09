@@ -31,6 +31,10 @@ export class OfficeArt {
   private materials = new Set<THREE.Material>();
   private textures = new Set<THREE.Texture>();
   private materialCache = new Map<string, THREE.MeshStandardMaterial>();
+  ownTexture<T extends THREE.Texture>(texture: T): T {
+    this.textures.add(texture);
+    return texture;
+  }
   material(name: OfficeMaterial, color?: THREE.ColorRepresentation) {
     const key = `${name}:${color ?? ''}`;
     let material = this.materialCache.get(key);
@@ -252,6 +256,12 @@ export function makeOfficeShell(art: OfficeArt) {
   art.box(room, [7.8, 3.2, 0.15], [0, 1.55, -3.1], 'cream', 0);
   art.box(room, [0.15, 3.2, 7], [-3.9, 1.55, -0.45], 'cream', 0);
   art.box(room, [0.15, 3.2, 7], [3.9, 1.55, -0.45], 'cream', 0);
+  art.box(room, [7.8, 3.2, 0.15], [0, 1.55, 3.05], 'cream', 0);
+  art.box(room, [1.08, 2.3, 0.06], [-2.42, 1.14, 2.95], 'wood');
+  art.box(room, [0.91, 2.13, 0.035], [-2.42, 1.12, 2.9], 'teal');
+  art.label(room, 'OFFICE', 'RECORDS & RESEARCH', 0.56, 0.2, [-2.42, 1.85, 2.87], {
+    size: 70,
+  }).rotation.y = Math.PI;
   art.box(room, [7.8, 0.06, 7], [0, 3.15, -0.45], 'cream', 0);
   // Wainscot and acoustic ceiling grid establish human scale.
   art.box(room, [7.6, 0.65, 0.04], [0, 0.33, -3.0], 'wood', 0);

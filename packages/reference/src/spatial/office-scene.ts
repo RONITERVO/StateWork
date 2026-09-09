@@ -3,8 +3,13 @@ import type { SemanticNode } from '@statework/sdk';
 import { OfficeWorld } from './office-world';
 import type { OfficeFeedback, OfficeTarget } from './office-world';
 import type { OfficeCatalog, OfficeHand } from './office-model';
+import type { DetectiveView } from './detective-board';
+import { moveInOffice, officeLayout, snapTurn, stickVector } from './office-layout';
+import type { RoomPoint } from './office-layout';
 
 export interface SpatialView {
+  board?: DetectiveView;
+  movement?: boolean;
   title: string;
   nodes: SemanticNode[];
   selected?: SemanticNode;
@@ -47,6 +52,7 @@ const home = new THREE.Vector3(0, 1.58, 2.32);
 export class SpatialScene {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
+  private rig = new THREE.Group();
   private camera = new THREE.PerspectiveCamera(57, 1, 0.035, 35);
   private office: OfficeWorld;
   private ray = new THREE.Raycaster();
@@ -55,6 +61,7 @@ export class SpatialScene {
     grip: THREE.XRGripSpace;
     hand: OfficeHand;
     cursor: THREE.Mesh;
+    source: XRInputSource | null;
   }[] = [];
   private resize: ResizeObserver;
   private session: XRSession | null = null;
@@ -69,6 +76,10 @@ export class SpatialScene {
   private pitch = -0.1;
   private lastAction: string | null = null;
   private shadowDirty = true;
+  private pressed = new Set<string>();
+  private walking = true;
+  private turnArmed = true;
+  private xrNeedsNeutral = true;
 
   constructor(
     private host: HTMLElement,
@@ -94,7 +105,8 @@ export class SpatialScene {
     this.camera.position.copy(home);
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.x = this.pitch;
-    this.scene.add(this.camera);
+    this.scene.add(this.rig);
+    this.rig.add(this.camera);
     this.scene.add(new THREE.HemisphereLight('#eee9d6', '#625342', 2.1));
     const sun = new THREE.DirectionalLight('#ffdfad', 3.1);
     sun.position.set(-3.2, 4.5, 2.8);
@@ -122,6 +134,7 @@ export class SpatialScene {
       },
     );
     this.scene.add(this.office.root);
+    this.office.root.add(sun, sun.target, fill, fill.target);
     const canvas = this.renderer.domElement;
     canvas.setAttribute('aria-hidden', 'true');
     host.append(canvas);
@@ -134,6 +147,10 @@ export class SpatialScene {
     canvas.addEventListener('pointerleave', this.onLeave);
     canvas.addEventListener('webglcontextlost', this.onContextLost);
     canvas.addEventListener('webglcontextrestored', this.onContextRestored);
+    window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('blur', this.stopMovement);
+    document.addEventListener('visibilitychange', this.onPageVisibility);
     this.resize = new ResizeObserver(() => this.resizeCanvas());
     this.resize.observe(host);
     for (let i = 0; i < 2; i++) {
@@ -145,7 +162,13 @@ export class SpatialScene {
       );
       cursor.visible = false;
       this.scene.add(cursor);
-      const controller = { ray, grip, hand: (i === 0 ? 'left' : 'right') as OfficeHand, cursor };
+      const controller = {
+        ray,
+        grip,
+        hand: (i === 0 ? 'left' : 'right') as OfficeHand,
+        cursor,
+        source: null as XRInputSource | null,
+      };
       this.controllers.push(controller);
       const laser = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
@@ -162,12 +185,17 @@ export class SpatialScene {
       );
       palm.rotation.x = Math.PI / 2;
       grip.add(palm);
-      this.scene.add(ray, grip);
+      this.rig.add(ray, grip);
       ray.addEventListener('connected', (event) => {
+        controller.source = event.data;
+        this.xrNeedsNeutral = true;
         controller.hand = event.data.handedness === 'right' ? 'right' : 'left';
         this.bindHands();
       });
       ray.addEventListener('disconnected', () => {
+        controller.source = null;
+        this.xrNeedsNeutral = true;
+        this.turnArmed = true;
         this.office.returnHeldFromLostTracking(controller.hand);
         cursor.visible = false;
       });
@@ -237,11 +265,15 @@ export class SpatialScene {
         return;
       }
       this.session = requested;
+      this.stopMovement();
+      this.rig.position.set(0, 0, 0);
+      this.rig.rotation.set(0, 0, 0);
       this.office.setImmersive(true);
       this.recenterPending = true;
       requested.addEventListener('end', this.onSessionEnd, { once: true });
       requested.addEventListener('visibilitychange', () => {
         if (requested?.visibilityState !== 'visible') {
+          this.stopMovement();
           for (const c of this.controllers) this.office.returnHeldFromLostTracking(c.hand);
         }
       });
@@ -276,6 +308,7 @@ export class SpatialScene {
         }
         const delta = this.lastFrame ? Math.min((time - this.lastFrame) / 1000, 0.035) : 1 / 90;
         this.lastFrame = time;
+        this.moveXR(Math.min(delta, 0.1));
         this.scene.updateMatrixWorld(true);
         const moving = this.office.tick(delta);
         for (const c of this.controllers) {
@@ -306,6 +339,7 @@ export class SpatialScene {
     await this.session?.end();
   }
   private onSessionEnd = () => {
+    this.stopMovement();
     this.session = null;
     this.renderer.setAnimationLoop(null);
     queueMicrotask(() => {
@@ -316,6 +350,8 @@ export class SpatialScene {
       }
       this.office.root.position.set(0, 0, 0);
       this.office.root.rotation.set(0, 0, 0);
+      this.rig.position.set(0, 0, 0);
+      this.rig.rotation.set(0, 0, 0);
       this.office.setImmersive(false);
       this.camera.position.copy(home);
       this.look('desk');
@@ -324,19 +360,36 @@ export class SpatialScene {
     });
   };
   recenter() {
+    this.stopMovement();
     this.shadowDirty = true;
-    if (this.session) this.recenterPending = true;
-    else this.look('desk');
+    if (this.session) {
+      this.rig.position.set(0, 0, 0);
+      this.rig.rotation.set(0, 0, 0);
+      this.recenterPending = true;
+    } else this.look('desk');
   }
-  look(direction: 'left' | 'right' | 'desk' | 'files') {
-    if (this.session) return;
-    this.yaw = direction === 'left' ? 0.5 : direction === 'right' ? -0.5 : 0;
-    this.pitch = direction === 'files' ? 0.05 : -0.1;
-    this.camera.position.copy(home);
+  look(direction: 'left' | 'right' | 'desk' | 'files' | 'board') {
+    if (direction === 'board') {
+      this.navigate('board');
+      return;
+    }
+    if (this.session) {
+      if (direction === 'desk') this.navigate('desk');
+      return;
+    }
+    if (direction === 'left' || direction === 'right')
+      this.yaw += direction === 'left' ? Math.PI / 4 : -Math.PI / 4;
+    else {
+      this.yaw = 0;
+      this.pitch = direction === 'files' ? 0.05 : -0.1;
+      this.camera.position.copy(home);
+    }
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     this.invalidate();
   }
   update(view: SpatialView) {
+    this.walking = view.movement !== false;
+    if (!this.walking) this.stopMovement();
     this.office.update(view);
     this.invalidate();
   }
@@ -355,8 +408,9 @@ export class SpatialScene {
     this.lastFrame = time;
     this.scene.updateMatrixWorld(true);
     const moving = this.office.tick(delta);
-    this.renderOffice(moving);
-    if (moving || --this.framesRemaining > 0)
+    const moved = this.moveDesktop(delta);
+    if (moving || moved || this.framesRemaining > 0) this.renderOffice(moving);
+    if (this.pressed.size || moving || --this.framesRemaining > 0)
       this.animation = requestAnimationFrame(this.desktopFrame);
   };
   private resizeCanvas() {
@@ -377,6 +431,10 @@ export class SpatialScene {
     canvas.dataset.geometries = String(this.renderer.info.memory.geometries);
     canvas.dataset.textures = String(this.renderer.info.memory.textures);
     canvas.dataset.immersive = String(!!this.session);
+    const point = this.roomPosition();
+    canvas.dataset.roomPosition = `${point.x.toFixed(3)},${point.z.toFixed(3)}`;
+    canvas.dataset.roomYaw = this.roomYaw().toFixed(3);
+    canvas.dataset.movement = String(this.walking);
   }
   private renderOffice(moving: boolean) {
     this.renderer.shadowMap.needsUpdate = this.shadowDirty || moving;
@@ -436,15 +494,11 @@ export class SpatialScene {
   private onPointerMove = (event: PointerEvent) => {
     if (this.session) return;
     if (this.dragging) {
-      this.yaw = THREE.MathUtils.clamp(
-        this.yaw - (event.clientX - this.dragging.x) * 0.003,
-        -0.8,
-        0.8,
-      );
+      this.yaw -= (event.clientX - this.dragging.x) * 0.003;
       this.pitch = THREE.MathUtils.clamp(
         this.pitch - (event.clientY - this.dragging.y) * 0.003,
-        -0.45,
-        0.35,
+        -1.15,
+        1.15,
       );
       this.dragging = { x: event.clientX, y: event.clientY };
       this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
@@ -466,13 +520,178 @@ export class SpatialScene {
   private onContextMenu = (event: Event) => event.preventDefault();
   private onContextLost = (event: Event) => {
     event.preventDefault();
+    this.stopMovement();
     void this.exit().catch(() => undefined);
     this.report(
       'The 3D view paused. Your records are safe. Use the work buttons or reload the office.',
     );
   };
   private onContextRestored = () => this.invalidate();
+  private roomPosition(): RoomPoint {
+    const camera = this.session ? this.renderer.xr.getCamera() : this.camera;
+    const point = this.office.root.worldToLocal(camera.getWorldPosition(new THREE.Vector3()));
+    return { x: point.x, z: point.z };
+  }
+  private roomYaw() {
+    if (!this.session) return this.yaw;
+    const rotation = this.renderer.xr.getCamera().getWorldQuaternion(new THREE.Quaternion());
+    const facing = new THREE.Vector3(0, 0, -1)
+      .applyQuaternion(rotation)
+      .applyQuaternion(this.office.root.getWorldQuaternion(new THREE.Quaternion()).invert());
+    return Math.atan2(-facing.x, -facing.z);
+  }
+  private setRoomPosition(point: RoomPoint) {
+    if (!this.session) this.camera.position.set(point.x, this.camera.position.y, point.z);
+    else {
+      const current = this.roomPosition();
+      const delta = new THREE.Vector3(point.x - current.x, 0, point.z - current.z).applyQuaternion(
+        this.office.root.getWorldQuaternion(new THREE.Quaternion()),
+      );
+      this.rig.position.add(delta);
+      this.rig.updateMatrixWorld(true);
+      this.renderer.xr.updateCamera(this.camera);
+    }
+  }
+  private turn(radians: number) {
+    if (!this.session) {
+      this.yaw += radians;
+      this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    } else {
+      const pivot = this.renderer.xr.getCamera().getWorldPosition(new THREE.Vector3());
+      const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), radians);
+      this.rig.position.sub(pivot).applyQuaternion(rotation).add(pivot);
+      this.rig.quaternion.premultiply(rotation);
+      this.rig.updateMatrixWorld(true);
+      this.renderer.xr.updateCamera(this.camera);
+    }
+  }
+  /** Intentional point-and-click stations also work while free movement is paused. */
+  navigate(action: string) {
+    this.stopMovement();
+    const station = officeLayout.stations[action];
+    if (station) {
+      this.turn(station.yaw - this.roomYaw());
+      this.setRoomPosition(station);
+      if (!this.session) {
+        this.pitch = -0.03;
+        this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+      }
+    } else if (action === 'turn-left' || action === 'turn-right')
+      this.turn(action === 'turn-left' ? Math.PI / 4 : -Math.PI / 4);
+    else {
+      const inputs: Record<string, RoomPoint> = {
+        forward: { x: 0, z: -1 },
+        back: { x: 0, z: 1 },
+        left: { x: -1, z: 0 },
+        right: { x: 1, z: 0 },
+      };
+      if (inputs[action]) {
+        let point = this.roomPosition();
+        for (let i = 0; i < 4; i++)
+          point = moveInOffice(officeLayout, point, inputs[action]!, this.roomYaw(), 0.1);
+        this.setRoomPosition(point);
+      }
+    }
+    this.invalidate();
+  }
+  private moveDesktop(delta: number) {
+    if (this.editing()) this.stopMovement();
+    if (!this.walking || !this.pressed.size) return false;
+    const input = {
+      x: Number(this.pressed.has('KeyD')) - Number(this.pressed.has('KeyA')),
+      z: Number(this.pressed.has('KeyS')) - Number(this.pressed.has('KeyW')),
+    };
+    const old = this.roomPosition(),
+      next = moveInOffice(officeLayout, old, input, this.yaw, delta);
+    this.setRoomPosition(next);
+    return next.x !== old.x || next.z !== old.z;
+  }
+  private moveXR(delta: number) {
+    if (!this.walking || this.recenterPending) return;
+    const sources = this.controllers.filter(
+      (controller) => controller.source?.gamepad?.mapping === 'xr-standard',
+    );
+    if (sources.some((controller) => !controller.ray.visible)) {
+      this.xrNeedsNeutral = true;
+      this.turnArmed = true;
+      return;
+    }
+    const axes = (controller: (typeof sources)[number] | undefined) => {
+      const values = controller?.source?.gamepad?.axes;
+      return values && values.length >= 4 ? stickVector(values[2]!, values[3]!) : { x: 0, z: 0 };
+    };
+    if (this.xrNeedsNeutral) {
+      if (
+        sources.every((source) => {
+          const value = axes(source);
+          return !value.x && !value.z;
+        })
+      )
+        this.xrNeedsNeutral = false;
+      return;
+    }
+    const left = sources.find((source) => source.hand === 'left'),
+      right = sources.find((source) => source.hand === 'right');
+    const movement = axes(left ?? right);
+    this.setRoomPosition(
+      moveInOffice(officeLayout, this.roomPosition(), movement, this.roomYaw(), delta),
+    );
+    if (left && right) {
+      const snap = snapTurn(axes(right).x, this.turnArmed);
+      this.turnArmed = snap.armed;
+      if (snap.radians) this.turn(snap.radians);
+    }
+  }
+  private stopMovement = () => {
+    this.pressed.clear();
+    this.turnArmed = true;
+    this.xrNeedsNeutral = true;
+    this.dragging = null;
+  };
+  private onPageVisibility = () => {
+    if (document.hidden) this.stopMovement();
+  };
+  private editing() {
+    return !!(
+      document.querySelector('dialog[open]') ||
+      document.activeElement?.closest(
+        'input,textarea,select,[contenteditable]:not([contenteditable="false"])',
+      )
+    );
+  }
+  private onKeyDown = (event: KeyboardEvent) => {
+    if (
+      !this.walking ||
+      this.session ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      this.editing()
+    )
+      return;
+    if (['KeyQ', 'KeyE'].includes(event.code)) {
+      if (!event.repeat) {
+        this.turn(event.code === 'KeyQ' ? Math.PI / 4 : -Math.PI / 4);
+        this.invalidate();
+      }
+      event.preventDefault();
+      return;
+    }
+    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) return;
+    event.preventDefault();
+    if (!this.pressed.size) this.lastFrame = 0;
+    this.pressed.add(event.code);
+    this.invalidate();
+  };
+  private onKeyUp = (event: KeyboardEvent) => {
+    this.pressed.delete(event.code);
+  };
   dispose() {
+    this.stopMovement();
+    window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.stopMovement);
+    document.removeEventListener('visibilitychange', this.onPageVisibility);
     this.disposed = true;
     this.resize.disconnect();
     if (this.animation !== null) cancelAnimationFrame(this.animation);
