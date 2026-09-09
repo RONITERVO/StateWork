@@ -303,6 +303,16 @@ for (const readiness of ['draft', 'missing-file', 'ready'] as const) {
         page.getByRole('button', { name: 'Mark complete', exact: false }),
       ).toBeDisabled();
     }
+    let releaseScene: (() => void) | undefined;
+    if (readiness === 'ready') {
+      const sceneReady = new Promise<void>((resolve) => {
+        releaseScene = resolve;
+      });
+      await page.route('**/assets/scene-*.js', async (route) => {
+        await sceneReady;
+        await route.continue();
+      });
+    }
     await page.goto('/spatial/');
     await page.getByLabel('Your workspace').selectOption(id);
     await page.getByRole('button', { name: 'Calendar', exact: true }).click();
@@ -311,6 +321,11 @@ for (const readiness of ['draft', 'missing-file', 'ready'] as const) {
     if (readiness === 'ready') {
       const card = calendar.locator('.cal-task').filter({ hasText: 'Square kit' });
       await expect(card).toContainText('Ready');
+      // A workspace refresh can finish its data before the 3D module is ready.
+      // Releasing that pending refresh must also unlock the already-open calendar.
+      await expect(card.getByRole('button', { name: 'Start', exact: false })).toBeDisabled();
+      releaseScene!();
+      await expect(page.locator('#add-work')).toBeEnabled();
       await expect(card.getByRole('button', { name: 'Start', exact: false })).toBeEnabled();
       await expect(card.getByRole('button', { name: 'Finish', exact: false })).toBeDisabled();
     } else {

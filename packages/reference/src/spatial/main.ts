@@ -379,6 +379,7 @@ function updateScene() {
   });
 }
 function render() {
+  calendar.refreshAvailability();
   const previousFocus = document.activeElement as HTMLElement | null;
   const restoreFocus = previousFocus?.closest('#cards, #next-card, #inspector, #pages');
   const focusAction = previousFocus?.dataset.action;

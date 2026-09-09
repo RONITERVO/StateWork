@@ -59,6 +59,7 @@ export class WorkCalendar {
   private lastFocus: HTMLElement | null = null;
   private message = '';
   private saving = false;
+  private renderedCanWrite?: boolean;
   private zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   private currentView?: CalendarView;
   constructor(
@@ -133,6 +134,9 @@ export class WorkCalendar {
     this.plan = undefined;
     this.currentView = undefined;
     this.dialog.close();
+  }
+  refreshAvailability() {
+    if (this.state && this.plan && this.renderedCanWrite !== this.canWrite()) this.render();
   }
   private save() {
     if (this.state)
@@ -292,6 +296,7 @@ export class WorkCalendar {
   }
   private render() {
     if (!this.state || !this.plan) return;
+    this.renderedCanWrite = this.canWrite();
     const state = this.state,
       plan = this.plan,
       day = plan.days.find((d) => d.date === this.selected);
