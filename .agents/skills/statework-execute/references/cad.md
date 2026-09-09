@@ -1,0 +1,11 @@
+# Execute a CAD specification
+
+Use the CAD system and native format required by the task. A mesh, neutral export, rendered image or generated macro is not a substitute for a required editable native model. A modeling API is appropriate when it creates and verifies real application documents. When a task specifies a modeling method or feature sequence, preserve it; otherwise distinguish the worker's chosen construction method from the source's requirements.
+
+Inspect the original drawing/model and the assignment page. Establish units, coordinate/datums, dimensions, constraints, tolerances, material and required outputs only where the source specifies them. Identify all requested parts/configurations/assemblies/drawings. Do not guess a dimension from a preview, interpolate an illegible label, or treat supplied example geometry as the requested finished work. Resolve conflicts from authoritative sources or leave an explicit blocker.
+
+Open supplied native files as read-only originals or verified working copies. Preserve templates, external references and dependent files. For SOLIDWORKS, check installed API documentation/interop before writing automation. Record the actual SOLIDWORKS version and license readiness. Existing COM attachment may require the installed typed interop; an automation failure is not proof the application is unavailable. Use the available native computer-use skill when an API cannot complete or verify the operation.
+
+Create the required sketches, features and assembly relationships. Inspect rebuild errors, suppressions, body/component counts, units and critical dimensions in the saved model. Where meaningful, check feature types, fully defined sketches or source-required design intent; do not invent these as grading requirements. Compare relevant views/sections and measured geometry against the source, not against the same constants that generated the model alone.
+
+Save, close and reopen each final artifact in the target application. Verify its saved geometry and any required drawing/export separately. Capture a clear preview for human review, with dimension/feature evidence for critical requirements. Keep exact originals and editable native outputs at full quality. Do not upload coursework, mark portal completion, or claim teacher acceptance while preparing the review package.

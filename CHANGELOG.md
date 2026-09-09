@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Work execution skill
+
+- Add a reusable StateWork execution skill for selecting authorized priority work, researching exact inputs, producing native artifacts and verifying saved results.
+- Separate procedure review, artifact verification, human approval, delivery and external acceptance; preserve partial work and explicit blockers for continuation.
+
 ## Unreleased — Full-quality work files
 
 - Keep exact originals up to 128 MiB each with a default 2 GiB workspace quota, configurable by the local host. Report unique storage, repeated identities and missing originals separately.

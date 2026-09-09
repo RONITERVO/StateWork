@@ -12,6 +12,8 @@ Keep instructions short and the work complete: attach original files, link exact
 
 **Build your map with Codex:** the reusable [StateWork Map Builder skill](.agents/skills/statework-map/SKILL.md) researches original records, captures files, builds connected instructions and audits what is missing. Start a fresh Codex session in this checkout and ask: “Use $statework-map to build my map from [a source, folder or mailbox sender].” For use outside this repository, copy the complete `statework-map` folder into your Codex user skills directory. The skill can install/connect to a fresh app and asks for specific access or decisions when needed; it does not require you to remember and type all your work requirements. See [installation, evaluation and limits](docs/MAP_SKILL.md).
 
+**Do mapped work with Codex:** [StateWork Execute](.agents/skills/statework-execute/SKILL.md) finds appropriate work, reads its original inputs, operates the required applications and verifies real outputs. Ask: “Use $statework-execute to do my next task and prepare it for review.” Submission stays separate from instruction review and requires approval of the actual result and destination. See [execution, review and evaluation](docs/EXECUTION_SKILL.md).
+
 ## Start here
 
 Use Node **24.13+ in the 24.x line** (recommended), or Node 25. The SQLite module may print an experimental warning on these runtimes.
