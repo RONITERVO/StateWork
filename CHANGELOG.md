@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 — 2026-09-09
+
+- Preserve original input and result files with immutable SHA-256 identities, authenticated retrieval, complete portable bundles and automatic pre-migration SQLite backups.
+- Connect ordered, parallel and conditional actions. Separate procedure review from each worker's readiness; require explicit successful finish points and result evidence. Undo preserves independent work and reopens dependent results.
+- Add one fresh-worker handoff across SDK, HTTP, CLI and MCP, plus precise source/file/page/time references and trusted organization policy hooks.
+- Add a compact work map, one-action phone view, connected authoring, exact-file recovery, short print routes and the shared VR fallback. Existing linear packets remain compatible.
+- Reconcile assistant proposals against real evidence IDs and keep semantic review explicit. Add fictional office and CAD fixtures, branch/access/file regressions and clean-package checks. No model or remote service is required.
+
+See [connected work](docs/CONNECTED_WORK.md) and [release evidence](docs/ACCEPTANCE.md) for tested behavior and limits. The previously merged reference features below are included in this release.
+
 ## Unreleased — Wall calendar and daily planning
 
 - Added a large rear-wall calendar with a viewing station, month/week context, selected-day recommendations, real appointment/deadline markers and matching desktop/VR ray controls.

@@ -1,6 +1,6 @@
 {
   "name": "@statework/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Validated StateWork service, perception adapters and typed HTTP client",
   "license": "MIT",
@@ -17,7 +17,7 @@
     }
   },
   "dependencies": {
-    "@statework/core": "0.1.0",
+    "@statework/core": "0.2.0",
     "zod": "4.5.4"
   },
   "scripts": {

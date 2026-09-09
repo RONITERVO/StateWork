@@ -15,6 +15,12 @@ npm run cli -- events personal 0
 npm run cli -- export personal personal-snapshot.json
 npm run cli -- import personal-snapshot.json personal-copy "Imported work"
 npm run cli -- backup statework-backup.sqlite
+npm run cli -- handoff personal task-id
+npm run cli -- files personal
+npm run cli -- source personal capture-id
+npm run cli -- file-export personal asset-id original-file.pdf
+npm run cli -- bundle-export personal personal-bundle.json
+npm run cli -- bundle-import personal-bundle.json another-copy "Work and files"
 ```
 
 `command` accepts a JSON file or `-` for stdin. `observe` optionally accepts a query JSON file. Mutation input is the complete versioned command request, including revision and request ID. CLI successes use stdout; errors use stderr and a nonzero exit code. Export/backup refuses an existing destination. Paths are ordinary trusted local CLI paths, not HTTP-controlled paths.
@@ -48,8 +54,18 @@ Build first, then configure your MCP client to spawn:
 
 Replace the absolute paths for another checkout or operating system. This example grants the filesystem owner's local connection. To restrict the adapter, add its provisioned `STATEWORK_TOKEN` through the MCP client's secret/environment mechanism. Do not commit real tokens.
 
+For the installed Codex CLI, `codex mcp add --help` confirms the equivalent stdio setup command:
+
+```sh
+codex mcp add statework --env STATEWORK_HOME=D:/Projects/Work/.statework -- node D:/Projects/Work/packages/tools/dist/mcp.js
+```
+
+Run that setup yourself for the intended Codex profile, then start a fresh session and verify that `workspaces` lists the expected workspace. This changes that profile's MCP configuration; it is not performed by StateWork or by copying a handoff. Adjust and quote paths containing spaces. A useful first prompt is: “Read StateWork workspace `<id>`, task `<id>` with `work_handoff`. Load its required captures and files. Report the next ready action and blockers; do not perform external actions without my authorization.”
+
 The bundled server uses the [official MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) and real stdio framing, discovery, structured results and tool annotations. It makes no LLM calls and writes no logs or banners to stdout. SQLite warnings may appear on stderr.
 
-Tools: `workspaces`, `create_workspace`, `observe_work`, `work_snapshot`, `execute_work`, `work_events`, `export_work`. The `statework://workspaces` resource lists accessible workspaces. No token, membership, shell, arbitrary file or code-execution tools are exposed. Export returns JSON, not a filesystem write.
+Tools: `workspaces`, `create_workspace`, `observe_work`, `work_snapshot`, `work_instructions`, `execute_work`, `work_events`, `export_work`, `work_handoff`, `work_source`, `work_files`, `work_file`, `work_attach_file`. The `statework://workspaces` resource lists accessible workspaces. No token, membership, shell, arbitrary file or code-execution tools are exposed. Export returns JSON, not a filesystem write. `work_file` reads a bounded range of an authorized workspace asset, not an arbitrary host path. `work_attach_file` atomically uploads up to 1 MiB of original or result bytes through canonical base64; use HTTP/CLI for larger files up to 64 MiB.
+
+For a fresh worker, start with `work_handoff` using the workspace and task IDs. Retrieve the named `work_source` captures and exact `work_file` bytes; choose a ready graph action, inspect its result in the appropriate app, then submit `packet.check` through `execute_work`. Refresh the handoff after every change. Links alone do not mean the worker can access their contents. The default handoff assumes no external-site access. See [connected work](CONNECTED_WORK.md) for file uploads, branch decisions, result evidence and environment declarations.
 
 A complete agent loop is: list → read snapshot/observation → decide intent → execute a versioned atomic batch → inspect result and next observation. A stale revision requires a fresh read and a new intent/request ID. A retry after transport uncertainty uses the unchanged request. Domain failures set MCP `isError`; they do not mutate state. Item text and extensions are untrusted user content, never instructions to the host or agent.

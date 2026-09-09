@@ -12,6 +12,11 @@ import type {
   PacketContext,
   WorkPacket,
   PacketIssue,
+  WorkerHandoff,
+  WorkerEnvironment,
+  WorkAsset,
+  AssetInput,
+  WorkSource,
 } from '@statework/core';
 export class WorkClient {
   constructor(
@@ -80,6 +85,75 @@ export class WorkClient {
       issues: PacketIssue[];
       history: { id: string; revision: number; createdAt: string; review: WorkPacket['review'] }[];
     }>(`/workspaces/${encodeURIComponent(id)}/instructions/${encodeURIComponent(taskId)}`);
+  }
+  handoff(id: string, taskId: string, environment: WorkerEnvironment = {}) {
+    return this.call<WorkerHandoff>(
+      `/workspaces/${encodeURIComponent(id)}/instructions/${encodeURIComponent(taskId)}/handoff`,
+      environment,
+    );
+  }
+  assets(id: string) {
+    return this.call<(WorkAsset & { available: boolean })[]>(
+      `/workspaces/${encodeURIComponent(id)}/assets`,
+    );
+  }
+  exportBundle(id: string) {
+    return this.call<ReturnType<import('./service.js').WorkConnection['exportBundle']>>(
+      `/workspaces/${encodeURIComponent(id)}/bundle`,
+      undefined,
+      undefined,
+      60000,
+    );
+  }
+  importBundle(bundle: unknown, target: { id: string; title: string }) {
+    return this.call<WorkState>('/bundle-import', { bundle, target }, undefined, 120000);
+  }
+  source(id: string, sourceId: string) {
+    return this.call<WorkSource>(
+      `/workspaces/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`,
+    );
+  }
+  attachAsset(
+    id: string,
+    input: {
+      requestId: string;
+      expectedRevision: number;
+      asset: Omit<AssetInput, 'size' | 'sha256'>;
+      base64: string;
+    },
+  ) {
+    return this.call<CommandResult>(
+      `/workspaces/${encodeURIComponent(id)}/assets`,
+      input,
+      undefined,
+      60000,
+    );
+  }
+  restoreAsset(id: string, assetId: string, base64: string) {
+    return this.call<{ id: string; sha256: string; available: true }>(
+      `/workspaces/${encodeURIComponent(id)}/assets/${encodeURIComponent(assetId)}/restore`,
+      { base64 },
+      undefined,
+      60000,
+    );
+  }
+  async assetContent(id: string, assetId: string): Promise<Uint8Array> {
+    const fetcher = this.fetcher;
+    const response = await fetcher(
+      `${this.baseUrl.replace(/\/$/, '')}/v1/workspaces/${encodeURIComponent(id)}/assets/${encodeURIComponent(assetId)}/content`,
+      {
+        headers: { Authorization: `Bearer ${this.token}` },
+        signal: AbortSignal.timeout(60000),
+      },
+    );
+    if (!response.ok) {
+      const data = await response.json();
+      throw new WorkError(
+        data.error?.code ?? 'VALIDATION',
+        data.error?.message ?? 'File unavailable.',
+      );
+    }
+    return new Uint8Array(await response.arrayBuffer());
   }
   instructionPrompt(id: string, taskId: string) {
     return this.call<{ prompt: string }>(

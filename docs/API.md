@@ -21,11 +21,11 @@ work.export('personal');
 work.import(snapshot, { id: 'new-workspace', title: 'Imported work' });
 ```
 
-Methods are synchronous for the bundled memory and SQLite stores. The network `WorkClient` offers Promise-based equivalents except `role` (included in workspace listings). Only the trusted host chooses actor identities or grants roles. Owner and editor can mutate work; reader can observe and export. Membership administration belongs to the trusted store host, not either role's command API.
+Methods are synchronous for the bundled memory and SQLite stores, except digest-verifying `attach`, `restoreAsset` and `importBundle`. The network `WorkClient` offers Promise-based equivalents except `role` (included in workspace listings). Only the trusted host chooses actor identities or grants roles. Owner and editor can mutate work; reader can observe and export. Membership administration belongs to the trusted store host, not either role's command API.
 
 ## HTTP
 
-Send `Authorization: Bearer <token>` on every `/v1` request. Read the token from the private local token file in trusted native clients; never embed it in a URL, committed source or renderer metadata. The bundled browser's bootstrap keeps its token in memory. All responses and authentication errors are JSON.
+Send `Authorization: Bearer <token>` on every `/v1` request. Read the token from the private local token file in trusted native clients; never embed it in a URL, committed source or renderer metadata. The bundled browser's bootstrap keeps its token in memory. Responses and errors are JSON except successful original-file downloads, which are authenticated binary attachments.
 
 | Method | Path after `/v1` | Request / response |
 | --- | --- | --- |
@@ -39,6 +39,16 @@ Send `Authorization: Bearer <token>` on every `/v1` request. Read the token from
 | GET | `/workspaces/:id/export` | Portable versioned snapshot |
 | POST | `/import` | `{snapshot,target:{id,title}}` → new state, HTTP 201 |
 | GET | `/openapi.json` | Generated OpenAPI 3.1 contract |
+| POST | `/workspaces/:id/instructions/:taskId/handoff` | Worker environment → versioned actor-specific handoff |
+| GET | `/workspaces/:id/sources/:sourceId` | Exact captured source and provenance |
+| GET | `/workspaces/:id/assets` | File identities with actual availability |
+| POST | `/workspaces/:id/assets` | Versioned upload metadata and base64 → atomic attachment result |
+| GET | `/workspaces/:id/assets/:assetId/content` | Exact bytes with SHA-256 header |
+| POST | `/workspaces/:id/assets/:assetId/restore` | Matching base64 bytes → repaired availability |
+| GET | `/workspaces/:id/bundle` | Portable snapshot, original files and missing identities |
+| POST | `/bundle-import` | `{bundle,target:{id,title}}` → new workspace |
+
+See [connected work](CONNECTED_WORK.md) and generated [handoff](../schemas/worker-handoff.schema.json), [bundle](../schemas/file-bundle.schema.json) and [packet](../schemas/work-packet.schema.json) schemas for execution graphs, precise references, `asset.register`, `packet.confirm`, decision/output checks and successful completion. OpenAPI defines every request and response shape, including source extraction and optional assistant jobs.
 
 `/health` is public and contains no work data. `/local/session` is a local reference-browser bootstrap, not a general integration API. See SECURITY.md.
 

@@ -10,6 +10,10 @@ import {
   sourceInputSchema,
   parse,
   instructionUrl,
+  packetResultsComplete,
+  workDeepLink,
+  assetInputSchema,
+  stepPredecessors,
 } from '@statework/sdk';
 import type {
   WorkState,
@@ -19,8 +23,19 @@ import type {
   SourceInput,
   WorkSource,
   Citation,
+  WorkerHandoff,
+  WorkAsset,
+  AssetInput,
 } from '@statework/sdk';
 import './style.css';
+import {
+  connectedEditor,
+  collectConnected,
+  connectedFollow,
+  renderWorkMap,
+  renderFiles,
+  drawMapConnections,
+} from './connected.js';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const esc = (v: unknown) =>
@@ -44,7 +59,11 @@ let section = 'follow',
   job = '',
   citeSource = '';
 let proposal: PacketInput | null = null;
-let previousDraft: { draft: PacketInput; pendingSources: SourceInput[] } | null = null;
+let previousDraft: {
+  draft: PacketInput;
+  pendingSources: SourceInput[];
+  pendingAssets?: AssetInput[];
+} | null = null;
 let assistant = { available: false, name: 'Codex', message: 'Checking local assistance…' };
 let capture = {
   title: '',
@@ -56,12 +75,54 @@ let capture = {
 };
 let warnings: string[] = [],
   pendingSources: SourceInput[] = [];
+let pendingAssets: AssetInput[] = [];
 let polling: ReturnType<typeof setTimeout> | undefined;
+let handoff: WorkerHandoff | null = null;
+let assets: (WorkAsset & { available: boolean })[] = [];
+let externalAccess = false;
+let fullPrint = false;
+let resourceView = '';
+let originalFile: File | null = null;
+const contextKey = () => {
+  const context = packetContext(state, taskId);
+  return draft.execution ? context.procedureKey! : context.key;
+};
+async function refreshHandoff() {
+  [handoff, assets] = await Promise.all([
+    client.handoff(workspace, taskId, { externalAccess }),
+    client.assets(workspace),
+  ]);
+}
+function enableExecution() {
+  if (draft.execution) return;
+  draft.execution = {
+    version: 1,
+    completion: { anyOf: [] },
+    coverage: { inputs: 'unknown', procedure: 'unknown', acceptance: 'unknown', note: '' },
+    outputs: [],
+  };
+  draft.steps.forEach((s, i) => {
+    s.after = i ? [draft.steps[i - 1]!.id] : [];
+    s.phase = 'work';
+    s.references = [];
+  });
+  draft.contextKey = contextKey();
+}
+const map = () => renderWorkMap(draft, dirty ? null : handoff, index);
+const files = () =>
+  renderFiles(
+    assets.filter((a) => a.taskIds.includes(taskId)),
+    reader,
+  );
+const resource = () => resourceView;
 const storageKey = () => `statework.packet.draft.${workspace}.${taskId}`;
 const remember = () => {
   dirty = true;
   try {
-    sessionStorage.setItem(storageKey(), JSON.stringify({ draft, pendingSources, previousDraft }));
+    sessionStorage.setItem(
+      storageKey(),
+      JSON.stringify({ draft, pendingSources, pendingAssets, previousDraft }),
+    );
   } catch {
     /* Explicit save is available. */
   }
@@ -105,6 +166,7 @@ async function execute(commands: Command[]) {
   });
   state = await client.snapshot(workspace);
   packet = latestPacket(state, taskId) ?? null;
+  await refreshHandoff();
 }
 function citations(cites: Citation[]): string {
   return cites
@@ -115,13 +177,14 @@ function citations(cites: Citation[]): string {
     .join('');
 }
 function follow() {
+  if (draft.execution) return connectedFollow(state, draft, packet, handoff, index, dirty, reader);
   const step = current();
   if (!step) return '<h2>No steps yet.</h2><button data-action="edit">＋ Add instructions</button>';
   const checked = packet?.checks.some((c) => c.stepId === step.id) ?? false;
   const writable = !reader && !dirty && !!packet && !packetIssues(state, packet).length;
   return `<div class="packet-focus-label"><p class="eyebrow">STEP ${index + 1} OF ${draft.steps.length}${step.minutes !== null ? ` · ${step.minutes} MIN` : ''}</p><span>${checked ? '✓ CHECKED' : '○ TO DO'}</span></div><h2>${esc(step.title)}</h2>${step.requires.length ? `<p>◇ ${esc(step.requires.map((id) => draft.requirements.find((r) => r.id === id)?.label ?? id).join(' · '))}</p>` : ''}<p>${esc(step.instruction || 'Exact instructions are missing. Open Edit to fill this gap.')}</p>${link(step.actionUrl, 'Open what I need ↗')}<div class="packet-check"><h3>✓ Check the result</h3><p>${esc(step.expected || 'The expected result has not been defined.')}</p><label>Evidence <small>— optional record</small><input id="check-evidence" maxlength="12000" placeholder="File, measurement, result…" ${reader ? 'disabled' : ''}></label><button class="primary" data-action="check" ${writable || (checked && !reader) ? '' : 'disabled'}>${checked ? '↶ Undo this result' : '✓ Result matches'}</button></div><div class="packet-recovery"><h3>◇ If stuck</h3><p>${esc(step.ifBlocked || 'Recovery instructions are missing.')}</p><button data-action="question-for-step" ${reader ? 'disabled' : ''}>Ask / record a gap</button></div><details><summary>Sources beside this step · ${step.citations.length}</summary>${citations(step.citations) || '<p>No evidence has been linked yet.</p>'}</details><div class="packet-stepnav"><button data-action="previous" ${index === 0 ? 'disabled' : ''}>← Previous</button><button data-action="next" ${index >= draft.steps.length - 1 ? 'disabled' : ''}>Next →</button></div>`;
 }
-function edit() {
+function editLegacy() {
   const s = current();
   return `<h2>Build the route.</h2><form id="packet-form" class="packet-form"><fieldset><legend>The finish line</legend>${input('title', 'Packet title', draft.title, 'text', 240)}${area('outcome', 'What will exist when this task is finished?', draft.outcome)}${area('finish', 'How to verify and deliver the whole result', draft.finish)}</fieldset>${
     s
@@ -138,6 +201,12 @@ function edit() {
           )}</select></label>${citeSource ? `<pre class="source-evidence" id="cite-content">${esc(source(citeSource)?.content)}</pre><p>Select the exact passage above.</p>${input('cite-location', 'Page / section / line', '')}<button type="button" data-action="cite-selection">Cite selection</button>` : ''}<div class="packet-toolbar"><button type="button" data-action="move-up" ${index === 0 ? 'disabled' : ''}>↑ Move up</button><button type="button" data-action="move-down" ${index === draft.steps.length - 1 ? 'disabled' : ''}>↓ Move down</button><button type="button" data-action="remove-step">Remove step</button></div></fieldset>`
       : '<p>Add the first action below.</p>'
   }<button type="button" data-action="add-step">＋ Add action</button><fieldset><legend>Author evidence</legend><label><input type="checkbox" id="own-instructions">These uncited steps are my original instructions. Capture my writing as their source.</label><small>This records you as the author. It does not verify an outside requirement.</small></fieldset></form><div class="packet-toolbar"><button class="primary" data-action="save">Save draft</button><button data-action="follow">Follow view</button></div>`;
+}
+function edit() {
+  return editLegacy().replace(
+    '</form>',
+    `${connectedEditor(state, draft, index, { assets: pendingAssets, sources: pendingSources })}</form>`,
+  );
 }
 function needs() {
   return `<h2>Have everything ready.</h2><form id="needs-form" class="packet-form">${
@@ -216,7 +285,7 @@ function finish() {
     !!packet &&
     !dirty &&
     !packetIssues(state, packet).length &&
-    packet.steps.every((s) => packet!.checks.some((c) => c.stepId === s.id));
+    packetResultsComplete(state, packet);
   return `<p class="eyebrow">THE FINISH LINE</p><h2>${esc(draft.outcome || 'Define the finished result.')}</h2><p>${esc(draft.finish || 'Define the final acceptance check.')}</p><div class="packet-check"><h3>✓ Final check</h3><p>Confirm the whole result matches the acceptance check above.</p><button class="primary" data-action="complete" ${complete && !reader && state.items.find((i) => i.id === taskId)?.status !== 'done' ? '' : 'disabled'}>${state.items.find((i) => i.id === taskId)?.status === 'done' ? '✓ Task complete' : '✓ Accept result and finish task'}</button></div><h3>Saved revisions</h3><ul>${
     (state.instructions?.packets ?? [])
       .filter((p) => p.taskId === taskId)
@@ -227,7 +296,7 @@ function finish() {
       .join('') || '<li>No saved revision.</li>'
   }</ul>`;
 }
-function printMarkup() {
+function fullPrintMarkup() {
   const p = dirty ? draft : (packet ?? draft),
     issues = packetIssues(state, p);
   return `<article class="packet-print"><p class="print-meta">STATEWORK · ${esc(state.workspace.title)} · ${esc(taskId)}</p><h1>${esc(p.title)}</h1><p class="print-meta">${'revision' in p ? `Revision ${p.revision} · ${esc(p.id)}` : 'UNSAVED DRAFT'} · Printed ${esc(new Date().toLocaleString())}</p><p class="print-alert">${issues.length ? 'DRAFT / NEEDS ATTENTION — resolve the gaps before use.' : 'REVIEWED INSTRUCTIONS — verify requirements still match before starting.'}</p><h2>Finished result</h2><p>${esc(p.outcome)}</p><h2>The route</h2><ol class="print-route">${p.steps.map((s, i) => `<li>□ ${i + 1}. ${esc(s.title)}${s.minutes !== null ? ` · ${s.minutes} min` : ''}</li>`).join('')}</ol><h2>Have ready</h2>${p.requirements.map((r) => `<section><h3>□ ${esc(r.label)}</h3><p>${esc(r.detail)}</p><p>Check: ${esc(r.check)}</p><p>${esc(r.url)}</p>${citations(r.citations)}</section>`).join('') || '<p>No listed prerequisites.</p>'}${issues.length ? `<h2>Resolve before use</h2><ul>${issues.map((i) => `<li>${esc(i.label)}</li>`).join('')}</ul>` : ''}${p.questions.length ? `<h2>Questions and decisions</h2>${p.questions.map((q) => `<h3>${esc(q.question)}</h3><p>${esc(q.answer || 'UNANSWERED')}<br>Resolve: ${esc(q.resolve)}<br>${esc(q.url)}</p>${citations(q.citations)}`).join('')}` : ''}${p.steps.map((s, i) => `<section class="print-step"><p class="print-meta">${esc(p.title)} · ${'revision' in p ? `Revision ${p.revision}` : 'Draft'} · Step ${i + 1}/${p.steps.length}</p><h2>${i + 1}. ${esc(s.title)}</h2>${s.requires.length ? `<p>Needs: ${esc(s.requires.map((id) => p.requirements.find((r) => r.id === id)?.label ?? id).join(', '))}</p>` : ''}<h3>Do this</h3><p>${esc(s.instruction)}</p><p>${esc(s.actionUrl)}</p><div class="print-check"><h3>□ Result matches</h3><p>${esc(s.expected)}</p><p>Evidence / initials / time: ____________________________</p></div><h3>If stuck</h3><p>${esc(s.ifBlocked)}</p><h3>Evidence</h3>${citations(s.citations)}</section>`).join('')}<section class="print-step"><h2>□ Accept the complete result</h2><p>${esc(p.finish)}</p><p>Result / delivery reference: ____________________________</p><p>Worker / date: ____________________________</p></section>${p.sourceIds
@@ -241,17 +310,90 @@ function printMarkup() {
       '',
     )}<p class="print-footer">This copy preserves the cited captures. The local app shows newer sources, requirements, reviews and completion records. Review records human approval; it cannot prove that all real-world requirements are known.</p></article>`;
 }
+function printMarkup() {
+  const p = dirty ? draft : (packet ?? draft);
+  if (fullPrint && !p.execution) return fullPrintMarkup();
+  const issues = packetIssues(state, p);
+  const unique = [...new Map(issues.map((i) => [i.label, i])).values()];
+  const current = !dirty && handoff?.packet?.id === p.id ? handoff : null;
+  const next = current?.next[0];
+  const waiting = current?.graph.find((s) => s.status === 'blocked');
+  const label = (id: string) => p.steps.find((s) => s.id === id)?.title ?? id;
+  const result = current?.completion.outcome;
+  const summary =
+    result === 'successful'
+      ? '✓ Successful result recorded'
+      : result === 'stopped'
+        ? '◇ Stopped — resolve the blocker and resume'
+        : next
+          ? `▶ Next: ${next.title}`
+          : waiting
+            ? `◇ Blocked: ${waiting.blockers[0]?.label ?? waiting.title}`
+            : '';
+  const route = p.steps
+    .map((s, i) => {
+      const row = current?.graph.find((r) => r.id === s.id);
+      const after = stepPredecessors(p, s);
+      const condition = s.when
+        ? (p.steps
+            .find((d) => d.id === s.when!.stepId)
+            ?.decision?.options.find((o) => o.id === s.when!.optionId)?.label ?? s.when.optionId)
+        : '';
+      return `<section class="compact-print-step"><h2>${i + 1}. ${esc(s.title)}${row ? ` · ${esc(row.status)}` : ''}</h2><p class="print-meta">${after.length ? `After: ${esc(after.map(label).join(' + '))}` : 'Independent start'}${s.when ? ` · Only when ${esc(label(s.when.stepId))}: ${esc(condition)}` : ''}</p><p>${esc(s.instruction)}</p><p><strong>✓ Check:</strong> ${esc(s.expected)}</p>${s.requires.length ? `<p>Needs: ${esc(s.requires.map((id) => p.requirements.find((r) => r.id === id)?.label ?? id).join(' · '))}</p>` : ''}${row?.blockers.length ? `<p>◇ ${esc(row.blockers.map((b) => b.label).join(' · '))}</p>` : ''}${s.decision ? `<p>Choose observed result: ${esc(s.decision.options.map((o) => o.label).join(' / '))}</p>` : ''}${(s.references ?? []).map((r) => `<p>↗ ${esc(r.label)} · ${esc(r.location)}${r.page ? ` · p${r.page}` : ''}${r.seconds !== null ? ` · ${r.seconds}s` : ''} · ${esc(r.kind === 'external' ? r.url : r.kind === 'asset' ? (assets.find((a) => a.id === r.targetId)?.name ?? 'File missing') : (source(r.targetId ?? '')?.title ?? 'Capture missing'))}</p>`).join('')}${(
+        p.execution?.outputs ?? []
+      )
+        .filter((o) => o.stepId === s.id)
+        .map(
+          (o) =>
+            `<p>▧ ${o.required ? 'Required' : 'Optional'} result: ${esc(o.label)} · ${esc(o.description)}</p>`,
+        )
+        .join(
+          '',
+        )}<p><strong>If stuck:</strong> ${esc(s.ifBlocked)}</p><a class="print-meta" href="${esc(workDeepLink(workspace, taskId, s.id))}">Open this action in StateWork</a></section>`;
+    })
+    .join('');
+  const appendix = fullPrint
+    ? p.sourceIds
+        .map(source)
+        .filter((s): s is WorkSource => !!s)
+        .map(
+          (s) =>
+            `<section class="print-source"><h2>Reference: ${esc(s.title)}</h2><p class="print-meta">${esc(s.locator)} · ${esc(s.id)}<br>Captured ${esc(s.capturedAt)} by ${esc(s.capturedBy)} · ${esc(s.coverage)}</p><pre>${esc(s.content)}</pre></section>`,
+        )
+        .join('')
+    : '';
+  return `<article class="packet-print compact-print"><p class="print-meta">STATEWORK · ${esc(state.workspace.title)} · ${esc(taskId)}</p><h1>${esc(p.title)}</h1><p class="print-alert">${issues.length ? '◇ DRAFT — resolve the stated gaps before work' : '✓ REVIEWED — check this worker’s prerequisites'}</p>${
+    issues.length
+      ? `<section><h2>Next: resolve the blocker</h2><ul>${unique
+          .slice(0, 4)
+          .map((i) => `<li>${esc(i.label)}</li>`)
+          .join(
+            '',
+          )}</ul>${unique.length > 4 ? `<p>${unique.length - 4} further distinct gaps are listed in the app.</p>` : ''}</section>`
+      : ''
+  }${summary ? `<h2>${esc(summary)}</h2>` : ''}<p>${esc(p.outcome)}</p>${route}<section><h2>✓ Finish</h2><p>${esc(p.finish)}</p>${p.execution ? `<p>Successful finish: ${esc(p.execution.completion.anyOf.map(label).join(' OR '))}. A stopped branch is not success.</p>` : ''}</section><p class="print-footer">Open exact references and current worker readiness in StateWork. This paper does not include original binary files or establish external access.</p>${appendix}</article>`;
+}
 function render() {
+  app.dataset.section = section;
   const active =
     document.activeElement instanceof HTMLElement
       ? document.activeElement.dataset.action
       : undefined;
   if (!state || !draft) return;
   const issues = packetIssues(state, dirty ? draft : (packet ?? draft)),
-    ready = !!packet && !dirty && !issues.length,
+    ready =
+      !!packet &&
+      !dirty &&
+      !issues.length &&
+      (!packet.execution || !!handoff?.next.length || packetResultsComplete(state, packet)),
     checks = packet?.checks.length ?? 0;
-  app.innerHTML = `<header class="packet-top"><a href="/spatial/">← Office</a><strong>statework <small>WORK PACKET</small></strong><a href="/">Classic views ↗</a></header><div class="packet-title" role="region" aria-label="Packet summary"><p class="eyebrow">${esc(state.workspace.title)} · ${reader ? 'READ ONLY' : 'ON THIS COMPUTER'}</p><h1>${esc(draft.title)}</h1><span class="packet-status ${ready ? 'ready' : ''}">${ready ? '✓ Ready to follow' : dirty ? '◇ Unsaved draft' : packet ? '◇ Needs attention' : '◇ Build instructions'}</span> <small>${packet ? `Revision ${packet.revision} · ` : ''}${checks}/${draft.steps.length} checked</small><div class="packet-meter" aria-hidden="true"><span style="width:${draft.steps.length ? (checks / draft.steps.length) * 100 : 0}%"></span></div></div><nav class="packet-toolbar" aria-label="Packet sections">${[
+  const skipped = !dirty ? (handoff?.completion.skipped ?? 0) : 0;
+  const taskFinished =
+    !!packet?.execution && state.items.find((i) => i.id === taskId)?.status === 'done';
+  app.innerHTML = `<header class="packet-top"><a href="/spatial/">← Office</a><strong>statework <small>WORK PACKET</small></strong><a href="/">Classic views ↗</a></header><div class="packet-title" role="region" aria-label="Packet summary"><p class="eyebrow">${esc(state.workspace.title)} · ${reader ? 'READ ONLY' : 'ON THIS COMPUTER'}</p><h1>${esc(draft.title)}</h1><span class="packet-status ${ready ? 'ready' : ''}">${taskFinished ? '✓ Complete' : ready ? '✓ Ready to follow' : dirty ? '◇ Unsaved draft' : packet ? '◇ Needs attention' : '◇ Build instructions'}</span> <small>${packet ? `Revision ${packet.revision} · ` : ''}${checks}/${draft.steps.length} checked${skipped ? ` · ${skipped} skipped` : ''}</small><div class="packet-meter" aria-hidden="true"><span style="width:${draft.steps.length ? ((checks + skipped) / draft.steps.length) * 100 : 0}%"></span></div></div><nav class="packet-toolbar" aria-label="Packet sections">${[
+    ['map', '◈ Map'],
     ['follow', '▶ Follow'],
+    ['files', '▧ Files'],
     ['needs', '◇ Needs first'],
     ['sources', '▤ Sources'],
     ['questions', '? Questions'],
@@ -263,7 +405,8 @@ function render() {
     )
     .join(
       '',
-    )}<button data-action="edit" ${reader ? 'disabled' : ''}>✎ Edit</button><button data-action="print">▤ Print / PDF</button><button data-action="export">↓ Packet</button></nav><p class="packet-notice ${error ? 'packet-error' : ''}" role="${error ? 'alert' : 'status'}">${esc(error || notice)}</p>${issues.length ? `<details class="packet-gaps" role="region" aria-label="Instruction gaps"><summary>◇ ${issues.length} checks before use</summary><ul>${issues.map((i) => `<li>${esc(i.label)}</li>`).join('')}</ul><div class="packet-toolbar"><button data-action="questions">Resolve questions</button>${issues.some((i) => i.code === 'stale') ? `<button data-action="rebase" ${reader ? 'disabled' : ''}>Reconcile with current context</button>` : ''}</div></details>` : ''}<div class="packet-grid"><aside><ol class="packet-route">${draft.steps.map((s, i) => `<li><button data-action="step:${i}" ${i === index ? 'aria-current="step"' : ''}><b>${packet?.checks.some((c) => c.stepId === s.id) ? '✓' : i + 1}</b><span>${esc(s.title)}</span></button></li>`).join('')}</ol><div class="packet-toolbar"><button data-action="review" ${!reader && packet && !dirty && packetIssues(state, packet, false).length === 0 && !packet.review ? '' : 'disabled'}>✓ Review and approve</button></div><details><summary>Optional assistance</summary><p>${esc(assistant.message)}</p><button data-action="draft" ${reader || !assistant.available || job ? 'disabled' : ''}>Draft with Codex</button>${job ? '<p role="status">Preparing a draft…</p><button data-action="cancel-draft">Cancel draft</button>' : ''}${proposal ? '<p>Draft ready for inspection.</p><button data-action="use-proposal">Inspect Codex draft</button>' : ''}${previousDraft ? '<button data-action="restore-draft">Restore previous draft</button>' : ''}<div class="packet-toolbar"><button data-action="copy-prompt">Copy research brief</button><label class="button">Import packet<input id="import-packet" type="file" accept=".json" ${reader ? 'disabled' : ''}></label></div><p class="packet-limits">Account limits never prevent manual authoring.</p></details></aside><main class="packet-sheet" id="packet-main" tabindex="-1">${({ follow, edit, needs, sources, questions, finish }[section] ?? follow)()}</main></div><footer class="packet-bottom">A clear action. A visible result. Evidence within reach.</footer>${printMarkup()}`;
+    )}<button data-action="edit" ${reader ? 'disabled' : ''}>✎ Edit</button><button data-action="print">▤ Print / PDF</button><button data-action="full-print">Full evidence print</button><button data-action="export">↓ Packet</button></nav><p class="packet-notice ${error ? 'packet-error' : ''}" role="${error ? 'alert' : 'status'}">${esc(error || notice)}</p>${issues.length ? `<details class="packet-gaps" role="region" aria-label="Instruction gaps"><summary>◇ ${issues.length} checks before use</summary><ul>${issues.map((i) => `<li>${esc(i.label)}</li>`).join('')}</ul><div class="packet-toolbar"><button data-action="questions">Resolve questions</button>${issues.some((i) => i.code === 'stale') ? `<button data-action="rebase" ${reader ? 'disabled' : ''}>Reconcile with current context</button>` : ''}</div></details>` : ''}<div class="packet-grid"><aside><ol class="packet-route">${draft.steps.map((s, i) => `<li><button data-action="step:${i}" ${i === index ? 'aria-current="step"' : ''}><b>${packet?.checks.some((c) => c.stepId === s.id) ? '✓' : !dirty && handoff?.graph.find((r) => r.id === s.id)?.status === 'skipped' ? '↷' : i + 1}</b><span>${esc(s.title)}</span></button></li>`).join('')}</ol><div class="packet-toolbar"><button data-action="review" ${!reader && packet && !dirty && packetIssues(state, packet, false).length === 0 && !packet.review ? '' : 'disabled'}>✓ Review and approve</button></div><details><summary>Optional assistance</summary><p>${esc(assistant.message)}</p><button data-action="draft" ${reader || !assistant.available || job ? 'disabled' : ''}>Draft with Codex</button>${job ? '<p role="status">Preparing a draft…</p><button data-action="cancel-draft">Cancel draft</button>' : ''}${proposal ? '<p>Draft ready for inspection.</p><button data-action="use-proposal">Inspect Codex draft</button>' : ''}${previousDraft ? '<button data-action="restore-draft">Restore previous draft</button>' : ''}<div class="packet-toolbar"><button data-action="copy-prompt">Copy research brief</button><label class="button">Import packet<input id="import-packet" type="file" accept=".json" ${reader ? 'disabled' : ''}></label></div><p class="packet-limits">Account limits never prevent manual authoring.</p></details></aside><main class="packet-sheet" id="packet-main" tabindex="-1">${({ follow, edit, needs, sources, questions, finish, map, files, resource }[section] ?? follow)()}</main></div><footer class="packet-bottom">A clear action. A visible result. Evidence within reach.</footer>${printMarkup()}`;
+  drawMapConnections(app, draft);
   if (busy) app.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = true));
   if (reader)
     app
@@ -295,6 +438,7 @@ function collect() {
       s.requires = d.getAll('requires').map(String);
     }
   }
+  collectConnected(draft, index, app);
   for (const e of app.querySelectorAll<HTMLFieldSetElement>('[data-need]')) {
     const r = draft.requirements[Number(e.dataset.need)]!;
     const v = (n: string) =>
@@ -337,12 +481,78 @@ function download(value: unknown, name: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+function base64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 8192)
+    binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return btoa(binary);
+}
+async function uploadAsset(file: File, description: string, locator: string) {
+  if (file.size > 64 * 1024 * 1024) throw new Error('File exceeds 64 MiB.');
+  const id = uid();
+  busy = true;
+  try {
+    await client.attachAsset(workspace, {
+      requestId: uid(),
+      expectedRevision: state.workspace.revision,
+      asset: {
+        id,
+        taskIds: [taskId],
+        name: file.name,
+        mediaType: /^[\w!#$&^_.+-]+\/[\w!#$&^_.+-]+$/.test(file.type)
+          ? file.type
+          : 'application/octet-stream',
+        description,
+        locator,
+        replaces: null,
+      },
+      base64: base64(new Uint8Array(await file.arrayBuffer())),
+    });
+    state = await client.snapshot(workspace);
+    await refreshHandoff();
+    notice = 'Original file attached. Its bytes and identity are preserved.';
+    return assets.find((a) => a.id === id)!;
+  } finally {
+    busy = false;
+  }
+}
+async function openAsset(id: string, label?: string, location = '') {
+  const asset = assets.find((a) => a.id === id);
+  if (!asset) throw new Error('File is unavailable.');
+  const bytes = await client.assetContent(workspace, id);
+  if (/^image\/(png|jpeg|webp|gif)$/.test(asset.mediaType) && bytes.byteLength <= 8 * 1024 * 1024) {
+    resourceView = `<button data-action="follow">← Action</button><h2>${esc(label ?? asset.name)}</h2><p>${esc(location)}</p><img class="reference-image" src="data:${esc(asset.mediaType)};base64,${base64(bytes)}" alt="${esc(asset.description || asset.name)}"><p>${esc(asset.locator)}</p>`;
+    section = 'resource';
+    render();
+    return;
+  }
+  const url = URL.createObjectURL(
+    new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' }),
+  );
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = asset.name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notice = `Original file downloaded: ${asset.name}${location ? ` · ${location}` : ''}`;
+  render();
+}
 function bundle(p: PacketInput | WorkPacket) {
+  const sourceList = (state.instructions?.sources ?? []).filter((s) => p.sourceIds.includes(s.id));
+  const assetIds = new Set([
+    ...sourceList.flatMap((s) => (s.assetId ? [s.assetId] : [])),
+    ...p.steps.flatMap((s) =>
+      (s.references ?? []).filter((r) => r.kind === 'asset' && r.targetId).map((r) => r.targetId!),
+    ),
+    ...('checks' in p ? p.checks.flatMap((c) => (c.outputs ?? []).map((o) => o.assetId)) : []),
+  ]);
   return {
     format: 'statework.packet',
     formatVersion: 1,
     packet: p,
-    sources: (state.instructions?.sources ?? []).filter((s) => p.sourceIds.includes(s.id)),
+    sources: sourceList,
+    assets: (state.instructions?.assets ?? []).filter((a) => assetIds.has(a.id)),
+    filesIncluded: false,
   };
 }
 async function captureSources(inputs: SourceInput[]) {
@@ -357,7 +567,7 @@ async function captureSources(inputs: SourceInput[]) {
         throw new Error('A capture with this ID has different content. Import it as a new source.');
     } else await execute([{ type: 'source.capture', source: s }]);
   }
-  draft.contextKey = packetContext(state, taskId).key;
+  draft.contextKey = contextKey();
   draft.sourceIds = [...new Set([...draft.sourceIds, ...inputs.map((s) => s.id)])];
   const superseded = new Set(inputs.map((s) => s.replaces).filter(Boolean));
   draft.sourceIds = draft.sourceIds.filter((id) => !superseded.has(id));
@@ -377,6 +587,11 @@ function toInput(p: WorkPacket | PacketInput): PacketInput {
 }
 async function save() {
   const own = document.querySelector<HTMLInputElement>('#own-instructions')?.checked;
+  for (const asset of pendingAssets) {
+    if (!state.instructions?.assets?.some((a) => a.id === asset.id))
+      await execute([{ type: 'asset.register', asset }]);
+  }
+  pendingAssets = [];
   if (pendingSources.length) {
     await captureSources(pendingSources);
     pendingSources = [];
@@ -443,7 +658,7 @@ async function action(a: string) {
   }
   error = '';
   notice = '';
-  if (['follow', 'edit', 'needs', 'sources', 'questions', 'finish'].includes(a)) {
+  if (['follow', 'edit', 'needs', 'sources', 'questions', 'finish', 'map', 'files'].includes(a)) {
     section = a;
     render();
     return;
@@ -451,6 +666,7 @@ async function action(a: string) {
   if (a.startsWith('step:')) {
     index = Number(a.slice(5));
     if (section !== 'edit') section = 'follow';
+    history.replaceState(null, '', workDeepLink(workspace, taskId, current()?.id));
     render();
     return;
   }
@@ -459,9 +675,83 @@ async function action(a: string) {
     render();
     return;
   }
-  if (a === 'print') {
+  if (a === 'print' || a === 'full-print') {
+    fullPrint = a === 'full-print';
     render();
     window.print();
+    return;
+  }
+  if (a === 'copy-handoff' || a === 'download-handoff') {
+    await refreshHandoff();
+    if (a === 'download-handoff') download(handoff, `statework-handoff-${taskId}.json`);
+    else
+      await navigator.clipboard.writeText(
+        `Continue this StateWork task using the current saved handoff. Read exact source captures and original files through StateWork. Resolve blockers before work; do not infer missing specifications. External actions need my authorization.\n\n${JSON.stringify(handoff, null, 2)}`,
+      );
+    notice = 'Saved handoff ready. An agent still needs a connection to this StateWork workspace.';
+    render();
+    return;
+  }
+  if (a === 'export-work-bundle') {
+    const bundle = await client.exportBundle(workspace);
+    download(bundle, `statework-${workspace}-with-files.json`);
+    notice = bundle.missing.length
+      ? `Export includes ${bundle.missing.length} explicitly missing file identities.`
+      : 'Workspace exported with original files.';
+    render();
+    return;
+  }
+  if (a === 'worker-access') {
+    resourceView = `<h2>This worker’s access</h2><p>Can this worker open the external references in this task? This declaration does not grant permission to submit, send or change external records.</p><button data-action="external-access-yes">Yes, accessible</button><button data-action="external-access-no">Use StateWork files only</button>`;
+    section = 'resource';
+    render();
+    return;
+  }
+  if (a === 'external-access-yes' || a === 'external-access-no') {
+    externalAccess = a === 'external-access-yes';
+    await refreshHandoff();
+    section = 'follow';
+    render();
+    return;
+  }
+  if (a === 'next-ready') {
+    await refreshHandoff();
+    const next = handoff?.next.find((s) => s.stepId !== current()?.id) ?? handoff?.next[0];
+    if (next) {
+      index = draft.steps.findIndex((s) => s.id === next.stepId);
+      section = 'follow';
+    } else section = packet && packetResultsComplete(state, packet) ? 'finish' : 'map';
+    render();
+    return;
+  }
+  if (a === 'open-action-url') {
+    if (instructionUrl(current()?.actionUrl ?? ''))
+      window.open(current()!.actionUrl, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  if (a.startsWith('open-reference:')) {
+    const ref = current()?.references?.find((r) => r.id === a.slice(15));
+    if (!ref) throw new Error('Reference unavailable.');
+    if (ref.kind === 'asset') {
+      await openAsset(ref.targetId!, ref.label, ref.location);
+      return;
+    }
+    if (ref.kind === 'external') {
+      if (!instructionUrl(ref.url)) throw new Error('The reference needs a valid URL.');
+      const url = new URL(ref.url);
+      if (ref.page && !url.hash) url.hash = `page=${ref.page}`;
+      if (ref.seconds !== null && !url.hash) url.hash = `t=${ref.seconds}`;
+      window.open(url.href, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    const capture = await client.source(workspace, ref.targetId!);
+    resourceView = `<button data-action="follow">← Action</button><h2>${esc(ref.label)}</h2><p>${esc(ref.location)}</p><pre>${esc(capture.content)}</pre><p>${esc(capture.title)} · ${esc(capture.capturedAt)}</p>`;
+    section = 'resource';
+    render();
+    return;
+  }
+  if (a.startsWith('download-asset:')) {
+    await openAsset(a.slice(15));
     return;
   }
   if (a === 'export') {
@@ -486,6 +776,125 @@ async function action(a: string) {
     return;
   }
   if (reader) throw new Error('This workspace is read-only.');
+  if (a === 'enable-execution') {
+    enableExecution();
+    remember();
+    render();
+    return;
+  }
+  if (a.startsWith('confirm-requirement:')) {
+    const id = a.slice(20),
+      r = draft.requirements.find((r) => r.id === id);
+    if (!packet || dirty || !r)
+      throw new Error('Save the current instructions before confirming access.');
+    if (r.itemId) {
+      location.assign(workDeepLink(workspace, r.itemId));
+      return;
+    }
+    resourceView = `<button data-action="follow">← Action</button><h2>${esc(r.label)}</h2><p>${esc(r.detail)}</p>${link(r.url, 'Get / open ↗')}<div class="packet-check"><h3>Check</h3><p>${esc(r.check)}</p><button data-action="requirement-ready:${esc(id)}">✓ I checked: ready</button><button data-action="requirement-unavailable:${esc(id)}">◇ Unavailable</button></div>`;
+    section = 'resource';
+    render();
+    return;
+  }
+  if (a.startsWith('requirement-ready:') || a.startsWith('requirement-unavailable:')) {
+    const id = a.slice(a.indexOf(':') + 1),
+      r = draft.requirements.find((r) => r.id === id)!;
+    await execute([
+      {
+        type: 'packet.confirm',
+        id: packet!.id,
+        requirementId: id,
+        available: a.startsWith('requirement-ready:'),
+        evidence: `${a.startsWith('requirement-ready:') ? 'Confirmed' : 'Unavailable'}: ${r.check}`,
+      },
+    ]);
+    section = 'follow';
+    render();
+    return;
+  }
+  if (a === 'upload-asset') {
+    const selected = app.querySelector<HTMLInputElement>('#asset-file')?.files?.[0];
+    if (!selected) throw new Error('Choose an original file.');
+    const description =
+      app.querySelector<HTMLInputElement>('[name="asset-description"]')?.value ?? '';
+    const locator = app.querySelector<HTMLInputElement>('[name="asset-locator"]')?.value ?? '';
+    await uploadAsset(selected, description, locator);
+    render();
+    return;
+  }
+  if (a.startsWith('use-asset:')) {
+    enableExecution();
+    const asset = assets.find((f) => f.id === a.slice(10));
+    if (!asset || !current()) throw new Error('Choose an action first.');
+    (current()!.references ??= []).push({
+      id: uid(),
+      kind: 'asset',
+      targetId: asset.id,
+      label: asset.name,
+      location: asset.description || 'Complete file',
+      page: null,
+      seconds: null,
+      essential: true,
+      purpose: 'input',
+      url: '',
+    });
+    section = 'edit';
+    remember();
+    render();
+    return;
+  }
+  if (
+    a === 'reference-add' ||
+    a.startsWith('reference-remove:') ||
+    a.startsWith('decision-') ||
+    a.startsWith('output-')
+  ) {
+    enableExecution();
+    const step = current();
+    if (!step) throw new Error('Add an action first.');
+    if (a === 'reference-add')
+      (step.references ??= []).push({
+        id: uid(),
+        label: 'Reference',
+        kind: 'external',
+        targetId: null,
+        url: '',
+        location: '',
+        page: null,
+        seconds: null,
+        essential: true,
+        purpose: 'instruction',
+      });
+    if (a.startsWith('reference-remove:')) step.references?.splice(Number(a.slice(17)), 1);
+    if (a === 'decision-add')
+      step.decision = {
+        prompt: '',
+        options: [
+          { id: uid(), label: 'Matches' },
+          { id: uid(), label: 'Needs correction' },
+        ],
+      };
+    if (a === 'decision-add-option')
+      step.decision?.options.push({ id: uid(), label: 'New choice' });
+    if (a === 'decision-remove') {
+      if (draft.steps.some((s) => s.when?.stepId === step.id))
+        throw new Error('Remove dependent branch conditions before removing this decision.');
+      delete step.decision;
+    }
+    if (a === 'output-add')
+      draft.execution!.outputs.push({
+        id: uid(),
+        label: 'Result file',
+        description: '',
+        stepId: step.id,
+        required: true,
+      });
+    if (a.startsWith('output-remove:'))
+      draft.execution!.outputs = draft.execution!.outputs.filter((o) => o.id !== a.slice(14));
+    remember();
+    render();
+    return;
+  }
   if (a === 'add-step') {
     draft.steps.push({
       id: uid(),
@@ -502,6 +911,22 @@ async function action(a: string) {
     section = 'edit';
     remember();
   } else if (a === 'remove-step') {
+    const removed = current();
+    if (
+      removed &&
+      draft.execution &&
+      draft.steps.some(
+        (s) =>
+          s.id !== removed.id && (s.after?.includes(removed.id) || s.when?.stepId === removed.id),
+      )
+    )
+      throw new Error('Reconnect dependent actions before removing this action.');
+    if (removed && draft.execution)
+      draft.execution.outputs = draft.execution.outputs.filter((o) => o.stepId !== removed.id);
+    if (removed && draft.execution)
+      draft.execution.completion.anyOf = draft.execution.completion.anyOf.filter(
+        (id) => id !== removed.id,
+      );
     draft.steps.splice(index, 1);
     index = Math.max(0, index - 1);
     remember();
@@ -585,7 +1010,7 @@ async function action(a: string) {
     remember();
   } else if (a === 'rebase') {
     const context = packetContext(state, taskId);
-    draft.contextKey = context.key;
+    draft.contextKey = draft.execution ? context.procedureKey! : context.key;
     for (const r of blankPacket(state, taskId, uid()).requirements)
       if (!draft.requirements.some((old) => old.itemId === r.itemId))
         draft.requirements.push({ ...r, id: uid() });
@@ -599,6 +1024,7 @@ async function action(a: string) {
     previousDraft = {
       draft: structuredClone(draft),
       pendingSources: structuredClone(pendingSources),
+      pendingAssets: structuredClone(pendingAssets),
     };
     draft = proposal;
     coverageQuestions();
@@ -610,6 +1036,7 @@ async function action(a: string) {
   } else if (a === 'restore-draft' && previousDraft) {
     draft = previousDraft.draft;
     pendingSources = previousDraft.pendingSources;
+    pendingAssets = previousDraft.pendingAssets ?? [];
     previousDraft = null;
     index = 0;
     section = 'edit';
@@ -621,6 +1048,12 @@ async function action(a: string) {
       throw new Error('Clipboard text exceeds the capture limit. Paste a smaller named section.');
   } else {
     const evidence = document.querySelector<HTMLInputElement>('#check-evidence')?.value ?? '';
+    const choice = document.querySelector<HTMLInputElement>(
+      '[name="result-choice"]:checked',
+    )?.value;
+    const outputs = [...app.querySelectorAll<HTMLSelectElement>('[data-result-output]')]
+      .filter((s) => s.value)
+      .map((s) => ({ outputId: s.dataset.resultOutput!, assetId: s.value }));
     busy = true;
     app.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = true));
     try {
@@ -635,8 +1068,22 @@ async function action(a: string) {
         const s = current();
         if (!packet || !s || dirty) throw new Error('Save and review this packet first.');
         const checked = !packet.checks.some((c) => c.stepId === s.id);
-        await execute([{ type: 'packet.check', id: packet.id, stepId: s.id, checked, evidence }]);
-        if (checked && index < draft.steps.length - 1) index++;
+        await execute([
+          {
+            type: 'packet.check',
+            id: packet.id,
+            stepId: s.id,
+            checked,
+            evidence,
+            ...(choice ? { choice } : {}),
+            ...(outputs.length ? { outputs } : {}),
+          },
+        ]);
+        if (checked && draft.execution) {
+          const next = handoff?.next[0];
+          if (next) index = draft.steps.findIndex((s) => s.id === next.stepId);
+          else section = packetResultsComplete(state, packet!) ? 'finish' : 'map';
+        } else if (checked && index < draft.steps.length - 1) index++;
         else if (checked) section = 'finish';
         notice = checked
           ? 'Result recorded.'
@@ -662,7 +1109,14 @@ async function action(a: string) {
         await captureSources(inputs);
         notice = `Captured ${inputs.length} note sources.`;
       } else if (a === 'save-source') {
-        await captureSources([{ id: uid(), taskIds: [taskId], ...capture }]);
+        const assetId = originalFile
+          ? (await uploadAsset(originalFile, `Original source: ${capture.title}`, capture.locator))
+              .id
+          : undefined;
+        await captureSources([
+          { id: uid(), taskIds: [taskId], ...capture, ...(assetId ? { assetId } : {}) },
+        ]);
+        originalFile = null;
         capture = {
           title: '',
           locator: '',
@@ -739,6 +1193,45 @@ app.addEventListener('change', (e) => {
   }
   if (el.id === 'source-file' && el.files?.[0]) void readSourceFile(el.files[0]);
   if (el.id === 'import-packet' && el.files?.[0]) void importPacket(el.files[0]);
+  if (el.id === 'import-work-bundle' && el.files?.[0])
+    void (async () => {
+      try {
+        const file = el.files![0]!;
+        if (file.size > 380 * 1024 * 1024) throw new Error('Bundle exceeds 380 MiB.');
+        const bundle = JSON.parse(await file.text());
+        const id = uid();
+        const imported = await client.importBundle(bundle, {
+          id,
+          title: `${bundle.snapshot?.state?.workspace?.title ?? 'Imported work'} (copy)`.slice(
+            0,
+            240,
+          ),
+        });
+        notice = `Imported ${imported.items.length} work records into a new workspace. Open it from the office.`;
+        render();
+      } catch (e) {
+        setError(e);
+        render();
+      }
+    })();
+  if (el.dataset.restoreAsset && el.files?.[0])
+    void (async () => {
+      try {
+        const file = el.files![0]!;
+        if (file.size > 64 * 1024 * 1024) throw new Error('File exceeds 64 MiB.');
+        await client.restoreAsset(
+          workspace,
+          el.dataset.restoreAsset!,
+          base64(new Uint8Array(await file.arrayBuffer())),
+        );
+        await refreshHandoff();
+        notice = 'Exact original file restored.';
+        render();
+      } catch (e) {
+        setError(e);
+        render();
+      }
+    })();
   if (el.closest('#needs-form,#packet-form,#questions-form')) {
     collect();
     remember();
@@ -750,6 +1243,9 @@ window.addEventListener('beforeunload', (e) => {
     e.preventDefault();
     e.returnValue = '';
   }
+});
+window.addEventListener('resize', () => {
+  if (draft) drawMapConnections(app, draft);
 });
 async function readSourceFile(file: File) {
   collect();
@@ -764,6 +1260,7 @@ async function readSourceFile(file: File) {
     for (let i = 0; i < bytes.length; i += 8192)
       binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
     const r = await client.extractSource(workspace, file.name, btoa(binary));
+    originalFile = file;
     capture = {
       title: file.name,
       locator: file.name,
@@ -773,7 +1270,8 @@ async function readSourceFile(file: File) {
       replaces: null,
     };
     warnings = r.warnings;
-    notice = 'File read locally. Check it, then save the capture.';
+    notice =
+      'Preview extracted text. Saving also preserves the original file, including its figures.';
   } catch (e) {
     setError(e);
   } finally {
@@ -791,6 +1289,18 @@ async function importPacket(file: File) {
       throw new Error('Choose a StateWork packet export.');
     const p = toInput(value.packet);
     pendingSources = [];
+    pendingAssets = [];
+    const assetRemap = new Map<string, string>();
+    for (const raw of value.assets ?? []) {
+      const asset = parse(
+        assetInputSchema,
+        Object.fromEntries(Object.keys(assetInputSchema.shape).map((key) => [key, raw[key]])),
+      );
+      const existing = assets.find((a) => a.sha256 === asset.sha256 && a.size === asset.size);
+      const id = existing?.id ?? uid();
+      assetRemap.set(asset.id, id);
+      if (!existing) pendingAssets.push({ ...asset, id, taskIds: [taskId], replaces: null });
+    }
     const remap = new Map<string, string>();
     for (const raw of value.sources ?? []) {
       const s = parse(
@@ -798,6 +1308,14 @@ async function importPacket(file: File) {
         Object.fromEntries(Object.keys(sourceInputSchema.shape).map((k) => [k, raw[k]])),
       );
       const existing = source(s.id);
+      if (s.assetId) {
+        const mapped = assetRemap.get(s.assetId) ?? assets.find((a) => a.id === s.assetId)?.id;
+        if (!mapped)
+          throw new Error(
+            'This packet omits an original-file manifest. Export it again or use a complete workspace bundle.',
+          );
+        s.assetId = mapped;
+      }
       if (existing && existing.content === s.content && existing.locator === s.locator) {
         remap.set(s.id, s.id);
         continue;
@@ -809,6 +1327,16 @@ async function importPacket(file: File) {
     for (const part of [...p.steps, ...p.requirements, ...p.questions])
       for (const c of part.citations) c.sourceId = remap.get(c.sourceId) ?? c.sourceId;
     p.sourceIds = p.sourceIds.map((id) => remap.get(id) ?? id);
+    for (const question of p.questions)
+      for (const [oldId, newId] of remap)
+        if (question.id === `coverage-${oldId}`) question.id = `coverage-${newId}`;
+    for (const step of p.steps)
+      for (const ref of step.references ?? []) {
+        if (ref.kind === 'source' && ref.targetId)
+          ref.targetId = remap.get(ref.targetId) ?? ref.targetId;
+        if (ref.kind === 'asset' && ref.targetId)
+          ref.targetId = assetRemap.get(ref.targetId) ?? ref.targetId;
+      }
     for (const r of p.requirements) {
       r.confirmed = false;
       if (r.itemId && !state.items.some((i) => i.id === r.itemId)) r.itemId = null;
@@ -817,7 +1345,9 @@ async function importPacket(file: File) {
       ...p,
       id: uid(),
       taskId,
-      contextKey: packetContext(state, taskId).key,
+      contextKey: p.execution
+        ? packetContext(state, taskId).procedureKey!
+        : packetContext(state, taskId).key,
       origin: 'import',
     };
     index = 0;
@@ -869,11 +1399,17 @@ async function start() {
       pendingSources = (recovered.pendingSources ?? []).map((s: unknown) =>
         parse(sourceInputSchema, s),
       );
+      pendingAssets = (recovered.pendingAssets ?? []).map((a: unknown) =>
+        parse(assetInputSchema, a),
+      );
       if (recovered.previousDraft)
         previousDraft = {
           draft: parse(packetInputSchema, recovered.previousDraft.draft),
           pendingSources: (recovered.previousDraft.pendingSources ?? []).map((s: unknown) =>
             parse(sourceInputSchema, s),
+          ),
+          pendingAssets: (recovered.previousDraft.pendingAssets ?? []).map((a: unknown) =>
+            parse(assetInputSchema, a),
           ),
         };
       dirty = true;
@@ -883,6 +1419,16 @@ async function start() {
     /* Invalid recovery data cannot replace saved work. */
   }
   assistant = await client.assistant(workspace);
+  await refreshHandoff();
+  const requestedStep = params.get('step');
+  if (requestedStep && draft.steps.some((s) => s.id === requestedStep)) {
+    index = draft.steps.findIndex((s) => s.id === requestedStep);
+    section = 'follow';
+  } else if (packet?.execution && !dirty) {
+    const next = handoff?.next[0];
+    if (next) index = draft.steps.findIndex((s) => s.id === next.stepId);
+    section = next ? 'follow' : 'map';
+  }
   render();
 }
 void start().catch((e) => {

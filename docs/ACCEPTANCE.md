@@ -1,8 +1,34 @@
-# Acceptance evidence — StateWork 0.1.0
+# Acceptance evidence — StateWork 0.2.0
 
 Local verification on **2026-09-08**, Windows 11 (`10.0.26200`), AMD Ryzen 9 7950X. Primary runtime Node **25.4.0**; backend suite also checked on **24.13.0**. This is a developer foundation and usable personal local organizer. It is not a claim of hosted enterprise readiness or universal accessibility.
 
 ## Passed
+
+### Connected work — 2026-09-09
+
+- `npm run check`: **113 unit/backend tests passed**, strict types, package boundaries, formatting, generated schemas and production build. The complete backend suite also passed on **Node 24.13.0**; the primary local runtime was **25.4.0**.
+- Full browser regression: **84 passed, 18 explicitly skipped** across Chromium, Firefox and WebKit. Final packet, import, restoration, print and XR checks: **19 passed, 2 explicitly skipped**, followed by the connected-authoring XR scenario. XR emulation is Chromium-only; skips do not imply hardware coverage.
+- Exact-file download, metadata-only import, digest-verified restoration and complete workspace transfer passed. The fresh-worker handoff includes explicitly referenced shared-library inputs as well as the task's own files. Result files, branch decisions, actor confirmations, undo, stale context and successful finish gates are covered.
+- An isolated office worker generated the exact fictional handover from imported queue/specification bytes, attached it and completed the task. The fictional CAD fixture provided its complete geometry and original drawing; its own app access had to be confirmed before modeling became ready. **No CAD model was produced or geometrically validated.** Three missing-evidence CAD regressions remain blocked with compact gaps instead of invented specifications.
+- An actual signed-in local Codex run produced an eight-action connected draft with eight citations and an explicit successful finish, without changing work records. Semantic inspection found unnecessary prerequisites and a hypothetical question despite valid references. These remain review responsibilities; generated coverage starts unknown and drafts cannot approve themselves. No personal data was supplied. Paid model calls are excluded from CI.
+- Desktop map, phone action, both emulated eye views and every page of the two-page connected print route were visually inspected. axe found no violations on the connected action. Print preserves branch/order/state/result requirements; its output is not a tagged accessible PDF. HTML and normal file retrieval remain available.
+- SQLite version-1 upgrade preserves a consistent pre-migration backup; backup restore retains original bytes, work history and authentication. Newer schema rejection, cross-workspace permissions, corrupt bundle rejection, conflicting writes, exact retries, strict executable-link rejection and untrusted text rendering passed.
+- Clean installation of all five **0.2.0** tarballs passed SDK, file handoff/bundle, SQLite, HTTP host, source-worker, CLI and real stdio MCP checks without workspace symlinks. Release source uses an explicit allowlist; private work and credentials are excluded. The local personal snapshots matched the pre-upgrade backup exactly.
+
+Physical headset comfort/performance, screen-reader/assistive-device qualification, domain-specific CAD validation and hosted enterprise operations are not established by these tests. Review covers the declared work and available evidence; it cannot establish unstated real-world requirements. See [connected work contracts](CONNECTED_WORK.md) and the [release requirements](connected-work-design.md).
+
+#### Release requirement ledger
+
+| Requirement | Implementation and evidence |
+| --- | --- |
+| 1. Evidence travels | `resources.ts`, transactional Memory/SQLite file stores, authenticated download and complete bundles; `connected-work`, `file-migration`, `instruction-http` tests. |
+| 2. Short precise references | Structured page/section/time references, stable task/step links, exact-file recovery; connected browser import/download and isolated CAD checks. |
+| 3. Execution graph | `execution.ts`: cycles, explicit parallel/conditional edges and per-worker readiness; branch, self-prerequisite, shared input and delivery-only blocker tests. |
+| 4. Durable decisions/results | Attributed confirmations/checks, required outputs, successful finish points and dependent undo; forged-history, stopped-branch and SQLite round-trip tests. |
+| 5. Fresh worker | Versioned handoff through SDK/HTTP/CLI/MCP, source/file retrieval and small MCP uploads; real stdio process, isolated office execution and clean package tests. |
+| 6. Replaceable assistance | `PacketAssistant`, proposal reconciliation and trusted `WorkPolicy`; invented-source, false-confirmation, async-policy rejection and actual local draft inspection. |
+| 7. Daily interface | Authored connected packets, actual map edges, current phone action, direct references, short/full print and VR fallback; browser/axe/XR checks and visual inspection. |
+| 8. Release evidence | Local checks and clean artifacts above; fictional fixtures only. GitHub Actions reruns complete checks/release packaging on Linux, Windows and macOS plus the full Linux browser suite. Verify the PR's final commit checks before merging. |
 
 ### Work packets and optional local Codex — 2026-09-09
 

@@ -24,6 +24,13 @@ import {
   sourceInputSchema,
   sourceExtractSchema,
   sourceFetchSchema,
+  workerHandoffSchema,
+  workerEnvironmentSchema,
+  assetUploadSchema,
+  assetRestoreSchema,
+  workAssetSchema,
+  workSourceSchema,
+  fileBundleSchema,
 } from '@statework/sdk';
 import type { WorkService } from '@statework/sdk';
 import { existsSync } from 'node:fs';
@@ -108,7 +115,7 @@ export async function createServer(options: Options) {
   app.get('/health', async () => ({
     status: 'ok',
     product: 'StateWork',
-    version: '0.1.0',
+    version: '0.2.0',
     localOnly: true,
   }));
   // Same-origin browser bootstrap. Local processes are trusted; arbitrary websites are not.
@@ -217,6 +224,9 @@ export function openapi() {
     PacketInput: packetInputSchema,
     WorkPacket: workPacketSchema,
     SourceInput: sourceInputSchema,
+    WorkerHandoff: workerHandoffSchema,
+    WorkAsset: workAssetSchema,
+    FileBundle: fileBundleSchema,
   };
   const schemas = Object.fromEntries(
     Object.entries(definitions).map(([name, definition]) => {
@@ -245,7 +255,7 @@ export function openapi() {
     openapi: '3.1.0',
     info: {
       title: 'StateWork local API',
-      version: '0.1.0',
+      version: '0.2.0',
       description:
         'Local-only work graph. Schema refinements (real dates, IANA zones, acyclicity, completion rules) are enforced by the SDK in addition to JSON Schema.',
     },
@@ -256,6 +266,119 @@ export function openapi() {
       schemas,
     },
     paths: {
+      '/workspaces/{id}/instructions/{taskId}/handoff': {
+        parameters: [
+          pathParam,
+          { name: 'taskId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        post: {
+          operationId: 'workerHandoff',
+          description:
+            'Read the graph and current authenticated worker readiness. External access defaults to false. A declaration grants no permission. Supplied availableAssetIds can narrow actual host availability, never invent it.',
+          requestBody: body(jsonSchema(workerEnvironmentSchema)),
+          responses: response({ $ref: '#/components/schemas/WorkerHandoff' }),
+        },
+      },
+      '/workspaces/{id}/assets': {
+        parameters: [pathParam],
+        get: {
+          operationId: 'assetManifest',
+          responses: response({
+            type: 'array',
+            items: jsonSchema(
+              workAssetSchema.extend({
+                available: workerEnvironmentSchema.shape.externalAccess.unwrap(),
+              }),
+            ),
+          }),
+        },
+        post: {
+          operationId: 'attachOriginalFile',
+          description:
+            'Atomically persist immutable file metadata and up to 64 MiB of original bytes. Host computes SHA-256; expectedRevision and exact retry semantics apply. Writer role required.',
+          requestBody: body(jsonSchema(assetUploadSchema)),
+          responses: response({ $ref: '#/components/schemas/CommandResult' }, '201'),
+        },
+      },
+      '/workspaces/{id}/assets/{assetId}/content': {
+        parameters: [
+          pathParam,
+          { name: 'assetId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        get: {
+          operationId: 'originalFile',
+          description:
+            'Download exact bytes after workspace authorization and digest verification. Served as an attachment; never executes file contents.',
+          responses: {
+            '200': {
+              description: 'Original bytes',
+              headers: {
+                'X-StateWork-SHA256': { schema: { type: 'string' } },
+                'Content-Disposition': { schema: { type: 'string' } },
+              },
+              content: {
+                'application/octet-stream': { schema: { type: 'string', format: 'binary' } },
+              },
+            },
+          },
+        },
+      },
+      '/workspaces/{id}/assets/{assetId}/restore': {
+        parameters: [
+          pathParam,
+          { name: 'assetId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        post: {
+          operationId: 'restoreOriginalFile',
+          description:
+            'Restore exact missing/corrupt bytes without changing immutable file identity, approval or work results. Digest mismatch is rejected.',
+          requestBody: body(jsonSchema(assetRestoreSchema)),
+          responses: response({
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              sha256: { type: 'string' },
+              available: { const: true },
+            },
+          }),
+        },
+      },
+      '/workspaces/{id}/sources/{sourceId}': {
+        parameters: [
+          pathParam,
+          { name: 'sourceId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        get: {
+          operationId: 'readCapturedSource',
+          responses: response(jsonSchema(workSourceSchema)),
+        },
+      },
+      '/workspaces/{id}/bundle': {
+        parameters: [pathParam],
+        get: {
+          operationId: 'exportFileBundle',
+          description:
+            'Portable snapshot plus deduplicated original files and explicit missing identities. Credentials and memberships are excluded.',
+          responses: response({ $ref: '#/components/schemas/FileBundle' }),
+        },
+      },
+      '/bundle-import': {
+        post: {
+          operationId: 'importFileBundle',
+          description:
+            'Verify every file identity and atomically create a new workspace. Existing workspaces are never overwritten.',
+          requestBody: body({
+            type: 'object',
+            required: ['bundle', 'target'],
+            additionalProperties: false,
+            properties: {
+              bundle: { $ref: '#/components/schemas/FileBundle' },
+              target: jsonSchema(createWorkspaceSchema),
+            },
+          }),
+          responses: response({ $ref: '#/components/schemas/WorkState' }, '201'),
+        },
+      },
       '/workspaces/{id}/instructions/{taskId}': {
         parameters: [
           pathParam,

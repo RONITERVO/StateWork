@@ -320,7 +320,153 @@ header.packet-top {
 .packet-taskselect select {
   width: 100%;
 }
+.work-map-scroll {
+  overflow: auto;
+  padding: 8px 0 20px;
+  max-height: 65vh;
+}
+.work-map {
+  display: grid;
+  gap: 32px;
+  min-width: min-content;
+  position: relative;
+}
+.map-connections {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.map-connections path {
+  stroke: #587362;
+  stroke-width: 2;
+  fill: none;
+}
+.map-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 150px;
+}
+.packet-sheet .map-node {
+  display: grid;
+  gap: 8px;
+  min-height: 130px;
+  padding: 16px;
+  text-align: left;
+  border-width: 2px;
+  border-radius: 16px;
+  width: 100%;
+  position: relative;
+}
+.map-node .map-shape {
+  font-size: 1.5rem;
+}
+.packet-sheet .map-ready {
+  background: #d1f0df;
+  border-color: #1c7753;
+}
+.packet-sheet .map-blocked {
+  background: #ffe8c4;
+  border-color: #996018;
+}
+.packet-sheet .map-waiting {
+  background: #e9ede9;
+  border-color: #7b8c83;
+  border-style: dashed;
+}
+.packet-sheet .map-checked {
+  background: #dbe9f4;
+  border-color: #406b8d;
+}
+.packet-sheet .map-skipped {
+  background: #efedf0;
+  border-color: #93899b;
+  border-style: dotted;
+}
+.map-node[aria-current='step'] {
+  outline: 3px solid #1a4432;
+  outline-offset: 3px;
+}
+.map-parents {
+  font-size: 0.78rem;
+  color: #405448;
+}
+.map-legend {
+  font-size: 0.85rem !important;
+}
+.compact-blocker {
+  border-left: 5px solid #986323;
+  border-radius: 8px;
+  background: #fff0d8;
+  padding: 16px;
+  margin: 16px 0;
+}
+.compact-blocker p {
+  margin: 8px 0;
+}
+.reference-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0;
+}
+.reference-buttons button {
+  min-height: 52px;
+  border-radius: 24px;
+}
+.decision-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+}
+.decision-choices label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #879f8f;
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+}
+.decision-choices input {
+  width: auto;
+}
+.reference-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: white;
+  border-radius: 8px;
+}
+.current-instruction {
+  font-size: 1.2rem !important;
+}
+#execution-step input[type='checkbox'],
+#execution-coverage input[type='checkbox'] {
+  width: auto;
+}
+.compact-print-step {
+  border-top: 1px solid #bbb;
+  padding-top: 4pt;
+}
 @media (max-width: 700px) {
+  #app[data-section='follow'] .packet-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  #app[data-section='follow'] .packet-grid > main {
+    order: 0;
+  }
+  #app[data-section='follow'] .packet-grid > aside {
+    order: 1;
+    margin-top: 20px;
+  }
+  .packet-top a {
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
   #app {
     padding: 14px;
   }
@@ -442,6 +588,9 @@ header.packet-top {
     break-before: auto;
     break-inside: avoid;
     margin-top: 14pt;
+  }
+  .packet-print .compact-print-step {
+    break-inside: avoid;
   }
   .packet-print .print-source {
     break-before: page;

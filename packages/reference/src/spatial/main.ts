@@ -13,6 +13,7 @@ import type {
   SemanticNode,
   WorkItem,
   WorkState,
+  WorkerHandoff,
 } from '@statework/sdk';
 import {
   marks,
@@ -88,6 +89,7 @@ let packetOpen = false;
 let packetStep = 0;
 let packetPage = 0;
 let packetTask = '';
+let packetHandoff: WorkerHandoff | null = null;
 let relationPage = 0;
 let pending: { workspace: string; request: CommandRequest } | null = null;
 let setupPending: {
@@ -297,6 +299,7 @@ function updateScene() {
     packetTask = item?.id ?? '';
     packetStep = 0;
     packetPage = 0;
+    packetHandoff = null;
   }
   const filtered = visibleNodes(nodes, filter, search);
   const legal = node?.actions.find((a) => a.id === 'complete' || a.id === 'reopen');
@@ -352,6 +355,7 @@ function updateScene() {
       packetPage,
       packetOpen,
       !busy && !pending && role !== 'reader',
+      packetHandoff,
     ),
     movement,
     catalog: filing!,
@@ -667,6 +671,8 @@ async function act(action: string) {
     }
     if (action === 'packet:close') packetOpen = false;
     if (state && item) {
+      if (latestPacket(state, item.id)?.execution)
+        packetHandoff = await client.handoff(workspaceId, item.id);
       const view = packetDeskView(
         state,
         item.id,
@@ -674,6 +680,7 @@ async function act(action: string) {
         packetPage,
         true,
         !busy && !pending && role !== 'reader',
+        packetHandoff,
       );
       if (action === 'packet:previous-page') packetPage = Math.max(0, view.page - 1);
       if (action === 'packet:next-page') packetPage = Math.min(view.pages - 1, view.page + 1);
@@ -703,7 +710,13 @@ async function act(action: string) {
               evidence: '',
             },
           ]);
-          packetStep = Math.min(view.steps - 1, view.step + 1);
+          if (latestPacket(state!, item.id)?.execution) {
+            packetHandoff = await client.handoff(workspaceId, item.id);
+            const next = packetHandoff.next[0];
+            packetStep = next
+              ? latestPacket(state!, item.id)!.steps.findIndex((s) => s.id === next.stepId)
+              : view.step;
+          } else packetStep = Math.min(view.steps - 1, view.step + 1);
           packetPage = 0;
         } finally {
           busy = false;
@@ -717,7 +730,7 @@ async function act(action: string) {
     if (immersive) await scene?.exit();
     const task = selectedItem() ?? calendar.next;
     location.assign(
-      `/instructions/?workspace=${encodeURIComponent(workspaceId)}${task ? `&task=${encodeURIComponent(task.id)}` : ''}`,
+      `/instructions/?workspace=${encodeURIComponent(workspaceId)}${task ? `&task=${encodeURIComponent(task.id)}${state && latestPacket(state, task.id)?.steps[packetStep] ? `&step=${encodeURIComponent(latestPacket(state, task.id)!.steps[packetStep]!.id)}` : ''}` : ''}`,
     );
     return;
   }

@@ -1,6 +1,6 @@
 {
   "name": "@statework/server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Loopback-only StateWork HTTP host",
   "license": "MIT",
@@ -17,9 +17,9 @@
     }
   },
   "dependencies": {
-    "@statework/core": "0.1.0",
-    "@statework/sdk": "0.1.0",
-    "@statework/node": "0.1.0",
+    "@statework/core": "0.2.0",
+    "@statework/sdk": "0.2.0",
+    "@statework/node": "0.2.0",
     "fastify": "5.12.3",
     "@fastify/static": "10.1.3",
     "@fastify/rate-limit": "11.2.0"

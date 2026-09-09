@@ -1,6 +1,6 @@
 {
   "name": "@statework/node",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Transactional local SQLite adapter and credentials for StateWork",
   "license": "MIT",
@@ -17,8 +17,8 @@
     }
   },
   "dependencies": {
-    "@statework/core": "0.1.0",
-    "@statework/sdk": "0.1.0",
+    "@statework/core": "0.2.0",
+    "@statework/sdk": "0.2.0",
     "mammoth": "1.12.2",
     "pdfjs-dist": "6.3.289"
   },

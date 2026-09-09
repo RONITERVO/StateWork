@@ -9,7 +9,7 @@ Nothing in the development or release scripts publishes a repository, npm packag
 5. `npm run release:local`
 6. Review `docs/ACCEPTANCE.md`, `SECURITY.md`, licenses and the files you intend to publish.
 
-The release command creates five library/tool/server npm tarballs under `artifacts/release/0.1.0/`, SHA-256 checksums, and a clean-source tarball. It installs the public tarballs together into a temporary directory and verifies imports, SQLite, CLI help and MCP discovery without relying on workspace symlinks. The reference application remains part of the source release and is built with `npm run build`; its package is private. The standalone server tarball hosts the API without UI assets unless the host supplies a built `staticRoot`.
+The release command creates five library/tool/server npm tarballs under `artifacts/release/<package-version>/` (currently `0.2.0`), SHA-256 checksums, and a clean-source tarball. It installs the public tarballs together into a temporary directory and verifies imports, original-file handoffs and bundles, SQLite, source extraction, CLI help and MCP discovery without relying on workspace symlinks. The reference application remains part of the source release and is built with `npm run build`; its package is private. The standalone server tarball hosts the API without UI assets unless the host supplies a built `staticRoot`.
 
 The source archive uses an explicit allowlist and excludes `.git`, `node_modules`, `.statework`, database files, artifacts, browser reports and built output. It includes the lockfile, original data, documentation and tests. No personal exports are included. Dependency notices are generated from installed dependency metadata/license files; review them when changing dependencies.
 

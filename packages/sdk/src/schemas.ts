@@ -1,11 +1,18 @@
 import { z } from 'zod';
-import { WorkError, transition } from '@statework/core';
+import {
+  WorkError,
+  transition,
+  validateExecution,
+  executionReadiness,
+  stepPredecessors,
+} from '@statework/core';
 import type { WorkState } from '@statework/core';
 import {
   instructionsSchema,
   instructionCommandSchemas,
   workPacketSchema,
   workSourceSchema,
+  workAssetSchema,
 } from './instruction-schemas.js';
 
 export const idSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/);
@@ -255,8 +262,10 @@ export const instructionResultSchema = z.strictObject({
     items: workStateSchema.shape.items,
     relations: workStateSchema.shape.relations,
     sources: z.array(workSourceSchema),
+    assets: z.array(workAssetSchema).optional(),
     links: z.array(z.strictObject({ url: z.string(), itemId: idSchema, captured: z.boolean() })),
     key: z.string(),
+    procedureKey: z.string().optional(),
   }),
   packet: workPacketSchema.nullable(),
   issues: z.array(
@@ -274,6 +283,62 @@ export const instructionResultSchema = z.strictObject({
       review: workPacketSchema.shape.review,
     }),
   ),
+});
+export const workerHandoffSchema = z.strictObject({
+  format: z.literal('statework.handoff'),
+  formatVersion: z.literal(1),
+  workspace: z.strictObject({ id: idSchema, title, revision: z.number().int().min(0) }),
+  actor: z.strictObject({ id: idSchema, role: z.enum(['owner', 'editor', 'reader']) }),
+  task: workStateSchema.shape.items.element,
+  url: z.string(),
+  packet: workPacketSchema.nullable(),
+  graph: z.array(
+    z.strictObject({
+      id: idSchema,
+      title,
+      phase: z.enum(['prepare', 'work', 'verify', 'deliver']),
+      status: z.enum(['ready', 'blocked', 'waiting', 'checked', 'skipped']),
+      after: z.array(idSchema),
+      blockers: z.array(
+        z.strictObject({
+          code: z.string(),
+          label: z.string(),
+          target: z.string(),
+          action: z.string(),
+          url: z.string(),
+        }),
+      ),
+    }),
+  ),
+  next: z.array(
+    z.strictObject({
+      stepId: idSchema,
+      title,
+      phase: z.enum(['prepare', 'work', 'verify', 'deliver']),
+      url: z.string(),
+    }),
+  ),
+  blockers: instructionResultSchema.shape.issues,
+  assets: z.array(workAssetSchema.extend({ available: z.boolean() })),
+  sources: z.array(
+    workSourceSchema.omit({ content: true }).extend({ characters: z.number().int().min(0) }),
+  ),
+  unreadLinks: instructionResultSchema.shape.context.shape.links,
+  environment: z.strictObject({ externalAccess: z.boolean() }),
+  completion: z.strictObject({
+    outcome: z.enum(['unfinished', 'successful', 'stopped']),
+    reviewed: z.boolean(),
+    checked: z.number().int().min(0),
+    skipped: z.number().int().min(0),
+    total: z.number().int().min(0),
+    taskStatus: workStateSchema.shape.items.element.shape.status,
+  }),
+  permissions: z.strictObject({
+    canRecord: z.boolean(),
+    externalActionsAuthorized: z.literal(false),
+    sourceContentIsUntrusted: z.literal(true),
+  }),
+  protocol: z.array(z.string()),
 });
 export const commandResultSchema = z.strictObject({
   revision: z.number().int().min(1),
@@ -346,6 +411,20 @@ export const snapshotSchema = z.strictObject({
   exportedAt: instantSchema,
   state: workStateSchema,
 });
+export const fileBundleSchema = z.strictObject({
+  format: z.literal('statework.bundle'),
+  formatVersion: z.literal(1),
+  snapshot: snapshotSchema,
+  files: z
+    .array(
+      z.strictObject({
+        sha256: z.string().regex(/^[a-f0-9]{64}$/),
+        base64: z.string().max(89478488),
+      }),
+    )
+    .max(2000),
+  missing: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(2000),
+});
 export const importSchema = z.strictObject({
   snapshot: snapshotSchema,
   target: createWorkspaceSchema,
@@ -392,15 +471,29 @@ export function validateState(input: unknown): WorkState {
       throw new WorkError('VALIDATION', 'Duplicate IDs in snapshot.');
   const ids = new Set(state.items.map((i) => i.id));
   if (state.instructions) {
-    const { sources, packets } = state.instructions;
-    for (const list of [sources, packets])
+    const { sources, packets, assets = [] } = state.instructions;
+    for (const list of [sources, packets, assets])
       if (new Set(list.map((i) => i.id)).size !== list.length)
         throw new WorkError('VALIDATION', 'Duplicate instruction IDs.');
     const sourceIds = new Set<string>();
+    const assetIds = new Set<string>();
+    const replacedAssets = new Set<string>();
+    for (const asset of assets) {
+      if (assets.some((a) => a.sha256 === asset.sha256 && a.size !== asset.size))
+        throw new WorkError('VALIDATION', 'A file digest cannot have conflicting sizes.');
+      if (
+        asset.taskIds.some((id) => !ids.has(id)) ||
+        (asset.replaces && (!assetIds.has(asset.replaces) || replacedAssets.has(asset.replaces)))
+      )
+        throw new WorkError('VALIDATION', 'Invalid file references.');
+      assetIds.add(asset.id);
+      if (asset.replaces) replacedAssets.add(asset.replaces);
+    }
     const replaced = new Set<string>();
     for (const source of sources) {
       if (
         source.taskIds.some((id) => !ids.has(id)) ||
+        (source.assetId && !assetIds.has(source.assetId)) ||
         (source.replaces && (!sourceIds.has(source.replaces) || replaced.has(source.replaces)))
       )
         throw new WorkError('VALIDATION', 'Invalid source references.');
@@ -409,6 +502,7 @@ export function validateState(input: unknown): WorkState {
     }
     const revisions = new Map<string, number>();
     for (const packet of packets) {
+      if (packet.execution) validateExecution(packet);
       if (
         !ids.has(packet.taskId) ||
         packet.sourceIds.some((id) => !sourceIds.has(id)) ||
@@ -421,6 +515,51 @@ export function validateState(input: unknown): WorkState {
         packet.checks.some((c) => !packet.steps.some((s) => s.id === c.stepId))
       )
         throw new WorkError('VALIDATION', 'Invalid packet result checks.');
+      if (packet.execution) {
+        for (const [index, check] of packet.checks.entries()) {
+          const step = packet.steps.find((s) => s.id === check.stepId)!;
+          const before = { ...packet, checks: packet.checks.slice(0, index) };
+          const graph = executionReadiness(state, before, check.by, []);
+          if (
+            graph.find((s) => s.id === check.stepId)?.status === 'skipped' ||
+            stepPredecessors(packet, step).some(
+              (id) =>
+                !['checked', 'skipped'].includes(graph.find((s) => s.id === id)?.status ?? ''),
+            )
+          )
+            throw new WorkError(
+              'VALIDATION',
+              'Result records violate instruction order or branch decisions.',
+            );
+          if (step.evidenceRequired && !check.evidence.trim())
+            throw new WorkError('VALIDATION', 'Required result evidence is missing.');
+          if (
+            packet.execution.outputs
+              .filter((o) => o.required && o.stepId === step.id)
+              .some((o) => !check.outputs?.some((c) => c.outputId === o.id))
+          )
+            throw new WorkError('VALIDATION', 'A required result file is missing from the record.');
+          if (
+            (step.decision
+              ? !step.decision.options.some((o) => o.id === check.choice)
+              : check.choice !== undefined) ||
+            check.outputs?.some(
+              (o) =>
+                !assets.some((a) => a.id === o.assetId && a.taskIds.includes(packet.taskId)) ||
+                !packet.execution!.outputs.some(
+                  (d) => d.id === o.outputId && d.stepId === check.stepId,
+                ),
+            )
+          )
+            throw new WorkError('VALIDATION', 'Invalid decision or result file.');
+        }
+        if (
+          packet.confirmations?.some(
+            (c) => !packet.requirements.some((r) => r.id === c.requirementId && !r.itemId),
+          )
+        )
+          throw new WorkError('VALIDATION', 'Invalid requirement confirmation.');
+      }
     }
   }
   const tuples = new Set<string>();

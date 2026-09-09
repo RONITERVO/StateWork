@@ -5,10 +5,96 @@ import {
   blankPacket,
   parse,
   instructionResultSchema,
+  workerHandoffSchema,
 } from '@statework/sdk';
 import { createServer } from '@statework/server';
 import type { PacketAssistant } from '@statework/node';
 const apps: Awaited<ReturnType<typeof createServer>>[] = [];
+it('serves exact original files and complete bundles through the authenticated HTTP boundary', async () => {
+  const { app, c, headers } = await setup();
+  const bytes = Buffer.from([0, 255, 12, 48]);
+  const payload = {
+    requestId: 'file',
+    expectedRevision: 1,
+    asset: {
+      id: 'cad',
+      taskIds: ['task'],
+      name: 'input.cad',
+      mediaType: 'application/octet-stream',
+      description: 'Original CAD input',
+      locator: 'Test fixture',
+      replaces: null,
+    },
+    base64: bytes.toString('base64'),
+  };
+  const attach = () =>
+    app.inject({ method: 'POST', url: '/v1/workspaces/w/assets', headers: headers(), payload });
+  expect(
+    (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/workspaces/w/assets',
+        headers: headers('reader'),
+        payload,
+      })
+    ).statusCode,
+  ).toBe(403);
+  const first = await attach();
+  expect(first.statusCode).toBe(201);
+  expect((await attach()).json()).toEqual(first.json());
+  const download = await app.inject({
+    url: '/v1/workspaces/w/assets/cad/content',
+    headers: headers('reader'),
+  });
+  expect(download.rawPayload).toEqual(bytes);
+  expect(download.headers['content-type']).toBe('application/octet-stream');
+  expect(download.headers['content-disposition']).toContain('attachment');
+  expect(download.headers['x-statework-sha256']).toMatch(/^[a-f0-9]{64}$/);
+  const handoff = await app.inject({
+    method: 'POST',
+    url: '/v1/workspaces/w/instructions/task/handoff',
+    headers: headers('reader'),
+    payload: { externalAccess: false },
+  });
+  expect(parse(workerHandoffSchema, handoff.json()).assets[0]?.available).toBe(true);
+  const portable = await app.inject({ url: '/v1/workspaces/w/bundle', headers: headers() });
+  const imported = await app.inject({
+    method: 'POST',
+    url: '/v1/bundle-import',
+    headers: headers(),
+    payload: { bundle: portable.json(), target: { id: 'restored', title: 'Restored files' } },
+  });
+  expect(imported.statusCode).toBe(201);
+  expect(c.asset('restored', 'cad').bytes).toEqual(new Uint8Array(bytes));
+  expect(
+    (
+      await app.inject({
+        url: '/v1/workspaces/restored/assets/cad/content',
+        headers: headers('reader'),
+      })
+    ).statusCode,
+  ).toBe(404);
+  expect(
+    (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/workspaces/w/assets/cad/restore',
+        headers: headers(),
+        payload: { base64: 'AQ==' },
+      })
+    ).statusCode,
+  ).toBe(400);
+  expect(
+    (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/workspaces/w/assets',
+        headers: headers(),
+        payload: { ...payload, requestId: 'different', base64: 'not base64' },
+      })
+    ).statusCode,
+  ).toBe(400);
+});
 afterEach(async () => {
   for (const app of apps.splice(0)) await app.close();
 });
