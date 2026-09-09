@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Wall calendar and daily planning
+
+- Added a large rear-wall calendar with a viewing station, month/week context, selected-day recommendations, real appointment/deadline markers and matching desktop/VR ray controls.
+- Added keyboard/phone controls, a four-hour weekday default, one-click time-left overrides, private defers and chosen priorities, progress logging and completion-aware daily capacity.
+- Added a pure dependency-aware planner to core and an authenticated read-only SDK/HTTP plan operation with complete OpenAPI response schemas. No deadlines or completion records are invented.
+- Covered local midnight/DST, overlaps, fixed-slot conflicts, long work, missing estimates, read-only roles, reload/undo, large graphs and actual controller interaction.
+
 ## Unreleased — Detective board and room navigation
 
 - Added a right-wall cork-and-thread investigation board over the complete workspace, with lossless project/group drill-down, archived/completed evidence and explicit coverage.

@@ -26,6 +26,8 @@ import { officeCatalog } from './office-model';
 import type { OfficeCatalog } from './office-model';
 import type { OfficeFeedback } from './office-world';
 import { DetectiveBoard } from './detective-board';
+import { WorkCalendar } from './calendar';
+import './calendar.css';
 import './style.css';
 import './office.css';
 import './detective.css';
@@ -129,6 +131,29 @@ const caseBoard = new DetectiveBoard(
     scene?.officeAction('office:hold');
   },
 );
+const calendar = new WorkCalendar(
+  () => render(),
+  (id) => setSelection(id, true),
+  (id) => {
+    setSelection(id, true);
+    scene?.officeAction('office:hold');
+  },
+  async (commands) => {
+    if (busy) throw new Error('Wait for the current save.');
+    busy = true;
+    render();
+    try {
+      await command(commands);
+    } catch (error) {
+      report(error);
+      throw error;
+    } finally {
+      busy = false;
+      render();
+    }
+  },
+  () => !busy && !pending && role !== 'reader',
+);
 const officeTools = document.createElement('div');
 officeTools.className = 'office-tools';
 officeTools.innerHTML = `<div class="office-readout"><span id="office-held">NO FOLDER IN HAND</span><span id="office-keys">KEY RING · 0</span><span id="office-bank">CABINETS · 1/1</span></div>
@@ -140,11 +165,14 @@ officeTools
   .querySelector('.actions')!
   .insertAdjacentHTML(
     'afterbegin',
-    '<button data-action="board:open-view" class="primary">Detective board</button>',
+    '<button data-action="cal:open-view" class="primary">Calendar</button><button data-action="board:open-view">Detective board</button>',
   );
 officeTools
   .querySelector('[aria-label="Look around office"]')!
-  .insertAdjacentHTML('afterbegin', '<button data-action="look:board">Board on wall</button>');
+  .insertAdjacentHTML(
+    'afterbegin',
+    '<button data-action="look:calendar">Calendar on wall</button><button data-action="look:board">Board on wall</button>',
+  );
 officeTools.insertAdjacentHTML(
   'beforeend',
   `<details class="office-pages"><summary>Move around · WASD / sticks</summary><div class="actions" role="group" aria-label="Room movement"><button data-action="move:forward">↑ Forward</button><button data-action="move:left">← Step left</button><button data-action="move:back">↓ Backward</button><button data-action="move:right">Step right →</button><button data-action="move:turn-left">Turn left</button><button data-action="move:turn-right">Turn right</button><button data-action="move:desk">Back to desk</button><button data-action="move:toggle" id="movement-toggle" aria-pressed="${movement}">${movement ? 'Free move on' : 'Free move off'}</button></div><p class="office-hint">WASD moves · Q/E turns · right-drag looks. VR: left stick moves, right stick snap-turns. One controller: stick moves; use the wall's turn buttons.</p></details>`,
@@ -157,7 +185,9 @@ officeTools.insertAdjacentHTML(
   '<details class="office-pages"><summary>More controls</summary><div class="actions"><button data-action="office:quick-previous">Previous related</button><span id="office-related-page">1/1</span><button data-action="office:quick-next">Next related</button><button data-action="office:keys-previous">Previous keys</button><span id="office-key-page">1/1</span><button data-action="office:keys-next">Next keys</button></div></details>',
 );
 officeTools.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
-  if (!['office-fullscreen', 'board:open-view'].includes(button.dataset.action ?? ''))
+  if (
+    !['office-fullscreen', 'board:open-view', 'cal:open-view'].includes(button.dataset.action ?? '')
+  )
     button.disabled = true;
 });
 const cabinetIndex = document.createElement('details');
@@ -297,6 +327,7 @@ function updateScene() {
   ];
   scene.update({
     board: caseBoard.view,
+    calendar: calendar.view,
     movement,
     catalog: filing!,
     title: state.workspace.title,
@@ -377,12 +408,17 @@ function render() {
     `${{ all: 'All work', ready: 'Ready', waiting: 'Needs first', done: 'Finished' }[filter]} · ${filtered.length}`;
   $('#pages').innerHTML =
     `<button data-action="previous" ${page === 0 ? 'disabled' : ''} aria-label="Previous page">←</button><span>${page + 1} / ${Math.max(1, Math.ceil(filtered.length / 6))}</span><button data-action="next" ${(page + 1) * 6 >= filtered.length ? 'disabled' : ''} aria-label="Next page">→</button>`;
-  const next = nextTask(state, new Date().toISOString());
+  const next = calendar.next;
+  const nextBlock = calendar.today?.suggestions.find((s) => s.id === next?.id);
   const finished = state.items.filter(
     (i) => i.kind === 'task' && ['done', 'cancelled'].includes(i.status),
   ).length;
   $('#next-card').innerHTML =
-    `<p class="eyebrow">${next ? 'YOUR NEXT STEP' : 'A MOMENT TO RESET'}</p><h2>${esc(next?.title ?? 'Nothing ready right now.')}</h2><p class="muted">${next ? `${next.effortMinutes ? `${next.effortMinutes} min · ` : ''}${next.status === 'active' ? 'Pick up where you left off.' : 'Prerequisites are clear.'}` : 'Check Needs first, future schedules, or add your next step.'}</p>${next ? `<button class="primary" data-action="select:${esc(next.id)}">${next.status === 'active' ? 'Continue' : 'Show next'} →</button>` : '<button data-filter="waiting">◇ See prerequisites</button>'}${undo ? '<button data-action="undo" style="margin-top:10px">↶ Undo last status</button>' : ''}`;
+    `<p class="eyebrow">${next ? 'YOUR NEXT STEP' : 'A MOMENT TO RESET'}</p><h2>${esc(next?.title ?? (calendar.today?.capacityMinutes === 0 ? 'Today is clear.' : 'Nothing ready right now.'))}</h2><p class="muted">${next ? `${nextBlock ? `${nextBlock.estimated ? '≈ ' : ''}${nextBlock.minutes} min · ` : ''}${next.status === 'active' ? 'Pick up where you left off.' : 'Prerequisites are clear.'}` : 'Open today’s plan to adjust time or review requirements.'}</p>${next ? `<button class="primary" data-action="select:${esc(next.id)}">${next.status === 'active' ? 'Continue' : 'Show next'} →</button>` : '<button data-filter="waiting">◇ See prerequisites</button>'}${undo ? '<button data-action="undo" style="margin-top:10px">↶ Undo last status</button>' : ''}`;
+  $('#next-card').insertAdjacentHTML(
+    'beforeend',
+    `<p class="muted">${calendar.today?.plannedMinutes ?? 0}m planned today · ${calendar.dailyMinutes / 60}h daily default</p><button data-action="cal:open-view">Today’s plan →</button>`,
+  );
   $('#record-count').textContent =
     `${state.items.length} records · ${finished} finished tasks · Revision ${state.workspace.revision}`;
   const item = selectedItem(),
@@ -432,8 +468,13 @@ async function refresh(target = workspaceId) {
   role = spaces.find((s) => s.id === workspaceId)?.role ?? 'reader';
   nodes = state ? semanticNodes(state, role) : [];
   filing = state ? officeCatalog(state, role) : undefined;
-  if (state) caseBoard.setWork(state);
-  else caseBoard.clear();
+  if (state) {
+    caseBoard.setWork(state);
+    calendar.setWork(state, role);
+  } else {
+    caseBoard.clear();
+    calendar.clear();
+  }
   if (!selected || !state?.items.some((n) => n.id === selected))
     selected = state ? (nextTask(state, new Date().toISOString())?.id ?? nodes[0]?.id ?? '') : '';
   render();
@@ -586,6 +627,11 @@ function openEdit(item?: WorkItem) {
 }
 async function act(action: string) {
   if (action === 'board:open-view' && immersive) await scene?.exit();
+  if (action === 'cal:open-view' && immersive) await scene?.exit();
+  if (action.startsWith('cal:')) {
+    await calendar.action(action);
+    return;
+  }
   if (caseBoard.action(action)) return;
   if (action === 'move:toggle') {
     movement = !movement;
@@ -600,11 +646,14 @@ async function act(action: string) {
     return;
   }
   if (action === 'next-focus' && state) {
-    const next = nextTask(state, new Date().toISOString());
+    const next = calendar.next;
     if (next) {
       setSelection(next.id, true);
       scene?.officeAction('office:hold');
-    } else say('No actionable task. Review Needs first or your completed records.');
+    } else
+      say(
+        'Today’s plan is clear. Open the calendar to change available time or review requirements.',
+      );
     return;
   }
   if (action.startsWith('office:') || action.startsWith('room:')) {
@@ -612,7 +661,7 @@ async function act(action: string) {
     return;
   }
   if (action.startsWith('look:')) {
-    scene?.look(action.slice(5) as 'left' | 'right' | 'desk' | 'files' | 'board');
+    scene?.look(action.slice(5) as 'left' | 'right' | 'desk' | 'files' | 'board' | 'calendar');
     return;
   }
   if (action === 'office-fullscreen') {

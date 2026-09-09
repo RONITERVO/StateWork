@@ -7,6 +7,7 @@ import {
   commandResultSchema,
   observationResultSchema,
   snapshotSchema,
+  workPlanSchema,
 } from '@statework/sdk';
 import { createServer, openapi } from '@statework/server';
 const apps: Awaited<ReturnType<typeof createServer>>[] = [];
@@ -33,6 +34,41 @@ async function setup() {
   return { app, store, service };
 }
 describe('local HTTP boundary', () => {
+  it('offers an authenticated read-only plan, with strict options and no history changes', async () => {
+    const { app, service, store } = await setup();
+    const owner = service.connect('owner');
+    owner.create({ id: 'plan', title: 'Plan' });
+    owner.execute('plan', {
+      schemaVersion: 1,
+      requestId: 'seed-plan',
+      expectedRevision: 0,
+      commands: [{ type: 'item.create', item: { id: 'a', title: 'A', kind: 'task' } }],
+    });
+    store.grant('plan', 'reader', 'reader');
+    const before = owner.snapshot('plan'),
+      events = owner.events('plan');
+    const payload = { now: '2026-09-09T08:00:00.000Z', timeZone: 'Europe/Helsinki' };
+    const request = { method: 'POST' as const, url: '/v1/workspaces/plan/plan', payload };
+    expect((await app.inject({ ...request, headers: host })).statusCode).toBe(401);
+    const response = await app.inject({
+      ...request,
+      headers: { ...host, authorization: 'Bearer reader-token-012345678901234567890123456' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(parse(workPlanSchema, response.json()).days[0]!.suggestions[0]!.id).toBe('a');
+    expect(
+      (await app.inject({ ...request, headers, payload: { ...payload, days: 91 } })).statusCode,
+    ).toBe(400);
+    expect(
+      (await app.inject({ ...request, headers, payload: { ...payload, actorId: 'owner' } }))
+        .statusCode,
+    ).toBe(400);
+    expect(
+      (await app.inject({ ...request, headers, url: '/v1/workspaces/missing/plan' })).statusCode,
+    ).toBe(404);
+    expect(owner.snapshot('plan')).toEqual(before);
+    expect(owner.events('plan')).toEqual(events);
+  });
   it('requires auth and rejects cross-origin requests, DNS rebinding and unsafe bootstrap', async () => {
     const { app } = await setup();
     expect((await app.inject({ url: '/v1/workspaces', headers: host })).statusCode).toBe(401);
@@ -183,7 +219,7 @@ describe('local HTTP boundary', () => {
   it('publishes a versioned OpenAPI contract covering each public operation', () => {
     const spec = openapi();
     expect(spec.openapi).toBe('3.1.0');
-    expect(Object.keys(spec.paths)).toHaveLength(7);
+    expect(Object.keys(spec.paths)).toHaveLength(8);
     expect(spec.components.schemas.CommandRequest).toHaveProperty('properties');
     const walk = (node: unknown): void => {
       if (node && typeof node === 'object')

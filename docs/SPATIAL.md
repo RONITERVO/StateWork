@@ -36,13 +36,13 @@ The unchanged fictional example links references and tool access → first pass 
 | Click the desk lamp                               | Toggle its warm light                                                                        |
 | **Full screen**, look buttons or right-mouse look | Inspect the room on desktop; none is required to operate work                                |
 
-**Next step** favors active work, then date and priority, excluding blocked work and future scheduled starts. Opening late does not change deadlines or claim completion. The same direction appears as a prominent browser card, before the room on a phone.
+**Next step** follows the first ready recommendation in the [daily calendar plan](CALENDAR.md). The default is four focused hours on weekdays, with one-click remaining-time controls. Opening late does not change deadlines or claim completion. The same direction appears as a prominent browser card, before the room on a phone.
 
 Browser controls include search, filters, Start, Finish, Undo, editing, direct resource links and export. Cabinet controls and additional related-file/key pages have keyboard and touch equivalents. **Classic views** provides schedules, archive/restore, snapshot import, adjustable text and high contrast.
 
 ## Filing and keys
 
-The right wall now holds a complete-work **Detective board**, with project groups, requirements, downstream impact, unblock leads and persistent memory pins. See [the board and movement guide](DETECTIVE_BOARD.md) for controls, coverage and extension points.
+The rear wall holds a [large calendar](CALENDAR.md); **Calendar on wall** moves to its station. The right wall holds a complete-work **Detective board**, with project groups, requirements, downstream impact, unblock leads and persistent memory pins. See [the board and movement guide](DETECTIVE_BOARD.md) for controls, coverage and extension points.
 
 - Every item has one folder, including projects and archived records. Its nearest containing project supplies the cabinet; uncontained records go in **Unfiled / inbox**. Nested projects have their own cabinets.
 - Three cabinets form a bank, with twelve folders per cabinet sheet. Paging reaches the complete catalog, independently of search and the six-card browser page.

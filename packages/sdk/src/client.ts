@@ -7,6 +7,8 @@ import type {
   Query,
   Role,
   WorkState,
+  PlanOptions,
+  WorkPlan,
 } from '@statework/core';
 export class WorkClient {
   constructor(
@@ -59,6 +61,9 @@ export class WorkClient {
     return this.call<{ events: DomainEvent[]; nextCursor: number; revision: number }>(
       `/workspaces/${encodeURIComponent(id)}/events?after=${after}&limit=${limit}`,
     );
+  }
+  plan(id: string, options: PlanOptions) {
+    return this.call<WorkPlan>(`/workspaces/${encodeURIComponent(id)}/plan`, options);
   }
   export(id: string) {
     return this.call<{

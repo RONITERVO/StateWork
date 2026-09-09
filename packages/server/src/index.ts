@@ -6,6 +6,8 @@ import {
   createWorkspaceSchema,
   jsonSchema,
   observeSchema,
+  planOptionsSchema,
+  workPlanSchema,
   requestSchema,
   workStateSchema,
   commandResultSchema,
@@ -126,6 +128,9 @@ export async function createServer(options: Options) {
       api.post<{ Params: { id: string } }>('/workspaces/:id/observe', async (r) =>
         connection(r.headers.authorization).observe(r.params.id, r.body ?? {}),
       );
+      api.post<{ Params: { id: string } }>('/workspaces/:id/plan', async (r) =>
+        connection(r.headers.authorization).plan(r.params.id, r.body),
+      );
       api.get<{ Params: { id: string }; Querystring: { after?: string; limit?: string } }>(
         '/workspaces/:id/events',
         async (r) =>
@@ -182,6 +187,8 @@ export function openapi() {
     WorkState: workStateSchema,
     CommandResult: commandResultSchema,
     Observation: observationResultSchema,
+    WorkPlan: workPlanSchema,
+    PlanOptions: planOptionsSchema,
     WorkspaceList: workspaceListSchema,
     EventPage: eventPageSchema,
     Snapshot: snapshotSchema,
@@ -269,6 +276,15 @@ export function openapi() {
             { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 500 } },
           ],
           responses: response({ $ref: '#/components/schemas/EventPage' }),
+        },
+      },
+      '/workspaces/{id}/plan': {
+        parameters: [pathParam],
+        post: {
+          operationId: 'planWork',
+          description: 'Read-only day recommendations. Projections never change work records.',
+          requestBody: body({ $ref: '#/components/schemas/PlanOptions' }),
+          responses: response({ $ref: '#/components/schemas/WorkPlan' }),
         },
       },
       '/workspaces/{id}/export': {

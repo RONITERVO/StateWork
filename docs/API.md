@@ -15,6 +15,7 @@ work.snapshot('personal');
 work.role('personal');
 work.execute('personal', request);
 work.observe('personal', { query: { actionable: true }, offset: 0, limit: 100 });
+work.plan('personal', { now: new Date().toISOString(), timeZone: 'Europe/Helsinki' });
 work.events('personal', 0, 100);
 work.export('personal');
 work.import(snapshot, { id: 'new-workspace', title: 'Imported work' });
@@ -33,12 +34,15 @@ Send `Authorization: Bearer <token>` on every `/v1` request. Read the token from
 | GET | `/workspaces/:id` | Full workspace state and versions |
 | POST | `/workspaces/:id/commands` | `CommandRequest` → `{revision,event}` |
 | POST | `/workspaces/:id/observe` | `{query?,offset?,limit?}` → `Observation` |
+| POST | `/workspaces/:id/plan` | `{now,timeZone,days?,dailyMinutes?,todayMinutes?,workDays?,defaultMinutes?,blockMinutes?,notBefore?,preferred?}` → read-only `WorkPlan` |
 | GET | `/workspaces/:id/events?after=0&limit=100` | `{events,nextCursor,revision}` |
 | GET | `/workspaces/:id/export` | Portable versioned snapshot |
 | POST | `/import` | `{snapshot,target:{id,title}}` → new state, HTTP 201 |
 | GET | `/openapi.json` | Generated OpenAPI 3.1 contract |
 
 `/health` is public and contains no work data. `/local/session` is a local reference-browser bootstrap, not a general integration API. See SECURITY.md.
+
+See [daily planning semantics and examples](CALENDAR.md) for capacity, conditional recommendations, fixed schedules and explicit progress.
 
 ## Commands
 
