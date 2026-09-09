@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "taskIds": {
+      "minItems": 1,
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+      }
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "locator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "content": {
+      "type": "string",
+      "maxLength": 180000
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "page",
+        "file",
+        "email",
+        "note"
+      ]
+    },
+    "coverage": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "excerpt",
+        "unreadable"
+      ]
+    },
+    "replaces": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "taskIds",
+    "title",
+    "locator",
+    "content",
+    "kind",
+    "coverage",
+    "replaces"
+  ],
+  "additionalProperties": false
+}

@@ -32,6 +32,8 @@ The **wall calendar** gives each day an ordered recommendation plan, even withou
 
 ![A fictional work plan with quick time-left controls and a large month calendar.](docs/images/calendar-wall.png)
 
+**Work packets** turn a focused task into a visual step-by-step route with exact actions, required access/materials, result checks, recovery instructions and cited source captures. Follow on screen or in the VR room, then print the complete instructions and references. The manual workflow needs no AI; optional local Codex sign-in can prepare a draft for review. Changed requirements and missing evidence block approval. [Work packet and integration guide](docs/WORK_PACKETS.md).
+
 Capture something with **Add work**. Open it to edit its status, notes, tags, dates, effort or schedule. Link prerequisites and navigate directly between related work. **Next actions** shows unfinished tasks whose prerequisites are clear. **Archive** keeps work and its connections available for restoration. **Save view** preserves the current query and presentation.
 
 Reading & interaction offers text size, contrast, detail, motion, page size and time zone settings. Everything is reachable through standard keyboard controls. Text view offers plain text and on-demand local browser speech when a local voice exists. Focus view offers one actionable task at a time. There is no mandatory spatial, audio, color-only, drag or timed interaction.

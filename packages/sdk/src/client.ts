@@ -9,6 +9,9 @@ import type {
   WorkState,
   PlanOptions,
   WorkPlan,
+  PacketContext,
+  WorkPacket,
+  PacketIssue,
 } from '@statework/core';
 export class WorkClient {
   constructor(
@@ -16,11 +19,16 @@ export class WorkClient {
     private token: string,
     private fetcher: typeof fetch = fetch,
   ) {}
-  private async call<T>(path: string, body?: unknown, method?: string): Promise<T> {
+  private async call<T>(
+    path: string,
+    body?: unknown,
+    method?: string,
+    timeoutMs = 15000,
+  ): Promise<T> {
     const fetcher = this.fetcher;
     const response = await fetcher(`${this.baseUrl.replace(/\/$/, '')}/v1${path}`, {
       method: method ?? (body === undefined ? 'GET' : 'POST'),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Authorization: `Bearer ${this.token}`,
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -64,6 +72,58 @@ export class WorkClient {
   }
   plan(id: string, options: PlanOptions) {
     return this.call<WorkPlan>(`/workspaces/${encodeURIComponent(id)}/plan`, options);
+  }
+  instructions(id: string, taskId: string) {
+    return this.call<{
+      context: PacketContext;
+      packet: WorkPacket | null;
+      issues: PacketIssue[];
+      history: { id: string; revision: number; createdAt: string; review: WorkPacket['review'] }[];
+    }>(`/workspaces/${encodeURIComponent(id)}/instructions/${encodeURIComponent(taskId)}`);
+  }
+  instructionPrompt(id: string, taskId: string) {
+    return this.call<{ prompt: string }>(
+      `/workspaces/${encodeURIComponent(id)}/instructions/${encodeURIComponent(taskId)}/prompt`,
+    );
+  }
+  assistant(id: string) {
+    return this.call<{ available: boolean; name: string; message: string }>(
+      `/workspaces/${encodeURIComponent(id)}/assistant`,
+    );
+  }
+  draftInstructions(id: string, taskId: string) {
+    return this.call<{ id: string; state: string }>(
+      `/workspaces/${encodeURIComponent(id)}/instructions/${encodeURIComponent(taskId)}/draft`,
+      {},
+    );
+  }
+  draftStatus(id: string, jobId: string) {
+    return this.call<{
+      state: 'running' | 'done' | 'failed' | 'cancelled';
+      packet: import('@statework/core').PacketInput | null;
+      error: string | null;
+    }>(`/workspaces/${encodeURIComponent(id)}/drafts/${encodeURIComponent(jobId)}`);
+  }
+  cancelDraft(id: string, jobId: string) {
+    return this.call(
+      `/workspaces/${encodeURIComponent(id)}/drafts/${encodeURIComponent(jobId)}`,
+      undefined,
+      'DELETE',
+    );
+  }
+  extractSource(id: string, name: string, base64: string) {
+    return this.call<{ content: string; warnings: string[] }>(
+      `/workspaces/${encodeURIComponent(id)}/sources/extract`,
+      { name, base64 },
+      undefined,
+      45000,
+    );
+  }
+  fetchSource(id: string, url: string) {
+    return this.call<{ content: string; warnings: string[]; url: string; html: boolean }>(
+      `/workspaces/${encodeURIComponent(id)}/sources/fetch`,
+      { url },
+    );
   }
   export(id: string) {
     return this.call<{

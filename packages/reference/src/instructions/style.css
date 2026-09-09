@@ -1,0 +1,477 @@
+@import url('../spatial/style.css');
+:root {
+  color-scheme: dark;
+  --packet-accent: #b8f2d8;
+}
+body {
+  background: #102321;
+}
+#app {
+  max-width: 1200px;
+  margin: auto;
+  padding: 24px;
+}
+header.packet-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+.packet-top a {
+  color: #cce1d9;
+}
+.packet-top small {
+  color: #acc3b9;
+}
+.packet-title h1 {
+  font-size: clamp(1.7rem, 4vw, 3rem);
+  max-width: 850px;
+  line-height: 1.15;
+  margin: 8px 0 22px;
+}
+.packet-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.packet-toolbar button,
+.packet-toolbar a {
+  min-height: 46px;
+}
+.packet-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #bb9564;
+  background: #44351f;
+  color: #ffe1ae;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.packet-status.ready {
+  background: #24483b;
+  border-color: #94d7b6;
+  color: #d6ffeb;
+}
+.packet-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 26px;
+}
+.packet-route {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.packet-route button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  margin-bottom: 8px;
+  min-height: 54px;
+}
+.packet-route button[aria-current='step'] {
+  background: #bddbcf;
+  color: #102c22;
+  border-color: #d8f3e8;
+}
+.packet-route b {
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+}
+.packet-route span {
+  overflow-wrap: anywhere;
+}
+.packet-sheet {
+  background: #f3f0e5;
+  color: #24332d;
+  padding: clamp(20px, 4vw, 42px);
+  border-radius: 8px;
+  min-width: 0;
+}
+.packet-sheet h2 {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  line-height: 1.2;
+  margin: 10px 0 24px;
+}
+.packet-sheet h3 {
+  color: #315b49;
+  font-size: 1rem;
+  margin: 26px 0 8px;
+}
+.packet-sheet p,
+.packet-sheet blockquote {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 1.06rem;
+}
+.packet-sheet a {
+  color: #134f3b;
+}
+.packet-sheet button,
+.packet-sheet .button {
+  color: #14362a;
+  background: #e0e8df;
+  border-color: #93ab9b;
+}
+.packet-sheet button.primary {
+  background: #255440;
+  color: white;
+}
+.packet-sheet .eyebrow {
+  color: #596b60;
+}
+.packet-sheet textarea,
+.packet-sheet input,
+.packet-sheet select {
+  color: #152d23;
+  background: white;
+  border-color: #b5beb5;
+}
+.packet-sheet details {
+  border-top: 1px solid #c3c9bd;
+  padding-top: 14px;
+  margin-top: 20px;
+}
+.packet-sheet summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 40px;
+}
+.packet-sheet blockquote {
+  border-left: 3px solid #8da99a;
+  padding: 10px 16px;
+  background: #e7e8dc;
+  margin: 14px 0;
+}
+.packet-recovery {
+  border-left: 4px solid #ba7b38;
+  padding-left: 18px;
+}
+.packet-check {
+  border: 1px solid #91b29d;
+  background: #e1ebdd;
+  border-radius: 8px;
+  padding: 18px;
+  margin: 24px 0;
+}
+.packet-check h3 {
+  margin: 0 0 6px;
+}
+.packet-gaps {
+  border: 1px solid #866c47;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.packet-gaps summary {
+  cursor: pointer;
+}
+.packet-gaps li {
+  margin: 10px 0;
+  line-height: 1.5;
+}
+.packet-section {
+  margin-bottom: 28px;
+}
+.packet-form label {
+  display: block;
+  margin: 15px 0;
+  font-weight: 600;
+}
+.packet-form label small {
+  display: block;
+  font-weight: 400;
+  margin: 4px 0;
+}
+.packet-form textarea,
+.packet-form input,
+.packet-form select {
+  margin-top: 7px;
+  width: 100%;
+}
+.packet-form input[type='checkbox'] {
+  width: auto;
+  margin-right: 10px;
+}
+.packet-form fieldset {
+  padding: 14px 18px;
+  border: 1px solid #b7c2b6;
+  border-radius: 8px;
+  margin: 18px 0;
+}
+.packet-form legend {
+  font-weight: 700;
+}
+.packet-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.packet-source-list {
+  list-style: none;
+  padding: 0;
+}
+.packet-source-list li {
+  border-bottom: 1px solid #bdc7b9;
+  padding: 14px 0;
+}
+.packet-source-list .source-meta {
+  font-size: 0.86rem;
+  color: #536657;
+}
+.packet-sheet pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #e8eadd;
+  padding: 12px;
+  font-family: inherit;
+  max-height: 450px;
+  overflow: auto;
+}
+.packet-context {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.packet-bottom {
+  margin: 30px 0;
+  color: #b8c9bd;
+}
+.packet-notice {
+  min-height: 1.7em;
+  white-space: pre-wrap;
+}
+.packet-print {
+  display: none;
+}
+.packet-error {
+  color: #ffbdb3;
+}
+.packet-meter {
+  height: 8px;
+  background: #254a3f;
+  border-radius: 5px;
+  margin: 14px 0;
+  overflow: hidden;
+}
+.packet-meter span {
+  display: block;
+  height: 100%;
+  background: #b8f2d8;
+}
+.packet-sheet .muted {
+  color: #5d6d62;
+}
+.packet-sheet small {
+  color: #405448;
+}
+.packet-sheet input::placeholder {
+  color: #536657;
+}
+.packet-sheet .danger {
+  color: #8b2d25;
+}
+.packet-sheet .source-citation {
+  font-size: 0.92rem;
+}
+.packet-limits {
+  font-size: 0.88rem;
+  color: #5d6d62;
+}
+.packet-busy {
+  opacity: 0.7;
+}
+.packet-focus-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.packet-sheet button:disabled {
+  opacity: 0.45;
+}
+.packet-stepnav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 26px;
+}
+.packet-source-capture {
+  border: 1px solid #afbcaf;
+  padding: 20px;
+  border-radius: 8px;
+}
+.packet-sheet .source-evidence {
+  max-height: 240px;
+  overflow: auto;
+}
+.packet-taskselect {
+  max-width: 650px;
+}
+.packet-taskselect select {
+  width: 100%;
+}
+@media (max-width: 700px) {
+  #app {
+    padding: 14px;
+  }
+  .packet-grid {
+    display: block;
+  }
+  .packet-route {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+  }
+  .packet-route li {
+    min-width: 125px;
+    max-width: 180px;
+  }
+  .packet-route button {
+    height: 100%;
+    margin: 0;
+  }
+  .packet-route span {
+    font-size: 0.85rem;
+  }
+  .packet-fields {
+    grid-template-columns: 1fr;
+  }
+  .packet-top {
+    align-items: flex-start !important;
+  }
+  .packet-toolbar > * {
+    flex: 1 1 auto;
+  }
+  nav.packet-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  nav.packet-toolbar > * {
+    flex: 0 0 auto;
+  }
+  .packet-sheet {
+    padding: 20px;
+  }
+  .packet-form fieldset {
+    padding: 10px;
+  }
+  .packet-focus-label {
+    display: block;
+  }
+}
+@media print {
+  :root {
+    background: white !important;
+    color-scheme: light !important;
+  }
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+    background: white;
+  }
+  body {
+    background: white;
+    color: black;
+    font:
+      10.5pt/1.35 Arial,
+      sans-serif;
+  }
+  #app {
+    max-width: none;
+    padding: 0;
+  }
+  #app > *:not(.packet-print) {
+    display: none !important;
+  }
+  .packet-print {
+    display: block;
+    color: black;
+  }
+  .packet-print h1 {
+    font-size: 24pt;
+    line-height: 1.15;
+  }
+  .packet-print h2 {
+    font-size: 17pt;
+    margin: 14pt 0 7pt;
+  }
+  .packet-print h3 {
+    font-size: 12pt;
+    margin: 10pt 0 5pt;
+  }
+  .packet-print p,
+  .packet-print blockquote,
+  .packet-print pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+    margin-top: 0;
+    margin-bottom: 7pt;
+  }
+  .packet-print a {
+    color: black;
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+  }
+  .packet-print section {
+    break-inside: auto;
+  }
+  .packet-print h2,
+  .packet-print h3 {
+    break-after: avoid;
+  }
+  .packet-print .print-check {
+    border: 1px solid #555;
+    padding: 10pt;
+    break-inside: avoid;
+  }
+  .packet-print .print-step {
+    break-before: auto;
+    break-inside: avoid;
+    margin-top: 14pt;
+  }
+  .packet-print .print-source {
+    break-before: page;
+  }
+  .packet-print .print-meta {
+    font-size: 9pt;
+    color: #333;
+  }
+  .packet-print .print-alert {
+    border: 2px solid #333;
+    padding: 10pt;
+    font-weight: bold;
+  }
+  .packet-print blockquote {
+    border-left: 2px solid #777;
+    margin-left: 0;
+    padding-left: 12pt;
+  }
+  .packet-print .print-route {
+    padding: 0;
+    list-style: none;
+  }
+  .packet-print .print-route li {
+    padding: 7pt 0;
+    border-bottom: 1px solid #bbb;
+  }
+  .packet-print .print-footer {
+    margin-top: 25pt;
+    border-top: 1px solid #888;
+    padding-top: 10pt;
+    font-size: 9pt;
+  }
+}

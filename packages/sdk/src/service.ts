@@ -1,4 +1,13 @@
-import { emptyState, observe, planWork, transition, WorkError } from '@statework/core';
+import {
+  emptyState,
+  observe,
+  planWork,
+  transition,
+  WorkError,
+  packetContext,
+  latestPacket,
+  packetIssues,
+} from '@statework/core';
 import type { CommandResult, DomainEvent, Role, WorkState } from '@statework/core';
 import {
   createWorkspaceSchema,
@@ -105,6 +114,27 @@ export class WorkConnection {
   plan(workspaceId: string, input: unknown) {
     const options = parse(planOptionsSchema, input);
     return this.with(workspaceId, (tx) => planWork(tx.state, options));
+  }
+  instructions(workspaceId: string, taskId: string) {
+    parse(idSchema, taskId);
+    return this.with(workspaceId, (tx) => {
+      const context = packetContext(tx.state, taskId);
+      const packet = latestPacket(tx.state, taskId) ?? null;
+      return structuredClone({
+        context,
+        packet,
+        issues: packet ? packetIssues(tx.state, packet) : [],
+        history:
+          tx.state.instructions?.packets
+            .filter((p) => p.taskId === taskId)
+            .map((p) => ({
+              id: p.id,
+              revision: p.revision,
+              createdAt: p.createdAt,
+              review: p.review,
+            })) ?? [],
+      });
+    });
   }
   events(
     workspaceId: string,

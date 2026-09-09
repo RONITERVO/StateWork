@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { WorkError, transition } from '@statework/core';
 import type { WorkState } from '@statework/core';
+import {
+  instructionsSchema,
+  instructionCommandSchemas,
+  workPacketSchema,
+  workSourceSchema,
+} from './instruction-schemas.js';
 
 export const idSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/);
 const title = z.string().trim().min(1).max(240);
@@ -179,6 +185,7 @@ export const viewSchema = z.strictObject({
   renderer: z.string().regex(/^[a-z][a-z0-9._/-]{0,79}$/),
 });
 export const commandSchema = z.discriminatedUnion('type', [
+  ...instructionCommandSchemas,
   z.strictObject({ type: z.literal('item.create'), item: itemInputSchema }),
   z.strictObject({
     type: z.literal('item.update'),
@@ -232,6 +239,7 @@ export const workStateSchema = z.strictObject({
     .max(10000),
   relations: z.array(relationSchema).max(30000),
   views: z.array(viewSchema).max(100),
+  instructions: instructionsSchema.optional(),
 });
 export const domainEventSchema = z.strictObject({
   sequence: z.number().int().min(1),
@@ -240,6 +248,32 @@ export const domainEventSchema = z.strictObject({
   at: instantSchema,
   requestId: idSchema,
   commands: z.array(commandSchema).min(1).max(100),
+});
+export const instructionResultSchema = z.strictObject({
+  context: z.strictObject({
+    task: workStateSchema.shape.items.element,
+    items: workStateSchema.shape.items,
+    relations: workStateSchema.shape.relations,
+    sources: z.array(workSourceSchema),
+    links: z.array(z.strictObject({ url: z.string(), itemId: idSchema, captured: z.boolean() })),
+    key: z.string(),
+  }),
+  packet: workPacketSchema.nullable(),
+  issues: z.array(
+    z.strictObject({
+      code: z.enum(['missing', 'question', 'requirement', 'citation', 'stale', 'review', 'source']),
+      label: z.string(),
+      target: z.string(),
+    }),
+  ),
+  history: z.array(
+    z.strictObject({
+      id: idSchema,
+      revision: z.number().int().positive(),
+      createdAt: instantSchema,
+      review: workPacketSchema.shape.review,
+    }),
+  ),
 });
 export const commandResultSchema = z.strictObject({
   revision: z.number().int().min(1),
@@ -357,6 +391,38 @@ export function validateState(input: unknown): WorkState {
     if (new Set(list.map((i) => i.id)).size !== list.length)
       throw new WorkError('VALIDATION', 'Duplicate IDs in snapshot.');
   const ids = new Set(state.items.map((i) => i.id));
+  if (state.instructions) {
+    const { sources, packets } = state.instructions;
+    for (const list of [sources, packets])
+      if (new Set(list.map((i) => i.id)).size !== list.length)
+        throw new WorkError('VALIDATION', 'Duplicate instruction IDs.');
+    const sourceIds = new Set<string>();
+    const replaced = new Set<string>();
+    for (const source of sources) {
+      if (
+        source.taskIds.some((id) => !ids.has(id)) ||
+        (source.replaces && (!sourceIds.has(source.replaces) || replaced.has(source.replaces)))
+      )
+        throw new WorkError('VALIDATION', 'Invalid source references.');
+      sourceIds.add(source.id);
+      if (source.replaces) replaced.add(source.replaces);
+    }
+    const revisions = new Map<string, number>();
+    for (const packet of packets) {
+      if (
+        !ids.has(packet.taskId) ||
+        packet.sourceIds.some((id) => !sourceIds.has(id)) ||
+        packet.revision !== (revisions.get(packet.taskId) ?? 0) + 1
+      )
+        throw new WorkError('VALIDATION', 'Invalid packet references or revisions.');
+      revisions.set(packet.taskId, packet.revision);
+      if (
+        new Set(packet.checks.map((c) => c.stepId)).size !== packet.checks.length ||
+        packet.checks.some((c) => !packet.steps.some((s) => s.id === c.stepId))
+      )
+        throw new WorkError('VALIDATION', 'Invalid packet result checks.');
+    }
+  }
   const tuples = new Set<string>();
   const parents = new Set<string>();
   for (const r of state.relations) {

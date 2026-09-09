@@ -751,6 +751,80 @@ export class OfficeWorld {
       0.07,
     );
     this.button(system, 'EXIT VR', 'exit', 0, -0.18, 0.04, 0.37, 0.07);
+    this.button(this.content, 'WORK PACKET', 'packet:read', -0.83, 1.65, 0.56, 0.62, 0.1);
+    if (view.packet?.open) {
+      const packet = view.packet;
+      const sheet = new THREE.Group();
+      sheet.position.set(0, 1.83, 1.13);
+      this.content.add(sheet);
+      art.box(sheet, [1.24, 1.28, 0.035], [0, 0, 0], 'paper');
+      art.label(
+        sheet,
+        packet.title,
+        `${packet.position}\n\n${packet.body}`,
+        1.16,
+        1.04,
+        [0, 0.09, 0.025],
+        { background: '#f3f0e5', color: '#213c2c', size: 40, font: 'Arial' },
+      );
+      this.button(
+        sheet,
+        '< PAGE',
+        'packet:previous-page',
+        -0.42,
+        -0.47,
+        0.04,
+        0.25,
+        0.08,
+        packet.page > 0,
+      );
+      this.button(
+        sheet,
+        'PAGE >',
+        'packet:next-page',
+        -0.13,
+        -0.47,
+        0.04,
+        0.25,
+        0.08,
+        packet.page < packet.pages - 1,
+      );
+      this.button(
+        sheet,
+        packet.checked ? 'CHECKED' : 'RESULT OK',
+        'packet:check',
+        0.3,
+        -0.47,
+        0.04,
+        0.48,
+        0.08,
+        packet.canCheck && !packet.checked,
+      );
+      this.button(
+        sheet,
+        '< STEP',
+        'packet:previous-step',
+        -0.42,
+        -0.58,
+        0.04,
+        0.25,
+        0.08,
+        packet.step > 0,
+      );
+      this.button(
+        sheet,
+        'STEP >',
+        'packet:next-step',
+        -0.13,
+        -0.58,
+        0.04,
+        0.25,
+        0.08,
+        packet.step < packet.steps - 1,
+      );
+      this.button(sheet, 'OPEN / PRINT', 'packet:open', 0.3, -0.58, 0.04, 0.48, 0.08);
+      this.button(sheet, 'CLOSE', 'packet:close', 0.48, 0.72, 0.04, 0.25, 0.09);
+    }
     const stamp = new THREE.Group();
     this.stamp = stamp;
     stamp.position.set(0.38, 0.88, 0.26);

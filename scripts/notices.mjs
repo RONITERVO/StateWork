@@ -9,7 +9,11 @@ for (const [path, pkg] of Object.entries(lock.packages)) {
   const licenses = readdirSync(path).filter((n) => /^(licen[cs]e|copying|notice)(\.|$|-)/i.test(n));
   const texts = licenses.flatMap((n) => {
     try {
-      return [`### ${n}\n\n\`\`\`text\n${readFileSync(join(path, n), 'utf8').trim()}\n\`\`\``];
+      return [
+        `### ${n}\n\n\`\`\`text\n${readFileSync(join(path, n), 'utf8')
+          .replace(/[ \t]+$/gm, '')
+          .trim()}\n\`\`\``,
+      ];
     } catch {
       return [];
     }

@@ -32,7 +32,7 @@ Receipts are keyed by workspace, actor and request ID. The fingerprint is a cano
 
 The SQLite adapter uses `BEGIN IMMEDIATE`, foreign keys, WAL, a 5-second busy timeout and `synchronous=FULL`. Snapshot, receipt and event are committed together. A callback failure rolls all of them back. Multiple local processes serialize through SQLite. A database created with a newer schema is rejected. Migration 1 is transactional and recorded in `PRAGMA user_version`.
 
-The durable representation is a **bounded workspace snapshot** plus append-only events, receipts and membership tables. A transaction loads a whole workspace. This makes the pure domain portable and recoverable but is not intended as a high-volume company database. Limits: 10,000 items, 30,000 edges, 100 saved views; 100 commands per batch, 500 observation/event records per page. The server accepts bodies up to 1 MiB. Events and receipts are not pruned automatically. Storage and graph processing grow with workspace size; measured examples are in acceptance evidence.
+The durable representation is a **bounded workspace snapshot** plus append-only events, receipts and membership tables. A transaction loads a whole workspace. This makes the pure domain portable and recoverable but is not intended as a high-volume company database. Limits: 10,000 items, 30,000 edges, 100 saved views; 100 commands per batch, 500 observation/event records per page. The server accepts normal bodies up to 1 MiB; explicit source extraction accepts a 12 MiB encoded body and snapshot import accepts 20 MiB (the browser limits source files to 8 MiB and snapshot files to 16 MiB). Events and receipts are not pruned automatically. Storage and graph processing grow with workspace size; measured examples are in acceptance evidence.
 
 ## Time
 
@@ -49,3 +49,10 @@ No deadline timer mutates state. The UI and adapters choose how to highlight or 
 5. **Integrations:** read the durable event feed using its workspace-local cursor; checkpoint only after successful processing. Use deterministic request IDs when submitting integration results. Keep external credentials outside work extensions and exports.
 
 Cross-device sync, CRDTs, networked collaboration, multi-process event push and distributed locks are not claimed. A developer can build these around the versioned contracts while keeping modality-independent semantics.
+
+
+## Work instructions and source evidence
+
+The optional `WorkState.instructions` container preserves immutable source captures and packet content revisions. Host-attributed review and ordered result checks use the same atomic commands, receipts and history. The SDK validates structured packet input; core computes gaps and context staleness. A reviewed packet and all result checks are required for a task with a packet to transition to Done. See [work packet contracts and limits](WORK_PACKETS.md).
+
+Node hosts provide bounded, local file extraction and an optional `PacketAssistant`. The Codex adapter returns proposals from explicitly selected context, never mutates work, and uses the installed CLI's own authentication. Public URL capture checks and pins public DNS addresses and validates redirects; it does not inherit browser cookies. External connector integrations use their own authorization and can submit captured evidence through the shared command API.
