@@ -1,13 +1,15 @@
 import { WorkError } from '@statework/core';
 import type { DomainEvent, Role, WorkState } from '@statework/core';
-import type { Receipt, Transaction, WorkspaceStore } from './service.js';
+import type { AssetBytes, Receipt, Transaction, WorkspaceStore } from './service.js';
 interface RecordState {
   state: WorkState;
   members: Map<string, Role>;
   receipts: Map<string, Receipt>;
   events: DomainEvent[];
+  assets: Map<string, Uint8Array>;
 }
 export class MemoryStore implements WorkspaceStore {
+  readonly assetSupport = true as const;
   private records = new Map<string, RecordState>();
   list(actorId: string) {
     return [...this.records.values()]
@@ -19,7 +21,7 @@ export class MemoryStore implements WorkspaceStore {
         role: r.members.get(actorId)!,
       }));
   }
-  create(state: WorkState, actorId: string): void {
+  create(state: WorkState, actorId: string, assets: AssetBytes[] = []): void {
     if (this.records.has(state.workspace.id))
       throw new WorkError('CONFLICT', 'Workspace ID already exists.');
     this.records.set(state.workspace.id, {
@@ -27,6 +29,7 @@ export class MemoryStore implements WorkspaceStore {
       members: new Map([[actorId, 'owner']]),
       receipts: new Map(),
       events: [],
+      assets: new Map(assets.map((a) => [a.sha256, new Uint8Array(a.bytes)])),
     });
   }
   grant(workspaceId: string, actorId: string, role: Role): void {
@@ -52,6 +55,20 @@ export class MemoryStore implements WorkspaceStore {
       },
       events: (after, limit) =>
         structuredClone(staged.events.filter((e) => e.sequence > after).slice(0, limit)),
+      asset: (digest) => {
+        const bytes = staged.assets.get(digest);
+        return bytes ? new Uint8Array(bytes) : undefined;
+      },
+      assetSize: (digest) => staged.assets.get(digest)?.byteLength,
+      putAsset: (digest, bytes) => {
+        if (
+          !staged.assets.has(digest) &&
+          [...staged.assets.values()].reduce((n, b) => n + b.byteLength, 0) + bytes.byteLength >
+            256 * 1024 * 1024
+        )
+          throw new WorkError('LIMIT', 'Workspace files exceed 256 MiB.');
+        staged.assets.set(digest, new Uint8Array(bytes));
+      },
     });
     this.records.set(id, staged);
     return result;

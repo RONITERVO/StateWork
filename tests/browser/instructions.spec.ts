@@ -100,6 +100,11 @@ test('manual author, review, result records, printable sources, export and reloa
   await page.getByRole('button', { name: '↓ Packet', exact: true }).click();
   expect((await download).suggestedFilename()).toBe('statework-packet-kit.json');
   if (browserName === 'chromium') {
+    // The default is now a compact route; the explicit full mode includes captured provenance.
+    await page.evaluate(() => {
+      window.print = () => {};
+    });
+    await page.getByRole('button', { name: 'Full evidence print', exact: true }).click();
     await page.emulateMedia({ media: 'print' });
     await expect(page.locator('.packet-print')).toBeVisible();
     await expect(page.locator('.packet-top')).not.toBeVisible();
@@ -203,6 +208,16 @@ test('VR controller opens the work packet, pages its instructions and reaches pr
   });
   const id = await setup(page);
   await author(page);
+  await page.getByRole('button', { name: '✎ Edit', exact: true }).click();
+  await page.getByRole('button', { name: 'Enable connected work', exact: true }).click();
+  for (const key of ['inputs', 'procedure', 'acceptance'])
+    await page.locator(`[name="coverage-${key}"]`).check();
+  await page
+    .getByLabel('What did you inspect? What are its limits?', { exact: true })
+    .fill('Fictional tray procedure and all result criteria checked for XR testing.');
+  await page.locator('[name="successful-finish"]').check();
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Draft saved');
   await page.getByRole('button', { name: '✓ Review and approve', exact: true }).click();
   await page.goto('/spatial/');
   await page.getByLabel('Your workspace').selectOption(id);

@@ -14,7 +14,15 @@ The JSON format is `{format:"statework.snapshot",formatVersion:1,exportedAt,stat
 
 Import always creates a **new** workspace with the chosen ID/title, revision 0 and a new event history. It validates dates, schemas, uniqueness, graph integrity and completion rules first. An existing workspace cannot be overwritten. Imported work is owned by the importing connection; imported JSON cannot grant roles. Unknown extension namespaces survive as inert data.
 
-HTTP/browser imports are limited to approximately 1 MB. Use the CLI/SDK for larger valid snapshots. The CLI refuses to overwrite export files.
+The dedicated snapshot import route accepts 20 MiB; the browser limits snapshot files to 16 MiB. Ordinary command requests remain limited to approximately 1 MB. The CLI refuses to overwrite export files.
+
+## Portable workspace with files
+
+Use **Files → Workspace + files**, or `npm run cli -- bundle-export personal personal-bundle.json`. Import with **Import workspace + files** or `npm run cli -- bundle-import personal-bundle.json personal-copy "Imported work"`.
+
+The versioned `statework.bundle` includes the snapshot, deduplicated original file bytes and an explicit missing-file list. Import checks every digest and file identity before atomically creating a new workspace. A snapshot or packet export preserves file metadata but does not include bytes. Restore a missing file only with bytes matching its saved digest; replacement files receive new identities.
+
+Limits are 64 MiB per file and 256 MiB of unique bytes per workspace. Base64 increases JSON transfer size; the bundle import route accepts up to 380 MiB. Use a full database backup to retain events, receipts and memberships as well.
 
 ## Full database backup
 
@@ -22,11 +30,11 @@ HTTP/browser imports are limited to approximately 1 MB. Use the CLI/SDK for larg
 npm run cli -- backup statework-backup.sqlite
 ```
 
-This uses SQLite's online backup API, so the HTTP service can remain running. The destination must be new. It includes **all** workspaces, memberships, events, retry receipts and hashed tokens. Keep backups private. For a complete restore, preserve the matching `local-token` file separately as well. The CLI has direct filesystem-owner authority; a scoped connection cannot invoke the backup command.
+This uses SQLite's online backup API, so the HTTP service can remain running. The destination must be new. It includes **all** workspaces, original files, memberships, events, retry receipts and hashed tokens. Keep backups private. For a complete restore, preserve the matching `local-token` file separately as well. The CLI has direct filesystem-owner authority; a scoped connection cannot invoke the backup command.
 
 To restore, stop every process using the destination database. Preserve the existing data directory under a different name. Create a fresh private directory, place the backup there as `statework.sqlite`, and copy its matching `local-token` into it. Point `STATEWORK_HOME` at the new directory and start StateWork. If no token file exists, startup generates a new local-owner token. A mismatched or revoked existing token file causes an explicit failure. Never replace only the live SQLite main file while an old WAL/SHM or writer is active.
 
-Database migration 1 is installed transactionally. Future versions must back up before schema upgrades and add migration tests. A newer database schema is rejected by this version. Use snapshots for migration between different storage adapters; use a full database backup to preserve history and retry guarantees.
+Database migration 2 adds original-file storage transactionally. Opening a version-1 database first creates a consistent adjacent `*.before-v2-<id>.sqlite` backup, including committed WAL data. If backup fails, upgrade stops. Preserve the matching local token for rollback with the old binary. A newer database schema is rejected. Use complete bundles between file-capable storage adapters; use a full database backup to preserve history and retry guarantees.
 
 ## Operational limits
 

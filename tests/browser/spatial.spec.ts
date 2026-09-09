@@ -36,6 +36,9 @@ test('graphics-unavailable fallback stays readable and can still record work', a
 test('spatial setup, prerequisite navigation, actions, undo, resource links and persistence', async ({
   page,
 }) => {
+  // Software-rendered CI reached the final export at 30 seconds; this is a whole-workflow
+  // budget, separate from the unchanged bounds on each assertion.
+  test.setTimeout(90000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await createSpace(page);

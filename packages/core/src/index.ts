@@ -3,3 +3,7 @@ export * from './transition.js';
 export * from './observe.js';
 export * from './planning.js';
 export * from './instructions.js';
+export * from './resources.js';
+export * from './execution.js';
+export * from './handoff.js';
+export * from './proposals.js';

@@ -1,6 +1,6 @@
 import { isFinished, WorkError } from './model.js';
 import type { Principal, Query, Relation, WorkItem, WorkState } from './model.js';
-import { latestPacket, packetIssues } from './instructions.js';
+import { latestPacket, packetIssues, packetResultsComplete } from './instructions.js';
 
 export interface SemanticNode {
   id: string;
@@ -129,9 +129,7 @@ export function observe(
     const packet = latestPacket(state, item.id);
     const instructionGaps = packet ? packetIssues(state, packet) : [];
     const packetPending =
-      !!packet &&
-      (instructionGaps.length > 0 ||
-        packet.steps.some((s) => !packet.checks.some((c) => c.stepId === s.id)));
+      !!packet && (instructionGaps.length > 0 || !packetResultsComplete(state, packet));
     return {
       id: item.id,
       label: item.title,

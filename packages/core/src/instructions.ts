@@ -1,5 +1,14 @@
 import { WorkError, isFinished } from './model.js';
 import type { Command, Principal, Relation, WorkItem, WorkState } from './model.js';
+import { registerAsset } from './resources.js';
+import type { AssetInput, WorkAsset, WorkReference } from './resources.js';
+import type { ExecutionContract, RequirementConfirmation, StepDecision } from './execution.js';
+import {
+  dependentSteps,
+  executionIssues,
+  executionReadiness,
+  validateExecution,
+} from './execution.js';
 
 export interface SourceInput {
   id: string;
@@ -10,6 +19,7 @@ export interface SourceInput {
   kind: 'page' | 'file' | 'email' | 'note';
   coverage: 'complete' | 'excerpt' | 'unreadable';
   replaces: string | null;
+  assetId?: string;
 }
 export interface WorkSource extends SourceInput {
   capturedAt: string;
@@ -30,6 +40,7 @@ export interface PacketRequirement {
   check: string;
   confirmed: boolean;
   citations: Citation[];
+  scope?: 'worker' | 'workspace';
 }
 export interface PacketStep {
   id: string;
@@ -41,6 +52,12 @@ export interface PacketStep {
   actionUrl: string;
   requires: string[];
   citations: Citation[];
+  after?: string[];
+  phase?: 'prepare' | 'work' | 'verify' | 'deliver';
+  references?: WorkReference[];
+  when?: { stepId: string; optionId: string };
+  decision?: StepDecision;
+  evidenceRequired?: boolean;
 }
 export interface PacketQuestion {
   id: string;
@@ -62,30 +79,58 @@ export interface PacketInput {
   questions: PacketQuestion[];
   sourceIds: string[];
   origin: 'manual' | 'codex' | 'import';
+  execution?: ExecutionContract;
 }
 export interface WorkPacket extends PacketInput {
   revision: number;
   createdAt: string;
   createdBy: string;
   review: { at: string; by: string } | null;
-  checks: { stepId: string; at: string; by: string; evidence: string }[];
+  checks: {
+    stepId: string;
+    at: string;
+    by: string;
+    evidence: string;
+    choice?: string;
+    outputs?: { outputId: string; assetId: string }[];
+  }[];
+  confirmations?: RequirementConfirmation[];
 }
 export interface Instructions {
   sources: WorkSource[];
   packets: WorkPacket[];
+  assets?: WorkAsset[];
 }
 export type InstructionCommand =
+  | { type: 'asset.register'; asset: AssetInput }
   | { type: 'source.capture'; source: SourceInput }
   | { type: 'packet.save'; packet: PacketInput; expectedPacketId: string | null }
   | { type: 'packet.review'; id: string }
-  | { type: 'packet.check'; id: string; stepId: string; checked: boolean; evidence: string };
+  | {
+      type: 'packet.check';
+      id: string;
+      stepId: string;
+      checked: boolean;
+      evidence: string;
+      choice?: string;
+      outputs?: { outputId: string; assetId: string }[];
+    }
+  | {
+      type: 'packet.confirm';
+      id: string;
+      requirementId: string;
+      available: boolean;
+      evidence: string;
+    };
 export interface PacketContext {
   task: WorkItem;
   items: WorkItem[];
   relations: Relation[];
   sources: WorkSource[];
+  assets?: WorkAsset[];
   links: { url: string; itemId: string; captured: boolean }[];
   key: string;
+  procedureKey?: string;
 }
 export interface PacketIssue {
   code: 'missing' | 'question' | 'requirement' | 'citation' | 'stale' | 'review' | 'source';
@@ -166,7 +211,7 @@ export function packetContext(state: WorkState, taskId: string): PacketContext {
         });
     }
   }
-  const key = contextKey({
+  const keyData = {
     items: items.map((i) => ({
       id: i.id,
       title: i.title,
@@ -180,8 +225,16 @@ export function packetContext(state: WorkState, taskId: string): PacketContext {
     })),
     relations,
     sources: sources.map((s) => s.id).sort(),
+  };
+  const key = contextKey(keyData);
+  const procedureKey = contextKey({
+    ...keyData,
+    items: keyData.items.map((i) => ({ ...i, status: null })),
   });
-  return { task, items, relations, sources, links, key };
+  const assets = (state.instructions?.assets ?? []).filter((a) =>
+    a.taskIds.some((id) => ids.has(id)),
+  );
+  return { task, items, relations, sources, assets, links, key, procedureKey };
 }
 export function latestPacket(state: WorkState, taskId: string): WorkPacket | undefined {
   return state.instructions?.packets.filter((p) => p.taskId === taskId).at(-1);
@@ -192,10 +245,12 @@ export function packetIssues(
   includeReview = true,
 ): PacketIssue[] {
   const issues: PacketIssue[] = [];
-  const add = (code: PacketIssue['code'], label: string, target = '') =>
-    issues.push({ code, label, target });
+  const add = (code: PacketIssue['code'], label: string, target = '') => {
+    if (!issues.some((i) => i.code === code && i.label === label && i.target === target))
+      issues.push({ code, label, target });
+  };
   const context = packetContext(state, packet.taskId);
-  if (packet.contextKey !== context.key)
+  if (packet.contextKey !== (packet.execution ? context.procedureKey : context.key))
     add('stale', 'Task, requirements or sources changed. Revise and review this packet.');
   if (!packet.outcome.trim()) add('missing', 'Define the finished result.', 'outcome');
   if (!packet.finish.trim()) add('missing', 'Define the final acceptance check.', 'finish');
@@ -221,8 +276,10 @@ export function packetIssues(
     const item = r.itemId ? state.items.find((i) => i.id === r.itemId) : undefined;
     if (!r.detail.trim() || !r.check.trim())
       add('missing', `${r.label}: describe access and how to check it.`, r.id);
-    if (r.itemId ? !item || !isFinished(item) : !r.confirmed)
+    if (!packet.execution && (r.itemId ? !item || !isFinished(item) : !r.confirmed))
       add('requirement', `${r.label}: needs confirmation.`, r.id);
+    if (r.itemId === packet.taskId)
+      add('requirement', 'A task cannot require its own completion.', r.id);
   }
   for (const r of context.relations.filter(
     (r) => r.kind === 'depends_on' && r.from === packet.taskId,
@@ -269,6 +326,7 @@ export function packetIssues(
       add('source', 'Read this linked source or record why it is outside this task.', link.url);
   if (includeReview && (!('review' in packet) || !packet.review))
     add('review', 'Review the complete instructions before use.');
+  for (const issue of executionIssues(state, packet)) add(issue.code, issue.label, issue.target);
   return issues;
 }
 export function blankPacket(state: WorkState, taskId: string, id: string): PacketInput {
@@ -330,7 +388,9 @@ export function applyInstructionCommand(
   at: string,
 ): void {
   const data = (state.instructions ??= { sources: [], packets: [] });
-  if (command.type === 'source.capture') {
+  if (command.type === 'asset.register') {
+    registerAsset(state, command.asset, actor, at);
+  } else if (command.type === 'source.capture') {
     if (data.sources.length >= 2000)
       throw new WorkError('LIMIT', 'This workspace supports 2,000 source captures.');
     if (data.sources.some((s) => s.id === command.source.id))
@@ -338,6 +398,8 @@ export function applyInstructionCommand(
     for (const id of command.source.taskIds)
       if (!state.items.some((i) => i.id === id))
         throw new WorkError('NOT_FOUND', 'Source task is unavailable.');
+    if (command.source.assetId && !data.assets?.some((a) => a.id === command.source.assetId))
+      throw new WorkError('NOT_FOUND', 'Original source file is unavailable.');
     if (
       command.source.replaces &&
       (!data.sources.some((s) => s.id === command.source.replaces) ||
@@ -347,6 +409,7 @@ export function applyInstructionCommand(
     data.sources.push({ ...command.source, capturedAt: at, capturedBy: actor.id });
   } else if (command.type === 'packet.save') {
     const packet = command.packet;
+    validateExecution(packet, state);
     const latest = latestPacket(state, packet.taskId);
     if (
       (latest?.id ?? null) !== command.expectedPacketId ||
@@ -355,7 +418,8 @@ export function applyInstructionCommand(
       throw new WorkError('CONFLICT', 'Instructions changed. Refresh before saving a revision.');
     if (data.packets.length >= 2000)
       throw new WorkError('LIMIT', 'This workspace supports 2,000 packet revisions.');
-    if (packet.contextKey !== packetContext(state, packet.taskId).key)
+    const context = packetContext(state, packet.taskId);
+    if (packet.contextKey !== (packet.execution ? context.procedureKey : context.key))
       throw new WorkError('CONFLICT', 'Task context changed. Reconcile the draft before saving.');
     if (packet.sourceIds.some((id) => !data.sources.some((s) => s.id === id)))
       throw new WorkError('NOT_FOUND', 'Packet references an unavailable source.');
@@ -377,6 +441,27 @@ export function applyInstructionCommand(
       if (issues.length)
         throw new WorkError('BLOCKED', 'Resolve instruction gaps before review.', issues);
       packet.review = { at, by: actor.id };
+    } else if (command.type === 'packet.confirm') {
+      const requirement = packet.requirements.find((r) => r.id === command.requirementId);
+      if (!packet.execution || !requirement || requirement.itemId)
+        throw new WorkError(
+          'VALIDATION',
+          'Confirm a manual requirement in a connected work packet.',
+        );
+      if (!command.evidence.trim())
+        throw new WorkError('VALIDATION', 'Record how the requirement was checked.');
+      packet.confirmations = (packet.confirmations ?? []).filter(
+        (c) => c.requirementId !== requirement.id || c.by !== actor.id,
+      );
+      if (packet.confirmations.length >= 2000)
+        throw new WorkError('LIMIT', 'This packet supports 2,000 worker confirmations.');
+      packet.confirmations.push({
+        requirementId: requirement.id,
+        available: command.available,
+        evidence: command.evidence,
+        at,
+        by: actor.id,
+      });
     } else {
       if (!packet.steps.some((s) => s.id === command.stepId))
         throw new WorkError('NOT_FOUND', 'Instruction step not found.');
@@ -388,9 +473,59 @@ export function applyInstructionCommand(
             'Resolve instruction gaps before checking results.',
             issues,
           );
-        const index = packet.steps.findIndex((s) => s.id === command.stepId);
-        if (packet.steps.slice(0, index).some((s) => !packet.checks.some((c) => c.stepId === s.id)))
-          throw new WorkError('BLOCKED', 'Check earlier results first.');
+        const step = packet.steps.find((s) => s.id === command.stepId)!;
+        if (packet.checks.some((c) => c.stepId === command.stepId))
+          throw new WorkError(
+            'CONFLICT',
+            'Undo this result before replacing its evidence or decision.',
+          );
+        if (packet.execution) {
+          const row = executionReadiness(state, packet, actor.id, issues, {
+            externalAccess: true,
+          }).find((s) => s.id === step.id)!;
+          if (row.status !== 'ready')
+            throw new WorkError(
+              'BLOCKED',
+              'Resolve this action’s prerequisites first.',
+              row.blockers,
+            );
+          if (
+            step.decision
+              ? !step.decision.options.some((o) => o.id === command.choice)
+              : command.choice !== undefined
+          )
+            throw new WorkError(
+              'VALIDATION',
+              'Select an available decision option only on a decision step.',
+            );
+          if (step.evidenceRequired && !command.evidence.trim())
+            throw new WorkError('BLOCKED', 'Record the required result evidence.');
+          for (const output of command.outputs ?? []) {
+            if (
+              !packet.execution.outputs.some(
+                (o) => o.id === output.outputId && o.stepId === step.id,
+              ) ||
+              !data.assets?.some(
+                (a) => a.id === output.assetId && a.taskIds.includes(packet.taskId),
+              )
+            )
+              throw new WorkError(
+                'VALIDATION',
+                'Result files must match this action’s declared outputs and task.',
+              );
+          }
+          for (const output of packet.execution.outputs.filter(
+            (o) => o.required && o.stepId === step.id,
+          ))
+            if (!command.outputs?.some((o) => o.outputId === output.id))
+              throw new WorkError('BLOCKED', `Attach the required output: ${output.label}.`);
+        } else {
+          const index = packet.steps.findIndex((s) => s.id === command.stepId);
+          if (
+            packet.steps.slice(0, index).some((s) => !packet.checks.some((c) => c.stepId === s.id))
+          )
+            throw new WorkError('BLOCKED', 'Check earlier results first.');
+        }
       }
       packet.checks = packet.checks.filter((c) => c.stepId !== command.stepId);
       if (command.checked)
@@ -399,12 +534,12 @@ export function applyInstructionCommand(
           at,
           by: actor.id,
           evidence: command.evidence,
+          ...(command.choice ? { choice: command.choice } : {}),
+          ...(command.outputs?.length ? { outputs: command.outputs } : {}),
         });
       else {
-        const index = packet.steps.findIndex((s) => s.id === command.stepId);
-        packet.checks = packet.checks.filter(
-          (c) => packet.steps.findIndex((s) => s.id === c.stepId) < index,
-        );
+        const affected = dependentSteps(packet, command.stepId);
+        packet.checks = packet.checks.filter((c) => !affected.has(c.stepId));
         const task = state.items.find((i) => i.id === packet.taskId);
         if (task?.status === 'done') {
           task.status = 'active';
@@ -419,10 +554,7 @@ export function packetCompleteCommand(state: WorkState, packetId: string): Comma
   const packet = state.instructions?.packets.find((p) => p.id === packetId);
   if (!packet || latestPacket(state, packet.taskId)?.id !== packetId)
     throw new WorkError('NOT_FOUND', 'Latest packet not found.');
-  if (
-    packetIssues(state, packet).length ||
-    packet.steps.some((s) => !packet.checks.some((c) => c.stepId === s.id))
-  )
+  if (packetIssues(state, packet).length || !packetResultsComplete(state, packet))
     throw new WorkError('BLOCKED', 'Review and check every instruction result first.');
   const task = state.items.find((i) => i.id === packet.taskId)!;
   return {
@@ -431,4 +563,14 @@ export function packetCompleteCommand(state: WorkState, packetId: string): Comma
     expectedVersion: task.version,
     patch: { status: 'done' },
   };
+}
+export function packetResultsComplete(state: WorkState, packet: WorkPacket): boolean {
+  if (!packet.execution)
+    return packet.steps.every((s) => packet.checks.some((c) => c.stepId === s.id));
+  return (
+    packet.execution.completion.anyOf.some((id) => packet.checks.some((c) => c.stepId === id)) &&
+    executionReadiness(state, packet, packet.createdBy, []).every(
+      (s) => s.status === 'checked' || s.status === 'skipped',
+    )
+  );
 }

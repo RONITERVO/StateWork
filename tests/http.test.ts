@@ -236,7 +236,14 @@ describe('local HTTP boundary', () => {
   it('publishes a versioned OpenAPI contract covering each public operation', () => {
     const spec = openapi();
     expect(spec.openapi).toBe('3.1.0');
-    expect(Object.keys(spec.paths)).toHaveLength(15);
+    expect(Object.keys(spec.paths)).toHaveLength(22);
+    expect(spec.paths['/workspaces/{id}/instructions/{taskId}/handoff'].post.operationId).toBe(
+      'workerHandoff',
+    );
+    expect(spec.paths['/workspaces/{id}/assets/{assetId}/content'].get.operationId).toBe(
+      'originalFile',
+    );
+    expect(spec.paths['/bundle-import'].post.operationId).toBe('importFileBundle');
     expect(spec.components.schemas.CommandRequest).toHaveProperty('properties');
     const walk = (node: unknown): void => {
       if (node && typeof node === 'object')

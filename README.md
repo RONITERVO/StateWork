@@ -6,7 +6,9 @@ StateWork gives tasks, projects, notes, events and their relationships a shared 
 
 Inspired by the engine-first architecture of StateBeats in `3dRythm`. The backend is the product; the reference client demonstrates ways through it.
 
-**0.1.0 developer foundation.** Personal-first and local-only. No accounts, cloud, telemetry, subscription, external API or AI model is needed. See [verified behavior and limits](docs/ACCEPTANCE.md).
+**0.2.0 connected work foundation.** Personal-first and local-only. No accounts, cloud, telemetry, subscription, external API or AI model is needed. See [verified behavior and limits](docs/ACCEPTANCE.md).
+
+Keep instructions short and the work complete: attach original files, link exact references, connect ordered or parallel actions, and record decisions and results. A fresh person or agent can retrieve the same work map and see what they can do now. [Connected work guide](docs/CONNECTED_WORK.md).
 
 ## Start here
 

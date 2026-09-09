@@ -12,7 +12,8 @@ const npm = (args, cwd = root) =>
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-const out = resolve('artifacts/release/0.1.0');
+const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+const out = resolve('artifacts/release', version);
 mkdirSync(out, { recursive: true });
 execFileSync(process.execPath, ['scripts/notices.mjs'], { stdio: 'inherit' });
 const packages = ['core', 'sdk', 'node', 'server', 'tools'];
@@ -42,9 +43,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { resolve } from 'node:path';
 const service=new WorkService(new MemoryStore());const work=service.connect('test');work.create({id:'smoke',title:'Packaged'});if(work.list().length!==1)throw new Error('SDK failed');
+work.execute('smoke',{schemaVersion:1,requestId:'seed',expectedRevision:0,commands:[{type:'item.create',item:{id:'task',kind:'task',title:'File handoff'}}]});
+await work.attach('smoke',{requestId:'file',expectedRevision:1,asset:{id:'original',taskIds:['task'],name:'original.bin',mediaType:'application/octet-stream',description:'Exact original bytes',locator:'Clean package fixture',replaces:null}},new Uint8Array([0,255,12]));
+const bundle=work.exportBundle('smoke');await work.importBundle(bundle,{id:'copy',title:'Portable files'});if(work.asset('copy','original').bytes[1]!==255||!work.handoff('copy','task').assets[0].available)throw new Error('Packaged file handoff failed');
 const sqlite=new SqliteStore(':memory:');sqlite.close();const app=await createServer({service,authenticate:()=>undefined});await app.close();service.close();
 const extracted=await extractSource('instructions.txt',new TextEncoder().encode('Count two bolts.'));if(extracted.content!=='Count two bolts.')throw new Error('Packaged source worker failed');
-const client=new Client({name:'package-test',version:'1.0.0'});await client.connect(new StdioClientTransport({command:process.execPath,args:[resolve('node_modules/@statework/tools/dist/mcp.js')],env:{...process.env,STATEWORK_HOME:resolve('mcp-data')},stderr:'pipe'}));if(!(await client.listTools()).tools.some(t=>t.name==='execute_work'))throw new Error('MCP failed');await client.close();console.log('Packaged SDK, SQLite, server and MCP passed.');`;
+const client=new Client({name:'package-test',version:'1.0.0'});await client.connect(new StdioClientTransport({command:process.execPath,args:[resolve('node_modules/@statework/tools/dist/mcp.js')],env:{...process.env,STATEWORK_HOME:resolve('mcp-data')},stderr:'pipe'}));const names=(await client.listTools()).tools.map(t=>t.name);if(!['execute_work','work_handoff','work_source','work_files','work_file'].every(n=>names.includes(n)))throw new Error('MCP failed');await client.close();console.log('Packaged SDK, original-file handoff/bundle, SQLite, server, source worker and MCP passed.');`;
 writeFileSync(join(staging, 'smoke.mjs'), smoke);
 process.stdout.write(
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: staging, encoding: 'utf8' }),
@@ -90,9 +94,13 @@ for (const entry of allowed)
       ),
   });
 // npm pack would omit package-lock.json and rewrite metadata. Use the OS tar archive tool for exact source.
-execFileSync('tar', ['-czf', join(out, 'statework-source-0.1.0.tar.gz'), '-C', sourceDir, '.'], {
-  stdio: 'pipe',
-});
+execFileSync(
+  'tar',
+  ['-czf', join(out, `statework-source-${version}.tar.gz`), '-C', sourceDir, '.'],
+  {
+    stdio: 'pipe',
+  },
+);
 const artifacts = readdirSync(out)
   .filter((n) => /\.(tgz|tar\.gz)$/.test(n))
   .sort();

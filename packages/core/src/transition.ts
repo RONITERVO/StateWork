@@ -1,5 +1,10 @@
 import { WorkError, isFinished } from './model.js';
-import { applyInstructionCommand, latestPacket, packetIssues } from './instructions.js';
+import {
+  applyInstructionCommand,
+  latestPacket,
+  packetIssues,
+  packetResultsComplete,
+} from './instructions.js';
 import type { CommandRequest, CommandResult, Principal, WorkItem, WorkState } from './model.js';
 const structuredClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -61,6 +66,8 @@ export function transition(
   for (const command of request.commands) {
     switch (command.type) {
       case 'source.capture':
+      case 'asset.register':
+      case 'packet.confirm':
       case 'packet.save':
       case 'packet.review':
       case 'packet.check':
@@ -165,8 +172,7 @@ export function transition(
       item.status === 'done' &&
       state.items.find((i) => i.id === item.id)?.status !== 'done' &&
       packet &&
-      (packetIssues(next, packet).length ||
-        packet.steps.some((s) => !packet.checks.some((c) => c.stepId === s.id)))
+      (packetIssues(next, packet).length || !packetResultsComplete(next, packet))
     )
       throw new WorkError(
         'BLOCKED',

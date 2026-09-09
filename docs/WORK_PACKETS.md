@@ -1,5 +1,7 @@
 # Work packets: precise instructions with evidence
 
+Version 0.2 adds [connected work](CONNECTED_WORK.md): original files, precise references, execution graphs, worker-specific readiness, successful finish points and fresh-agent handoffs. Existing linear packets retain the workflow below; enable connected work when editing to adopt the new contract.
+
 Open a task in the Office or Classic view and choose **Work packet / Print**. `/instructions/` also offers a task chooser. The numbered route shows one action, its expected result, recovery instructions and source excerpts. **Needs first**, **Questions**, **Sources** and **Finish** stay one click away. In the room, select **WORK PACKET** above the computer; page the paper card with either controller, check a result, or choose **OPEN / PRINT** to leave VR for the complete editor and print dialog.
 
 ![Fictional work packet with action, result check and recovery instructions](images/work-packet-desktop.png)

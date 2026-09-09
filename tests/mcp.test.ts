@@ -24,6 +24,15 @@ it('serves real MCP discovery, observe and atomic mutations over stdio', async (
     await client.connect(transport);
     const tools = await client.listTools();
     expect(tools.tools.map((t) => t.name)).toContain('execute_work');
+    expect(tools.tools.map((t) => t.name)).toEqual(
+      expect.arrayContaining([
+        'work_handoff',
+        'work_source',
+        'work_files',
+        'work_file',
+        'work_attach_file',
+      ]),
+    );
     expect(
       (
         await client.callTool({
@@ -54,6 +63,58 @@ it('serves real MCP discovery, observe and atomic mutations over stdio', async (
       arguments: { workspaceId: 'mcp' },
     });
     expect(JSON.stringify(observed)).toContain('Accessible to agents');
+    const upload = {
+      requestId: 'file',
+      expectedRevision: 1,
+      asset: {
+        id: 'input',
+        taskIds: ['task'],
+        name: 'input.cad',
+        mediaType: 'application/octet-stream',
+        description: 'Original bytes',
+        locator: 'Fixture',
+        replaces: null,
+      },
+      base64: Buffer.from([0, 1, 255]).toString('base64'),
+    };
+    const attached = await client.callTool({
+      name: 'work_attach_file',
+      arguments: { workspaceId: 'mcp', upload },
+    });
+    expect(attached.isError).not.toBe(true);
+    expect(
+      await client.callTool({
+        name: 'work_attach_file',
+        arguments: { workspaceId: 'mcp', upload },
+      }),
+    ).toEqual(attached);
+    expect(
+      (
+        await client.callTool({
+          name: 'work_attach_file',
+          arguments: {
+            workspaceId: 'mcp',
+            upload: { ...upload, requestId: 'invalid-bytes', expectedRevision: 2, base64: '!!!' },
+          },
+        })
+      ).isError,
+    ).toBe(true);
+    const handoff = await client.callTool({
+      name: 'work_handoff',
+      arguments: { workspaceId: 'mcp', taskId: 'task' },
+    });
+    expect(JSON.stringify(handoff)).toContain('statework.handoff');
+    expect(JSON.stringify(handoff)).toContain('externalActionsAuthorized');
+    const part = await client.callTool({
+      name: 'work_file',
+      arguments: { workspaceId: 'mcp', assetId: 'input', offset: 1, limit: 2 },
+    });
+    expect(JSON.stringify(part)).toContain(Buffer.from([1, 255]).toString('base64'));
+    const hidden = await client.callTool({
+      name: 'work_file',
+      arguments: { workspaceId: 'unknown', assetId: 'input' },
+    });
+    expect(hidden.isError).toBe(true);
     const invalid = await client.callTool({
       name: 'execute_work',
       arguments: { workspaceId: 'mcp', request: { ...request, requestId: 'stale' } },

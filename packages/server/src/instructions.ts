@@ -3,6 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { extractSource, fetchSource, packetResearchBrief } from '@statework/node';
 import type { PacketAssistant } from '@statework/node';
 import { WorkError, idSchema, parse, sourceExtractSchema, sourceFetchSchema } from '@statework/sdk';
+import {
+  assetUploadSchema,
+  assetRestoreSchema,
+  workerEnvironmentSchema,
+  reconcilePacketProposal,
+  packetInputSchema,
+} from '@statework/sdk';
 import type { WorkConnection, PacketInput } from '@statework/sdk';
 
 export async function instructionRoutes(
@@ -36,6 +43,82 @@ export async function instructionRoutes(
       );
     return c;
   };
+  const decodeFile = (base64: string) => {
+    const bytes = Buffer.from(base64, 'base64');
+    if (bytes.byteLength > 64 * 1024 * 1024) throw new WorkError('LIMIT', 'File exceeds 64 MiB.');
+    if (bytes.toString('base64') !== base64)
+      throw new WorkError('VALIDATION', 'File encoding is invalid.');
+    return new Uint8Array(bytes);
+  };
+  api.post<{ Params: { id: string; taskId: string } }>(
+    '/workspaces/:id/instructions/:taskId/handoff',
+    async (r) =>
+      connection(r.headers.authorization).handoff(
+        r.params.id,
+        r.params.taskId,
+        parse(workerEnvironmentSchema, r.body ?? {}),
+      ),
+  );
+  api.get<{ Params: { id: string } }>('/workspaces/:id/assets', async (r) =>
+    connection(r.headers.authorization).assetManifest(r.params.id),
+  );
+  api.get<{ Params: { id: string } }>('/workspaces/:id/bundle', async (r) =>
+    connection(r.headers.authorization).exportBundle(r.params.id),
+  );
+  api.post('/bundle-import', { bodyLimit: 380 * 1024 * 1024 }, async (r, reply) => {
+    const body = r.body as { bundle?: unknown; target?: unknown };
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Object.keys(body).some((k) => !['bundle', 'target'].includes(k))
+    )
+      throw new WorkError('VALIDATION', 'Use a bundle and a new workspace target.');
+    return reply
+      .code(201)
+      .send(await connection(r.headers.authorization).importBundle(body.bundle, body.target));
+  });
+  api.get<{ Params: { id: string; sourceId: string } }>(
+    '/workspaces/:id/sources/:sourceId',
+    async (r) => connection(r.headers.authorization).source(r.params.id, r.params.sourceId),
+  );
+  api.get<{ Params: { id: string; assetId: string } }>(
+    '/workspaces/:id/assets/:assetId/content',
+    async (r, reply) => {
+      const { asset, bytes } = connection(r.headers.authorization).asset(
+        r.params.id,
+        r.params.assetId,
+      );
+      return reply
+        .header(
+          'Content-Disposition',
+          `attachment; filename*=UTF-8''${encodeURIComponent(asset.name)}`,
+        )
+        .header('X-StateWork-SHA256', asset.sha256)
+        .type('application/octet-stream')
+        .send(Buffer.from(bytes));
+    },
+  );
+  api.post<{ Params: { id: string } }>(
+    '/workspaces/:id/assets',
+    { bodyLimit: 90 * 1024 * 1024 },
+    async (r, reply) => {
+      const c = editor(r.headers.authorization, r.params.id);
+      const { base64, ...input } = parse(assetUploadSchema, r.body);
+      return reply.code(201).send(await c.attach(r.params.id, input, decodeFile(base64)));
+    },
+  );
+  api.post<{ Params: { id: string; assetId: string } }>(
+    '/workspaces/:id/assets/:assetId/restore',
+    { bodyLimit: 90 * 1024 * 1024 },
+    async (r) => {
+      const c = editor(r.headers.authorization, r.params.id);
+      return c.restoreAsset(
+        r.params.id,
+        r.params.assetId,
+        decodeFile(parse(assetRestoreSchema, r.body).base64),
+      );
+    },
+  );
   api.get<{ Params: { id: string; taskId: string } }>(
     '/workspaces/:id/instructions/:taskId',
     async (r) => connection(r.headers.authorization).instructions(r.params.id, r.params.taskId),
@@ -98,8 +181,16 @@ export async function instructionRoutes(
       void assistant.draft(context, job.controller.signal).then(
         (packet) => {
           if (job.state === 'running') {
-            job.packet = packet;
-            job.state = 'done';
+            try {
+              job.packet = reconcilePacketProposal(context, parse(packetInputSchema, packet));
+              job.state = 'done';
+            } catch (error) {
+              job.state = 'failed';
+              job.error =
+                error instanceof WorkError
+                  ? error.message
+                  : 'The proposal failed validation. Your saved work is unchanged.';
+            }
           }
         },
         (error) => {

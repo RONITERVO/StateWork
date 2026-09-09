@@ -7,6 +7,8 @@ import {
   perceptionProfileSchema,
   packetInputSchema,
   sourceInputSchema,
+  workerHandoffSchema,
+  fileBundleSchema,
 } from '@statework/sdk';
 mkdirSync('schemas', { recursive: true });
 for (const [name, schema] of Object.entries({
@@ -16,6 +18,8 @@ for (const [name, schema] of Object.entries({
   'perception-profile.schema': jsonSchema(perceptionProfileSchema),
   'work-packet.schema': jsonSchema(packetInputSchema),
   'source-capture.schema': jsonSchema(sourceInputSchema),
+  'worker-handoff.schema': jsonSchema(workerHandoffSchema),
+  'file-bundle.schema': jsonSchema(fileBundleSchema),
 }))
   writeFileSync(`schemas/${name}.json`, JSON.stringify(schema, null, 2) + '\n');
 console.log('Exported versioned OpenAPI and JSON Schema contracts.');
