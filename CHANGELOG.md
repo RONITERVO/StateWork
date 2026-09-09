@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — SOLIDWORKS skill
+
+- Add a reusable native SOLIDWORKS workflow for source inspection, editable modeling, associated drawings, portable packages and saved-file verification.
+- Add a read-only installed-session helper with explicit runtime, process and interop checks, plus a bounded job launcher that preserves exact attempts and reports uncertain timeouts without killing SOLIDWORKS.
+- Add offline connection and process-control regressions; keep interference calculations explicit and preserve native warning/error evidence.
+- Include a fictional part, drawing and assembly specification with known separated/overlapping configurations for independent evaluation.
+
 ## Unreleased — Work execution skill
 
 - Add a reusable StateWork execution skill for selecting authorized priority work, researching exact inputs, producing native artifacts and verifying saved results.
@@ -64,7 +71,6 @@ See [connected work](docs/CONNECTED_WORK.md) and [release evidence](docs/ACCEPTA
 Initial local developer foundation: pure work graph, strict versioned SDK, transactional SQLite adapter, durable command retries and audit events, workspace roles, full backup and portable snapshots, local HTTP/OpenAPI host, typed client, CLI, real stdio MCP server, perception profiles and adapter negotiation, six reference views and developer examples.
 
 Personal-first and local-only. No hosted services, remote identity, sync, recurring reminders, calendar connectors or physical assistive-device drivers. See the acceptance record for actual verification.
-
 
 ### Work packets
 

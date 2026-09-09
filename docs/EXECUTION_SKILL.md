@@ -4,6 +4,8 @@
 
 The skill is instruction guidance for Codex, not a new autonomous service. It does not grant access to applications or accounts, replace their permissions, or make unavailable specifications complete. The backend's handoff, revision checks and execution graph remain authoritative for recorded work.
 
+For native SOLIDWORKS tasks, combine it with the companion [SOLIDWORKS skill](SOLIDWORKS_SKILL.md). The execution skill owns work selection and recorded evidence; the application skill supplies modeling, drawings, installed-session discovery and recovery guidance.
+
 ## Start a fresh task
 
 The repository contains the complete skill at `.agents/skills/statework-execute`. Use it from this checkout or copy that entire folder into the user skills directory supported by your Codex installation. If it has not appeared in the skill list, reference its exact `SKILL.md` path. It works with an existing StateWork MCP connection or the local CLI/SDK; changing Codex configuration is optional.

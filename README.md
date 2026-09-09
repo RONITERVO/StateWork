@@ -14,6 +14,8 @@ Keep instructions short and the work complete: attach original files, link exact
 
 **Do mapped work with Codex:** [StateWork Execute](.agents/skills/statework-execute/SKILL.md) finds appropriate work, reads its original inputs, operates the required applications and verifies real outputs. Ask: “Use $statework-execute to do my next task and prepare it for review.” Submission stays separate from instruction review and requires approval of the actual result and destination. See [execution, review and evaluation](docs/EXECUTION_SKILL.md).
 
+**Build native CAD with Codex:** the reusable [SOLIDWORKS skill](.agents/skills/solidworks/SKILL.md) covers editable parts, assemblies, associated drawings, portable packages and verification in the installed application. Use it with a brief or a StateWork task. See [setup, native connection and evaluation](docs/SOLIDWORKS_SKILL.md).
+
 ## Start here
 
 Use Node **24.13+ in the 24.x line** (recommended), or Node 25. The SQLite module may print an experimental warning on these runtimes.
@@ -78,7 +80,7 @@ The packages are **not published to npm**. These imports work in the checkout. `
 
 | Package                | Responsibility                                                                                                        |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `@statework/core`      | Dependency-free model, deterministic transitions, graph invariants, queries, semantic observations, daily planning                    |
+| `@statework/core`      | Dependency-free model, deterministic transitions, graph invariants, queries, semantic observations, daily planning    |
 | `@statework/sdk`       | Runtime validation, trusted connection service, storage contract, memory adapter, perception negotiation, HTTP client |
 | `@statework/node`      | Transactional SQLite adapter, local credentials, database backups, original example data                              |
 | `@statework/server`    | Loopback HTTP API, same-origin browser bootstrap, OpenAPI and reference client hosting                                |

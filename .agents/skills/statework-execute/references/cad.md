@@ -1,5 +1,7 @@
 # Execute a CAD specification
 
+For SOLIDWORKS work, use the companion `solidworks` skill when available. It provides installation-matched connection helpers and detailed modeling, drawing, packaging and recovery guidance. This CAD reference remains usable when that companion has not been installed.
+
 Use the CAD system and native format required by the task. A mesh, neutral export, rendered image or generated macro is not a substitute for a required editable native model. A modeling API is appropriate when it creates and verifies real application documents. When a task specifies a modeling method or feature sequence, preserve it; otherwise distinguish the worker's chosen construction method from the source's requirements.
 
 Inspect the original drawing/model and the assignment page. Establish units, coordinate/datums, dimensions, constraints, tolerances, material and required outputs only where the source specifies them. Identify all requested parts/configurations/assemblies/drawings. Do not guess a dimension from a preview, interpolate an illegible label, or treat supplied example geometry as the requested finished work. Resolve conflicts from authoritative sources or leave an explicit blocker.
