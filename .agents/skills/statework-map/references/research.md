@@ -47,6 +47,8 @@ Save `research.json` with this format. This is an agent-maintained record, not a
 
 Source statuses: `inspected`, `blocked`, `excluded`. `enumerationComplete` means the full relevant source/index was inspected, including pagination, not that the linked children were all read. Exclusion needs an applicable scope reason. Each discovered child gets its own entry, including unread children. An attachment or diagram carrying independent requirements is a child too.
 
+Reconcile repeated links with existing source identities before adding recovery work. Preserve exact observed URLs, page/section anchors and version distinctions, but record an evidenced alias to an already inspected source rather than also claiming the identical content is unread. Exclude ordinary site navigation, decorative media and unrelated catalog branches with a scope reason. Do not strip meaningful query parameters or merge different versions merely because titles match. Distinguish a failed access attempt from content that is simply not yet inspected; do not label both as an account problem. Report required-work gaps separately from incidental link counts.
+
 Requirement dispositions: `mapped`, `excluded`, `deferred`, `unresolved`. Record source location and a short exact quote supporting existence or classification. Map each required deliverable separately when it has a separate result/submission/check. A broad “complete course” item does not account for each assignment. A deferred requirement still gets a visible item or recovery action where possible. Distinguish optional work from required work explicitly, with evidence for the selection rule.
 
 Also append private `trace.jsonl` entries as actions happen:

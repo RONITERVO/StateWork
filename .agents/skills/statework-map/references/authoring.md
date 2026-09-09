@@ -67,7 +67,13 @@ Set `execution` to:
 
 Each step has `id`, `title`, `instruction`, `expected`, `ifBlocked`, `minutes` (or null), `actionUrl`, `requires`, `citations`. Connected fields include `after`, `phase`, `references`, `when`, `decision`, `evidenceRequired`. Use explicit `after:[]` for independent actions. A missing `after` retains sequential ordering. Phase is `prepare|work|verify|deliver`.
 
+Author the actual route rather than applying a generic work/verify/deliver template to every task. Each `expected` must be observable immediately after that step: a local-file check cannot require a receipt from a later upload or a later teacher decision. External acceptance belongs after delivery when the source requires it. Local setup, access checks and private preparation may finish locally with no submission step. Split a long action when it contains independently checkable results or a consequential decision; repeating the task's final outcome is not a step check.
+
+Preserve source-authorized alternatives. If an assignment permits either supplied drawings or a tutorial, missing tutorial access blocks only that route when the drawings fully specify the work. Assess the stated worker's competence and the actual chosen route; do not silently turn optional teaching into a universal prerequisite. Capture any proposed implementation method as an author note, distinct from the required geometry or outcome.
+
 References contain `id,label,kind,targetId,url,location,page,seconds,essential,purpose`. Kind is `source|asset|external`; purpose is `instruction|input|example`. Use null for an inapplicable page, seconds or external targetId. Cite exact quotes with `{sourceId,quote,location}` from actual captures. Keep the current screen label short and put exact detail in `instruction` and linked references.
+
+Give each action only the references needed there, with short meaningful labels. Reuse existing original identities where possible instead of showing duplicate file/capture buttons for the same bytes. Course decoration, portraits and navigation images are not required work inputs unless the task actually uses them.
 
 Requirements contain `id,label,detail,kind,itemId,url,check,confirmed,citations` and optionally `scope`. Kind is `task|account|software|person|material|information`. A manual worker requirement starts unconfirmed. Put requirement IDs in the affected step's `requires`; an unassigned requirement applies to every step. Do not make an output, the task itself or its enclosing project a prerequisite. Access to the submission portal belongs on delivery if earlier modeling can proceed offline.
 

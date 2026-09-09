@@ -20,6 +20,8 @@ Select representative tasks after building, without choosing only the simplest o
 
 For each sampled task, print or save the exact supplied instructions and assess: can a worker determine the intended result, reproduce all required inputs, choose the correct next action, verify the result and deliver it with the supplied information? Name the exact blocking fact/file, not merely “needs more context.” Do not create a CAD model, submit a form or perform mapped work during a dry run.
 
+Walk the checks in execution order: the evidence demanded by a step must already be obtainable at that point. Look for invented submission steps on local-only tasks, repeated final-outcome checks, duplicated source buttons, and optional tutorial routes incorrectly made mandatory. Separate source gaps from an unconfirmed current worker state; a future receipt or approval cannot be a prerequisite for the action that produces it.
+
 Inspect the actual app's map and current-step view at desktop and narrow widths. Open source/reference/file links. Check a prerequisite blocks the right step, optional branches do not appear mandatory, completed history survives, and the next action still makes sense with reduced time today. Do not mark verification done based on a generated JSON artifact alone.
 
 ## Independent skill evaluation
