@@ -31,6 +31,8 @@ Separate mandatory, chosen, optional and unresolved work. Do not add all offered
 
 Capture original files and readable source text separately. Inspect diagrams, dimensions, tables, scans and relevant video segments when they carry requirements. A filename, thumbnail, OCR transcript or external link cannot replace missing geometry, assets or a procedure. Resolve references recursively until a worker has the necessary inputs or an explicit blocker. Keep external destinations as direct actions even when an internal copy supplies the instructions.
 
+For bulk collection or a cluttered existing map, read [files.md](references/files.md). Account for file purpose and task use before attaching; ordinary site decoration is not a task input. Preserve full useful originals and choose a transfer format that fits the collection.
+
 ## Build connected work
 
 Read [authoring.md](references/authoring.md) before writing the map. Create meaningful project groups, real deliverables/events, dependencies and selected options. Preserve completed records with their evidence; distinguish user-attested history from an official completion record. Do not mark work complete because a tutorial was read, a deadline passed or an agent wrote instructions.

@@ -37,7 +37,7 @@ writeFileSync(
 );
 npm(['install', '--ignore-scripts', '--no-audit', '--no-fund', ...tarballs], staging);
 const smoke = `import { WorkService,MemoryStore } from '@statework/sdk';
-import { SqliteStore, extractSource } from '@statework/node';
+import { SqliteStore, extractSource, exportFilePackage, importFilePackage } from '@statework/node';
 import { createServer } from '@statework/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -46,6 +46,7 @@ const service=new WorkService(new MemoryStore());const work=service.connect('tes
 work.execute('smoke',{schemaVersion:1,requestId:'seed',expectedRevision:0,commands:[{type:'item.create',item:{id:'task',kind:'task',title:'File handoff'}}]});
 await work.attach('smoke',{requestId:'file',expectedRevision:1,asset:{id:'original',taskIds:['task'],name:'original.bin',mediaType:'application/octet-stream',description:'Exact original bytes',locator:'Clean package fixture',replaces:null}},new Uint8Array([0,255,12]));
 const bundle=work.exportBundle('smoke');await work.importBundle(bundle,{id:'copy',title:'Portable files'});if(work.asset('copy','original').bytes[1]!==255||!work.handoff('copy','task').assets[0].available)throw new Error('Packaged file handoff failed');
+exportFilePackage(work,'smoke',resolve('portable-originals'));importFilePackage(work,resolve('portable-originals'),{id:'package-copy',title:'Original package'});if(work.asset('package-copy','original').bytes[1]!==255)throw new Error('Packaged directory transfer failed');
 const sqlite=new SqliteStore(':memory:');sqlite.close();const app=await createServer({service,authenticate:()=>undefined});await app.close();service.close();
 const extracted=await extractSource('instructions.txt',new TextEncoder().encode('Count two bolts.'));if(extracted.content!=='Count two bolts.')throw new Error('Packaged source worker failed');
 const client=new Client({name:'package-test',version:'1.0.0'});await client.connect(new StdioClientTransport({command:process.execPath,args:[resolve('node_modules/@statework/tools/dist/mcp.js')],env:{...process.env,STATEWORK_HOME:resolve('mcp-data')},stderr:'pipe'}));const names=(await client.listTools()).tools.map(t=>t.name);if(!['execute_work','work_handoff','work_source','work_files','work_file'].every(n=>names.includes(n)))throw new Error('MCP failed');await client.close();console.log('Packaged SDK, original-file handoff/bundle, SQLite, server, source worker and MCP passed.');`;

@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { INLINE_BASE64_LIMIT, FILE_PACKAGE_HELP } from './files.js';
 import {
   WorkError,
   transition,
   validateExecution,
   executionReadiness,
+  packetAssetIds,
   stepPredecessors,
 } from '@statework/core';
 import type { WorkState } from '@statework/core';
@@ -422,11 +424,33 @@ export const fileBundleSchema = z.strictObject({
     .array(
       z.strictObject({
         sha256: z.string().regex(/^[a-f0-9]{64}$/),
-        base64: z.string().max(89478488),
+        base64: z.string().max(INLINE_BASE64_LIMIT, FILE_PACKAGE_HELP),
       }),
     )
     .max(2000),
   missing: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(2000),
+});
+/** Portable directory manifest. File names are digests, never paths supplied by an archive. */
+export const filePackageSchema = z.strictObject({
+  format: z.literal('statework.file-package'),
+  formatVersion: z.literal(1),
+  snapshot: snapshotSchema,
+  files: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(2000),
+  missing: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(2000),
+});
+export type FilePackageManifest = z.infer<typeof filePackageSchema>;
+const byteCount = z.number().int().min(0);
+export const storageInfoSchema = z.strictObject({
+  storedBytes: byteCount,
+  storedFiles: byteCount,
+  largestFileBytes: byteCount,
+  logicalBytes: byteCount,
+  assetCount: byteCount,
+  uniqueFiles: byteCount,
+  duplicateFiles: byteCount,
+  missingFiles: byteCount,
+  limits: z.strictObject({ fileBytes: byteCount, workspaceBytes: byteCount }),
+  inlineBundle: z.strictObject({ fileBytes: byteCount, totalBytes: byteCount }),
 });
 export const importSchema = z.strictObject({
   snapshot: snapshotSchema,
@@ -564,6 +588,15 @@ export function validateState(input: unknown): WorkState {
           throw new WorkError('VALIDATION', 'Invalid requirement confirmation.');
       }
     }
+    // Historical references keep their exact originals; current instructions require active files.
+    const archivedIds = new Set(assets.filter((asset) => asset.archive).map((asset) => asset.id));
+    const latest = new Map(packets.map((packet) => [packet.taskId, packet]));
+    for (const packet of latest.values())
+      if ([...packetAssetIds(state, packet)].some((id) => archivedIds.has(id)))
+        throw new WorkError(
+          'VALIDATION',
+          'Current instructions or results reference an archived file.',
+        );
   }
   const tuples = new Set<string>();
   const parents = new Set<string>();

@@ -82,7 +82,7 @@
                         "size": {
                           "type": "integer",
                           "minimum": 0,
-                          "maximum": 67108864
+                          "maximum": 134217728
                         },
                         "sha256": {
                           "type": "string",
@@ -125,6 +125,68 @@
                   "required": [
                     "type",
                     "asset"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "asset.archive"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                    },
+                    "archived": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "archived",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "asset.relink"
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                    },
+                    "taskIds": {
+                      "minItems": 1,
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                      }
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "taskIds",
+                    "reason"
                   ],
                   "additionalProperties": false
                 },
@@ -2725,7 +2787,7 @@
                     "size": {
                       "type": "integer",
                       "minimum": 0,
-                      "maximum": 67108864
+                      "maximum": 134217728
                     },
                     "sha256": {
                       "type": "string",
@@ -2756,6 +2818,29 @@
                     "capturedBy": {
                       "type": "string",
                       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                    },
+                    "archive": {
+                      "type": "object",
+                      "properties": {
+                        "at": {
+                          "type": "string"
+                        },
+                        "by": {
+                          "type": "string",
+                          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 12000
+                        }
+                      },
+                      "required": [
+                        "at",
+                        "by",
+                        "reason"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -2898,7 +2983,7 @@
                             "size": {
                               "type": "integer",
                               "minimum": 0,
-                              "maximum": 67108864
+                              "maximum": 134217728
                             },
                             "sha256": {
                               "type": "string",
@@ -2941,6 +3026,68 @@
                       "required": [
                         "type",
                         "asset"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "asset.archive"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                        },
+                        "archived": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 12000
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "id",
+                        "archived",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "asset.relink"
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                        },
+                        "taskIds": {
+                          "minItems": 1,
+                          "maxItems": 100,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                          }
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 12000
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "id",
+                        "taskIds",
+                        "reason"
                       ],
                       "additionalProperties": false
                     },
@@ -5118,7 +5265,7 @@
                               "size": {
                                 "type": "integer",
                                 "minimum": 0,
-                                "maximum": 67108864
+                                "maximum": 134217728
                               },
                               "sha256": {
                                 "type": "string",
@@ -5161,6 +5308,68 @@
                         "required": [
                           "type",
                           "asset"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "asset.archive"
+                          },
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                          },
+                          "archived": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 12000
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "id",
+                          "archived",
+                          "reason"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "asset.relink"
+                          },
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                          },
+                          "taskIds": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                            }
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 12000
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "id",
+                          "taskIds",
+                          "reason"
                         ],
                         "additionalProperties": false
                       },
@@ -7796,7 +8005,7 @@
                         "size": {
                           "type": "integer",
                           "minimum": 0,
-                          "maximum": 67108864
+                          "maximum": 134217728
                         },
                         "sha256": {
                           "type": "string",
@@ -7827,6 +8036,29 @@
                         "capturedBy": {
                           "type": "string",
                           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                        },
+                        "archive": {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string"
+                            },
+                            "by": {
+                              "type": "string",
+                              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 12000
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "by",
+                            "reason"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -9115,7 +9347,7 @@
                             "size": {
                               "type": "integer",
                               "minimum": 0,
-                              "maximum": 67108864
+                              "maximum": 134217728
                             },
                             "sha256": {
                               "type": "string",
@@ -9146,6 +9378,29 @@
                             "capturedBy": {
                               "type": "string",
                               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                            },
+                            "archive": {
+                              "type": "object",
+                              "properties": {
+                                "at": {
+                                  "type": "string"
+                                },
+                                "by": {
+                                  "type": "string",
+                                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 12000
+                                }
+                              },
+                              "required": [
+                                "at",
+                                "by",
+                                "reason"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -9763,7 +10018,7 @@
                     "size": {
                       "type": "integer",
                       "minimum": 0,
-                      "maximum": 67108864
+                      "maximum": 134217728
                     },
                     "sha256": {
                       "type": "string",
@@ -9794,6 +10049,29 @@
                     "capturedBy": {
                       "type": "string",
                       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                    },
+                    "archive": {
+                      "type": "object",
+                      "properties": {
+                        "at": {
+                          "type": "string"
+                        },
+                        "by": {
+                          "type": "string",
+                          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 12000
+                        }
+                      },
+                      "required": [
+                        "at",
+                        "by",
+                        "reason"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -13258,7 +13536,7 @@
                 "size": {
                   "type": "integer",
                   "minimum": 0,
-                  "maximum": 67108864
+                  "maximum": 134217728
                 },
                 "sha256": {
                   "type": "string",
@@ -13289,6 +13567,29 @@
                 "capturedBy": {
                   "type": "string",
                   "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                },
+                "archive": {
+                  "type": "object",
+                  "properties": {
+                    "at": {
+                      "type": "string"
+                    },
+                    "by": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "at",
+                    "by",
+                    "reason"
+                  ],
+                  "additionalProperties": false
                 },
                 "available": {
                   "type": "boolean"
@@ -13598,7 +13899,7 @@
           "size": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 67108864
+            "maximum": 134217728
           },
           "sha256": {
             "type": "string",
@@ -13629,6 +13930,29 @@
           "capturedBy": {
             "type": "string",
             "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "archive": {
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "string"
+              },
+              "by": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 12000
+              }
+            },
+            "required": [
+              "at",
+              "by",
+              "reason"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -14865,7 +15189,7 @@
                             "size": {
                               "type": "integer",
                               "minimum": 0,
-                              "maximum": 67108864
+                              "maximum": 134217728
                             },
                             "sha256": {
                               "type": "string",
@@ -14896,6 +15220,29 @@
                             "capturedBy": {
                               "type": "string",
                               "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                            },
+                            "archive": {
+                              "type": "object",
+                              "properties": {
+                                "at": {
+                                  "type": "string"
+                                },
+                                "by": {
+                                  "type": "string",
+                                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 12000
+                                }
+                              },
+                              "required": [
+                                "at",
+                                "by",
+                                "reason"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -15217,7 +15564,7 @@
                       "size": {
                         "type": "integer",
                         "minimum": 0,
-                        "maximum": 67108864
+                        "maximum": 134217728
                       },
                       "sha256": {
                         "type": "string",
@@ -15248,6 +15595,29 @@
                       "capturedBy": {
                         "type": "string",
                         "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                      },
+                      "archive": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": "string"
+                          },
+                          "by": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 12000
+                          }
+                        },
+                        "required": [
+                          "at",
+                          "by",
+                          "reason"
+                        ],
+                        "additionalProperties": false
                       },
                       "available": {
                         "type": "boolean"
@@ -15367,7 +15737,7 @@
       },
       "post": {
         "operationId": "attachOriginalFile",
-        "description": "Atomically persist immutable file metadata and up to 64 MiB of original bytes. Host computes SHA-256; expectedRevision and exact retry semantics apply. Writer role required.",
+        "description": "Atomically persist immutable file metadata and up to 128 MiB of original bytes within the configured unique-file workspace quota (2 GiB by default). Host computes SHA-256; expectedRevision and exact retry semantics apply. Writer role required.",
         "requestBody": {
           "required": true,
           "content": {
@@ -15444,7 +15814,7 @@
                   },
                   "base64": {
                     "type": "string",
-                    "maxLength": 89478488
+                    "maxLength": 178956972
                   }
                 },
                 "required": [
@@ -15465,6 +15835,220 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Read-only or invalid origin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unavailable workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or request ID conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Dependency invariant failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspaces/{id}/storage": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "fileStorageInfo",
+        "description": "Workspace-authorized byte usage, deduplication, missing originals and host file quotas.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "storedBytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "storedFiles": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "largestFileBytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "logicalBytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "assetCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "uniqueFiles": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "duplicateFiles": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "missingFiles": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "limits": {
+                      "type": "object",
+                      "properties": {
+                        "fileBytes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "workspaceBytes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "fileBytes",
+                        "workspaceBytes"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "inlineBundle": {
+                      "type": "object",
+                      "properties": {
+                        "fileBytes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "totalBytes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "fileBytes",
+                        "totalBytes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "storedBytes",
+                    "storedFiles",
+                    "largestFileBytes",
+                    "logicalBytes",
+                    "assetCount",
+                    "uniqueFiles",
+                    "duplicateFiles",
+                    "missingFiles",
+                    "limits",
+                    "inlineBundle"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
@@ -15643,7 +16227,7 @@
                 "properties": {
                   "base64": {
                     "type": "string",
-                    "maxLength": 89478488
+                    "maxLength": 178956972
                   }
                 },
                 "required": [
@@ -15989,7 +16573,7 @@
       ],
       "get": {
         "operationId": "exportFileBundle",
-        "description": "Portable snapshot plus deduplicated original files and explicit missing identities. Credentials and memberships are excluded.",
+        "description": "Portable snapshot plus deduplicated original files and explicit missing identities. Inline JSON is limited to 64 MiB per file and 256 MiB total; larger collections use the local package-export/package-import directory tools. Credentials and memberships are excluded.",
         "responses": {
           "200": {
             "description": "Success",

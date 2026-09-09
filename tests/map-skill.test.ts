@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as sdk from '@statework/sdk';
-import { auditMap } from '../.agents/skills/statework-map/scripts/audit-map.mjs';
+import * as node from '@statework/node';
+import { auditMap, auditPackage } from '../.agents/skills/statework-map/scripts/audit-map.mjs';
 
 function fixture() {
   const service = new sdk.WorkService(new sdk.MemoryStore());
@@ -166,4 +167,65 @@ it('standalone CLI reads only supplied artifacts and refuses overwriting its pro
   const second = spawnSync(process.execPath, args, { cwd: dir, encoding: 'utf8' });
   expect(second.status).toBe(1);
   expect(readFileSync(reportFile, 'utf8')).toBe(original);
+});
+
+it('audits a portable directory without a giant JSON bundle and rejects corrupted original bytes', async () => {
+  const { bundle, ledger } = fixture();
+  const directory = mkdtempSync(join(tmpdir(), 'statework-map-package-test-'));
+  const store = new node.SqliteStore(join(directory, 'source.sqlite'));
+  const service = new sdk.WorkService(store);
+  const work = service.connect('source-owner');
+  const packageDirectory = join(directory, 'portable');
+  let digest: string;
+  try {
+    await work.importBundle(bundle, { id: 'source', title: 'Package source' });
+    await work.attach(
+      'source',
+      {
+        requestId: 'original',
+        expectedRevision: 0,
+        asset: {
+          id: 'original',
+          taskIds: ['past'],
+          name: 'record.bin',
+          mediaType: 'application/octet-stream',
+          description: 'Exact record',
+          locator: 'Fictional source record',
+          replaces: null,
+        },
+      },
+      new Uint8Array([0, 255, 128, 4]),
+    );
+    digest = work.assetManifest('source')[0]!.sha256;
+    node.exportFilePackage(work, 'source', packageDirectory);
+  } finally {
+    service.close();
+  }
+  const before = readFileSync(join(packageDirectory, 'manifest.json'));
+  const report = auditPackage(sdk, node, packageDirectory, ledger);
+  expect(report.issues).toEqual([]);
+  expect(report.structuralImport).toBe('passed');
+  expect(report.packageManifestSha256).toMatch(/^[a-f0-9]{64}$/);
+  expect(report.bundleCanonicalSha256).toBeUndefined();
+  expect(readFileSync(join(packageDirectory, 'manifest.json'))).toEqual(before);
+  const reportPath = join(directory, 'package-audit.json');
+  writeFileSync(join(directory, 'ledger.json'), JSON.stringify(ledger));
+  const valid = spawnSync(
+    process.execPath,
+    [
+      resolve('.agents/skills/statework-map/scripts/audit-map.mjs'),
+      '--app',
+      process.cwd(),
+      '--package',
+      packageDirectory,
+      '--ledger',
+      join(directory, 'ledger.json'),
+      '--out',
+      reportPath,
+    ],
+    { encoding: 'utf8' },
+  );
+  expect(valid.status, valid.stderr).toBe(0);
+  writeFileSync(join(packageDirectory, 'blobs', digest!), new Uint8Array([0, 255, 128, 5]));
+  expect(() => auditPackage(sdk, node, packageDirectory, ledger)).toThrow();
 });

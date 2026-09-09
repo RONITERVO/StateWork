@@ -57,7 +57,7 @@
                   "size": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 67108864
+                    "maximum": 134217728
                   },
                   "sha256": {
                     "type": "string",
@@ -100,6 +100,68 @@
             "required": [
               "type",
               "asset"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "asset.archive"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+              },
+              "archived": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 12000
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "archived",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "asset.relink"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+              },
+              "taskIds": {
+                "minItems": 1,
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                }
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 12000
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "taskIds",
+              "reason"
             ],
             "additionalProperties": false
           },

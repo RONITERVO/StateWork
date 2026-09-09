@@ -1206,7 +1206,7 @@
                   "size": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 67108864
+                    "maximum": 134217728
                   },
                   "sha256": {
                     "type": "string",
@@ -1237,6 +1237,29 @@
                   "capturedBy": {
                     "type": "string",
                     "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "archive": {
+                    "type": "object",
+                    "properties": {
+                      "at": {
+                        "type": "string"
+                      },
+                      "by": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 12000
+                      }
+                    },
+                    "required": [
+                      "at",
+                      "by",
+                      "reason"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [

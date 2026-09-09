@@ -7,6 +7,7 @@ import type {
   WorkAsset,
   AssetInput,
   SourceInput,
+  WorkConnection,
 } from '@statework/sdk';
 
 export const escape = (value: unknown) =>
@@ -29,8 +30,27 @@ export function connectedEditor(
   if (!draft.execution)
     return '<fieldset><legend>Connected work</legend><p>Use files, parallel steps, decisions and separate worker readiness.</p><button type="button" data-action="enable-execution">Enable connected work</button></fieldset>';
   const step = draft.steps[index];
-  const fileChoices = [...(state.instructions?.assets ?? []), ...pending.assets];
+  const fileChoices = [
+    ...(state.instructions?.assets ?? []).filter((a) => !a.archive),
+    ...pending.assets,
+  ];
+  const archivedReference = (id: string | null) =>
+    state.instructions?.assets?.find((a) => a.id === id && a.archive);
   const sourceChoices = [...(state.instructions?.sources ?? []), ...pending.sources];
+  const unavailableChoice = (
+    reference: NonNullable<PacketInput['steps'][number]['references']>[number],
+  ) => {
+    const assetId =
+      reference.kind === 'source'
+        ? sourceChoices.find((source) => source.id === reference.targetId)?.assetId
+        : reference.kind === 'asset'
+          ? reference.targetId
+          : undefined;
+    const archived = assetId ? archivedReference(assetId) : undefined;
+    return archived
+      ? `<option value="${escape(reference.kind)}/${escape(reference.targetId)}" selected disabled>Archived: ${escape(archived.name)} — restore in Files</option>`
+      : '';
+  };
   return `<fieldset id="execution-coverage"><legend>Coverage review</legend>${(['inputs', 'procedure', 'acceptance'] as const).map((key) => `<label><input type="checkbox" name="coverage-${key}" ${draft.execution!.coverage[key] === 'checked' ? 'checked' : ''}>I checked the ${key} requirements.</label>`).join('')}${field('coverage-note', 'What did you inspect? What are its limits?', draft.execution.coverage.note)}<h3>Successful finish</h3><p>At least one selected action must be checked. A stop or request for help is not a successful finish.</p>${draft.steps.map((s) => `<label><input type="checkbox" name="successful-finish" value="${escape(s.id)}" ${draft.execution!.completion.anyOf.includes(s.id) ? 'checked' : ''}>${escape(s.title)}</label>`).join('')}</fieldset>${
     step
       ? `<fieldset id="execution-step"><legend>Order and references</legend><label>Stage<select name="phase">${['prepare', 'work', 'verify', 'deliver'].map((p) => option(p, p, (step.phase ?? 'work') === p)).join('')}</select></label><details><summary>Needs these earlier results</summary><p>No selection means this action can run independently.</p>${draft.steps
@@ -59,7 +79,8 @@ export function connectedEditor(
         )
           .map(
             (r, i) =>
-              `<fieldset data-reference="${i}">${field('ref-label', 'Button label', r.label)}<label>Content<select name="ref-target">${option('external', 'External destination', r.kind === 'external')}${fileChoices.map((a) => option(`asset/${a.id}`, `File: ${a.name}`, r.kind === 'asset' && r.targetId === a.id)).join('')}${sourceChoices
+              `<fieldset data-reference="${i}">${field('ref-label', 'Button label', r.label)}<label>Content<select name="ref-target">${unavailableChoice(r)}${option('external', 'External destination', r.kind === 'external')}${fileChoices.map((a) => option(`asset/${a.id}`, `File: ${a.name}`, r.kind === 'asset' && r.targetId === a.id)).join('')}${sourceChoices
+                .filter((s) => !s.assetId || !archivedReference(s.assetId))
                 .filter((s) => draft.sourceIds.includes(s.id))
                 .map((s) =>
                   option(
@@ -245,7 +266,7 @@ export function connectedFollow(
         `<label>${escape(o.label)}${o.required ? ' (required)' : ''}<select data-result-output="${escape(o.id)}"><option value="">Choose attached result file</option>${(
           handoff?.assets ?? []
         )
-          .filter((a) => a.available && a.taskIds.includes(draft.taskId))
+          .filter((a) => !a.archive && a.available && a.taskIds.includes(draft.taskId))
           .map((a) => option(a.id, a.name, false))
           .join('')}</select></label><button data-action="files">Attach result</button>`,
     )
@@ -256,6 +277,26 @@ export function connectedFollow(
 export function renderFiles(
   assets: (WorkAsset & { available: boolean })[],
   reader: boolean,
+  storage?: ReturnType<WorkConnection['storageInfo']>,
+  taskId?: string,
 ): string {
-  return `<h2>Files within reach</h2><div class="packet-toolbar"><button data-action="export-work-bundle">↓ Workspace + files</button><label>Restore into new workspace<input id="import-work-bundle" type="file" accept=".json" ${reader ? 'disabled' : ''}></label></div><p>Original drawings, inputs and results stay with this workspace.</p><form id="asset-form" class="packet-form"><label>Choose original file<input type="file" id="asset-file" ${reader ? 'disabled' : ''}></label>${field('asset-description', 'What does this file provide?', '')}${field('asset-locator', 'Source / original location', '')}<button data-action="upload-asset" ${reader ? 'disabled' : ''}>Attach file</button></form><ul class="packet-source-list">${assets.map((a) => `<li><strong>${a.available ? '▧' : '◇'} ${escape(a.name)}</strong><p>${escape(a.description)} · ${Math.ceil(a.size / 1024)} KiB</p><p>${a.available ? 'Stored locally' : 'Original bytes missing'}</p>${a.available ? `<button data-action="download-asset:${escape(a.id)}">Open / download</button><button data-action="use-asset:${escape(a.id)}" ${reader ? 'disabled' : ''}>Use in this step</button>` : `<label>Restore exact file<input type="file" data-restore-asset="${escape(a.id)}" ${reader ? 'disabled' : ''}></label>`}<details><summary>Identity and source</summary><p>${escape(a.locator)}</p><code>${escape(a.sha256)}</code><p>${escape(a.capturedAt)} · ${escape(a.capturedBy)}</p></details></li>`).join('') || '<li>No original files attached.</li>'}</ul>`;
+  const mib = (bytes: number) =>
+    (bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const large =
+    storage &&
+    (storage.storedBytes > storage.inlineBundle.totalBytes ||
+      storage.largestFileBytes > storage.inlineBundle.fileBytes);
+  const usage = storage
+    ? `<p class="file-storage-summary">▧ ${mib(storage.storedBytes)} / ${mib(storage.limits.workspaceBytes)} MiB · ${storage.storedFiles} unique files</p><meter aria-label="Workspace file storage" min="0" max="${storage.limits.workspaceBytes}" value="${Math.min(storage.storedBytes, storage.limits.workspaceBytes)}"></meter>`
+    : '';
+  const packageHelp = `<details ${large ? 'open' : ''}><summary>Folder export${large ? ' required' : ''}</summary><p>Keep every original in a portable folder. Run the export command from the StateWork folder with the same STATEWORK_HOME data directory used to start the server.</p><button data-action="copy-package-command">Copy export command</button></details>`;
+  const row = (a: WorkAsset & { available: boolean }) =>
+    `<li><strong>${a.available ? '▧' : '◇'} ${escape(a.name)}</strong><p><span>${a.available ? 'Stored locally' : 'Original bytes missing'}</span> · ${mib(a.size)} MiB</p>${a.available ? `<button data-action="download-asset:${escape(a.id)}">Open / download</button>${!a.archive ? `<button data-action="use-asset:${escape(a.id)}" ${reader ? 'disabled' : ''}>Use in this step</button>` : ''}` : `<label>Restore exact file<input type="file" data-restore-asset="${escape(a.id)}" ${reader ? 'disabled' : ''}></label>`}<button data-action="${a.archive ? 'unarchive' : 'archive'}-asset:${escape(a.id)}" ${reader ? 'disabled' : ''}>${a.archive ? 'Restore to active' : 'Archive'}</button>${a.archive ? `<p>${escape(a.archive.reason)}</p>` : ''}<details><summary>Identity and source</summary><p>${escape(a.description)}</p><p>${escape(a.locator)}</p><code>${escape(a.sha256)}</code><p>${escape(a.capturedAt)} · ${escape(a.capturedBy)}</p></details></li>`;
+  const active = assets.filter((a) => !a.archive);
+  const direct = active.filter((a) => !taskId || a.taskIds.includes(taskId));
+  const shared = active.filter((a) => taskId && !a.taskIds.includes(taskId));
+  const archived = assets.filter((a) => a.archive);
+  const list = (files: (WorkAsset & { available: boolean })[]) =>
+    `<ul class="packet-source-list">${files.map(row).join('')}</ul>`;
+  return `<h2>Files within reach</h2>${usage}<div class="packet-toolbar"><button data-action="export-work-bundle" ${large ? 'disabled' : ''}>↓ Workspace + files</button><label>Restore into new workspace<input id="import-work-bundle" type="file" accept=".json" ${reader ? 'disabled' : ''}></label></div>${packageHelp}<p>Full-quality originals, stored once.</p>${direct.length ? list(direct) : '<p>No files attached directly to this task.</p>'}${shared.length ? `<details><summary>Shared files · ${shared.length}</summary>${list(shared)}</details>` : ''}${archived.length ? `<details><summary>Archived · ${archived.length}</summary><p>Original bytes and history are preserved. Archiving does not free storage.</p>${list(archived)}</details>` : ''}<details><summary>Attach a file</summary><form id="asset-form" class="packet-form"><label>Choose original file<input type="file" id="asset-file" ${reader ? 'disabled' : ''}></label>${field('asset-description', 'What does this file provide?', '')}${field('asset-locator', 'Source / original location', '')}<button data-action="upload-asset" ${reader ? 'disabled' : ''}>Attach file</button></form></details>`;
 }

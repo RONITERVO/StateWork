@@ -170,6 +170,93 @@ async function bundleFixture() {
   return bundle;
 }
 
+test('files keep shared originals discoverable and archive decoration reversibly', async ({
+  page,
+}) => {
+  const service = new WorkService(new MemoryStore());
+  const c = service.connect('author');
+  await c.importBundle(await bundleFixture(), { id: 'library', title: 'File library' });
+  c.execute('library', {
+    schemaVersion: 1,
+    requestId: 'parent',
+    expectedRevision: 0,
+    commands: [
+      { type: 'item.create', item: { id: 'course', kind: 'project', title: 'Shared course' } },
+      {
+        type: 'relation.add',
+        relation: { id: 'course-kit', kind: 'contains', from: 'course', to: 'kit' },
+      },
+    ],
+  });
+  for (const [id, scope] of [
+    ['handbook', 'course'],
+    ['banner', 'kit'],
+  ] as const) {
+    await c.attach(
+      'library',
+      {
+        requestId: id,
+        expectedRevision: c.snapshot('library').workspace.revision,
+        asset: {
+          id,
+          taskIds: [scope],
+          name: `${id}.txt`,
+          mediaType: 'text/plain',
+          description: `Fictional ${id}`,
+          locator: `Fictional source ${id}`,
+          replaces: null,
+        },
+      },
+      new TextEncoder().encode(`Exact ${id} bytes`),
+    );
+  }
+  const bundle = c.exportBundle('library');
+  service.close();
+  await page.goto('/');
+  const id = await page.evaluate(async (bundle) => {
+    const { token } = await (
+      await fetch('/local/session', { method: 'POST', headers: { 'X-StateWork-Local': '1' } })
+    ).json();
+    const id = crypto.randomUUID();
+    const response = await fetch('/v1/bundle-import', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bundle, target: { id, title: 'File library' } }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return id;
+  }, bundle);
+  await page.goto(`/instructions/?workspace=${id}&task=kit`);
+  await page.getByRole('button', { name: '▧ Files', exact: true }).click();
+  await expect(page.getByRole('meter', { name: 'Workspace file storage' })).toBeVisible();
+  await page.getByText('Shared files · 1', { exact: true }).click();
+  const handbook = page.locator('.packet-source-list li').filter({ hasText: 'handbook.txt' });
+  const downloaded = page.waitForEvent('download');
+  await handbook.getByRole('button', { name: 'Open / download', exact: true }).click();
+  expect(readFileSync((await (await downloaded).path())!, 'utf8')).toBe('Exact handbook bytes');
+  await page
+    .locator('.packet-source-list li')
+    .filter({ hasText: 'banner.txt' })
+    .getByRole('button', { name: 'Archive', exact: true })
+    .click();
+  await expect(page.getByRole('status')).toContainText('File archived');
+  await expect(page.getByText('▧ banner.txt', { exact: true })).not.toBeVisible();
+  await page.getByText('Archived · 1', { exact: true }).click();
+  await page.getByRole('button', { name: 'Restore to active', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('File restored to active files');
+  await expect(page.getByText('▧ banner.txt', { exact: true })).toBeVisible();
+  await page
+    .locator('.packet-source-list li')
+    .filter({ hasText: 'square.svg' })
+    .getByRole('button', { name: 'Archive', exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toContainText('used by current instructions');
+  await expect(page.getByText('▧ square.svg', { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 for (const readiness of ['draft', 'missing-file', 'ready'] as const) {
   test(`calendar and next actions respect packet readiness: ${readiness}`, async ({ page }) => {
     test.setTimeout(60000);
@@ -279,6 +366,8 @@ test('fresh worker uses map, exact files, parallel actions, a branch and a deliv
   await page.getByRole('button', { name: 'Check requirement', exact: true }).click();
   await page.getByRole('button', { name: '✓ I checked: ready', exact: true }).click();
   await page.getByRole('button', { name: '▧ Files', exact: true }).click();
+  await expect(page.getByRole('meter', { name: 'Workspace file storage' })).toBeVisible();
+  await page.getByText('Attach a file', { exact: true }).click();
   await page.locator('#asset-file').setInputFiles({
     name: 'receipt.txt',
     mimeType: 'text/plain',
@@ -396,4 +485,128 @@ test('packet import preserves unsaved reference identities, author edits, origin
   expect(exported.packet.steps[0].references[0].targetId).toBe(exported.assets[0].id);
   expect(exported.sources[0].assetId).toBe(exported.assets[0].id);
   expect(exported.filesIncluded).toBe(false);
+});
+
+test('rejected packet imports preserve the previous unsaved original files and source identities', async ({
+  page,
+}) => {
+  const bundle = await bundleFixture();
+  const original = bundle.snapshot.state.instructions!;
+  original.sources[0]!.assetId = original.assets![0]!.id;
+  const packetExport = {
+    format: 'statework.packet',
+    formatVersion: 1,
+    packet: original.packets[0],
+    sources: original.sources,
+    assets: original.assets,
+    filesIncluded: false,
+  };
+  const archivedAsset = {
+    ...original.assets![0]!,
+    id: 'archived-file',
+    name: 'archived.bin',
+    sha256: 'b'.repeat(64),
+    size: 1,
+    taskIds: ['copy-task'],
+  };
+  await page.goto('/');
+  const id = await page.evaluate(async (archivedAsset) => {
+    const { token } = await (
+      await fetch('/local/session', {
+        method: 'POST',
+        headers: { 'X-StateWork-Local': '1' },
+      })
+    ).json();
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const id = crypto.randomUUID();
+    const create = await fetch('/v1/workspaces', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ id, title: 'Atomic draft import fixture' }),
+    });
+    if (!create.ok) throw new Error(await create.text());
+    const { capturedAt: _at, capturedBy: _by, ...asset } = archivedAsset;
+    const seed = await fetch(`/v1/workspaces/${id}/commands`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        schemaVersion: 1,
+        requestId: crypto.randomUUID(),
+        expectedRevision: 0,
+        commands: [
+          { type: 'item.create', item: { id: 'copy-task', kind: 'task', title: 'Imported kit' } },
+          { type: 'asset.register', asset },
+          {
+            type: 'asset.archive',
+            id: asset.id,
+            archived: true,
+            reason: 'Synthetic archived fixture',
+          },
+        ],
+      }),
+    });
+    if (!seed.ok) throw new Error(await seed.text());
+    return id;
+  }, archivedAsset);
+  await page.goto(`/instructions/?workspace=${id}&task=copy-task`);
+  const importFile = (value: unknown, name: string) =>
+    page.locator('#import-packet').setInputFiles({
+      name,
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(value)),
+    });
+  await importFile(packetExport, 'valid-packet.json');
+  await expect(page.getByRole('status')).toContainText('Imported draft');
+  const reference = page.getByRole('combobox', { name: 'Content', exact: true });
+  const originalReference = await reference.inputValue();
+  expect(originalReference).toMatch(/^asset\//);
+  await page.getByLabel('Button label', { exact: true }).fill('Keep my original drawing');
+  const savedDraft = await page.evaluate(
+    (id) => JSON.parse(sessionStorage.getItem(`statework.packet.draft.${id}.copy-task`)!),
+    id,
+  );
+  expect(savedDraft.pendingAssets).toHaveLength(1);
+  expect(savedDraft.pendingSources).toHaveLength(1);
+
+  await importFile({ ...packetExport, assets: [archivedAsset] }, 'archived-packet.json');
+  await expect(page.getByRole('alert')).toContainText('Restore the archived file');
+  await expect(reference).toHaveValue(originalReference);
+  await expect(page.getByLabel('Button label', { exact: true })).toHaveValue(
+    'Keep my original drawing',
+  );
+  // This failure occurs after new pending file metadata has already been staged.
+  await importFile(
+    { ...packetExport, sources: [{ ...original.sources[0], content: 42 }] },
+    'invalid-source-packet.json',
+  );
+  await expect(page.getByRole('alert')).toContainText('expected string');
+  await expect(reference).toHaveValue(originalReference);
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Draft saved');
+  const persisted = await page.evaluate(async (id) => {
+    const { token } = await (
+      await fetch('/local/session', {
+        method: 'POST',
+        headers: { 'X-StateWork-Local': '1' },
+      })
+    ).json();
+    const response = await fetch(`/v1/workspaces/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }, id);
+  const files = persisted.instructions.assets.filter(
+    (asset: { archive?: unknown }) => !asset.archive,
+  );
+  expect(files).toHaveLength(1);
+  expect(files[0].id).toBe(savedDraft.pendingAssets[0].id);
+  expect(files[0].sha256).toBe(original.assets![0]!.sha256);
+  expect(persisted.instructions.sources).toHaveLength(1);
+  expect(persisted.instructions.sources[0].id).toBe(savedDraft.pendingSources[0].id);
+  expect(persisted.instructions.sources[0].assetId).toBe(files[0].id);
+  expect(persisted.instructions.packets[0].steps[0].references[0]).toMatchObject({
+    targetId: files[0].id,
+    label: 'Keep my original drawing',
+  });
 });

@@ -97,6 +97,11 @@ export class WorkClient {
       `/workspaces/${encodeURIComponent(id)}/assets`,
     );
   }
+  storageInfo(id: string) {
+    return this.call<ReturnType<import('./service.js').WorkConnection['storageInfo']>>(
+      `/workspaces/${encodeURIComponent(id)}/storage`,
+    );
+  }
   exportBundle(id: string) {
     return this.call<ReturnType<import('./service.js').WorkConnection['exportBundle']>>(
       `/workspaces/${encodeURIComponent(id)}/bundle`,

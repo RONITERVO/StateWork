@@ -31,6 +31,7 @@ import {
   workAssetSchema,
   workSourceSchema,
   fileBundleSchema,
+  storageInfoSchema,
 } from '@statework/sdk';
 import type { WorkService } from '@statework/sdk';
 import { existsSync } from 'node:fs';
@@ -295,9 +296,18 @@ export function openapi() {
         post: {
           operationId: 'attachOriginalFile',
           description:
-            'Atomically persist immutable file metadata and up to 64 MiB of original bytes. Host computes SHA-256; expectedRevision and exact retry semantics apply. Writer role required.',
+            'Atomically persist immutable file metadata and up to 128 MiB of original bytes within the configured unique-file workspace quota (2 GiB by default). Host computes SHA-256; expectedRevision and exact retry semantics apply. Writer role required.',
           requestBody: body(jsonSchema(assetUploadSchema)),
           responses: response({ $ref: '#/components/schemas/CommandResult' }, '201'),
+        },
+      },
+      '/workspaces/{id}/storage': {
+        parameters: [pathParam],
+        get: {
+          operationId: 'fileStorageInfo',
+          description:
+            'Workspace-authorized byte usage, deduplication, missing originals and host file quotas.',
+          responses: response(jsonSchema(storageInfoSchema)),
         },
       },
       '/workspaces/{id}/assets/{assetId}/content': {
@@ -358,7 +368,7 @@ export function openapi() {
         get: {
           operationId: 'exportFileBundle',
           description:
-            'Portable snapshot plus deduplicated original files and explicit missing identities. Credentials and memberships are excluded.',
+            'Portable snapshot plus deduplicated original files and explicit missing identities. Inline JSON is limited to 64 MiB per file and 256 MiB total; larger collections use the local package-export/package-import directory tools. Credentials and memberships are excluded.',
           responses: response({ $ref: '#/components/schemas/FileBundle' }),
         },
       },

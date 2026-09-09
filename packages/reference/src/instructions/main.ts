@@ -14,6 +14,8 @@ import {
   workDeepLink,
   assetInputSchema,
   stepPredecessors,
+  FILE_LIMIT,
+  packetAssetIds,
 } from '@statework/sdk';
 import type {
   WorkState,
@@ -79,6 +81,7 @@ let pendingAssets: AssetInput[] = [];
 let polling: ReturnType<typeof setTimeout> | undefined;
 let handoff: WorkerHandoff | null = null;
 let assets: (WorkAsset & { available: boolean })[] = [];
+let fileStorage: Awaited<ReturnType<WorkClient['storageInfo']>> | undefined;
 let externalAccess = false;
 let fullPrint = false;
 let resourceView = '';
@@ -88,9 +91,10 @@ const contextKey = () => {
   return draft.execution ? context.procedureKey! : context.key;
 };
 async function refreshHandoff() {
-  [handoff, assets] = await Promise.all([
+  [handoff, assets, fileStorage] = await Promise.all([
     client.handoff(workspace, taskId, { externalAccess }),
     client.assets(workspace),
+    client.storageInfo(workspace),
   ]);
 }
 function enableExecution() {
@@ -109,11 +113,19 @@ function enableExecution() {
   draft.contextKey = contextKey();
 }
 const map = () => renderWorkMap(draft, dirty ? null : handoff, index);
-const files = () =>
-  renderFiles(
-    assets.filter((a) => a.taskIds.includes(taskId)),
+const files = () => {
+  const scope = new Set(packetContext(state, taskId).items.map((item) => item.id));
+  const explicit = new Set([
+    ...(handoff?.assets ?? []).map((a) => a.id),
+    ...packetAssetIds(state, draft),
+  ]);
+  return renderFiles(
+    assets.filter((a) => explicit.has(a.id) || a.taskIds.some((id) => scope.has(id))),
     reader,
+    fileStorage,
+    taskId,
   );
+};
 const resource = () => resourceView;
 const storageKey = () => `statework.packet.draft.${workspace}.${taskId}`;
 const remember = () => {
@@ -405,7 +417,7 @@ function render() {
     )
     .join(
       '',
-    )}<button data-action="edit" ${reader ? 'disabled' : ''}>✎ Edit</button><button data-action="print">▤ Print / PDF</button><button data-action="full-print">Full evidence print</button><button data-action="export">↓ Packet</button></nav><p class="packet-notice ${error ? 'packet-error' : ''}" role="${error ? 'alert' : 'status'}">${esc(error || notice)}</p>${issues.length ? `<details class="packet-gaps" role="region" aria-label="Instruction gaps"><summary>◇ ${issues.length} checks before use</summary><ul>${issues.map((i) => `<li>${esc(i.label)}</li>`).join('')}</ul><div class="packet-toolbar"><button data-action="questions">Resolve questions</button>${issues.some((i) => i.code === 'stale') ? `<button data-action="rebase" ${reader ? 'disabled' : ''}>Reconcile with current context</button>` : ''}</div></details>` : ''}<div class="packet-grid"><aside><ol class="packet-route">${draft.steps.map((s, i) => `<li><button data-action="step:${i}" ${i === index ? 'aria-current="step"' : ''}><b>${packet?.checks.some((c) => c.stepId === s.id) ? '✓' : !dirty && handoff?.graph.find((r) => r.id === s.id)?.status === 'skipped' ? '↷' : i + 1}</b><span>${esc(s.title)}</span></button></li>`).join('')}</ol><div class="packet-toolbar"><button data-action="review" ${!reader && packet && !dirty && packetIssues(state, packet, false).length === 0 && !packet.review ? '' : 'disabled'}>✓ Review and approve</button></div><details><summary>Optional assistance</summary><p>${esc(assistant.message)}</p><button data-action="draft" ${reader || !assistant.available || job ? 'disabled' : ''}>Draft with Codex</button>${job ? '<p role="status">Preparing a draft…</p><button data-action="cancel-draft">Cancel draft</button>' : ''}${proposal ? '<p>Draft ready for inspection.</p><button data-action="use-proposal">Inspect Codex draft</button>' : ''}${previousDraft ? '<button data-action="restore-draft">Restore previous draft</button>' : ''}<div class="packet-toolbar"><button data-action="copy-prompt">Copy research brief</button><label class="button">Import packet<input id="import-packet" type="file" accept=".json" ${reader ? 'disabled' : ''}></label></div><p class="packet-limits">Account limits never prevent manual authoring.</p></details></aside><main class="packet-sheet" id="packet-main" tabindex="-1">${({ follow, edit, needs, sources, questions, finish, map, files, resource }[section] ?? follow)()}</main></div><footer class="packet-bottom">A clear action. A visible result. Evidence within reach.</footer>${printMarkup()}`;
+    )}<button data-action="edit" ${reader ? 'disabled' : ''}>✎ Edit</button><button data-action="print">▤ Print / PDF</button><button data-action="full-print">Full evidence print</button><button data-action="export">↓ Packet</button></nav><p class="packet-notice ${error ? 'packet-error' : ''}" role="${error ? 'alert' : 'status'}">${esc(error || notice)}</p>${issues.length ? `<section aria-label="Instruction gaps"><details class="packet-gaps"><summary>◇ ${issues.length} checks before use</summary><ul>${issues.map((i) => `<li>${esc(i.label)}</li>`).join('')}</ul><div class="packet-toolbar"><button data-action="questions">Resolve questions</button>${issues.some((i) => i.code === 'stale') ? `<button data-action="rebase" ${reader ? 'disabled' : ''}>Reconcile with current context</button>` : ''}</div></details></section>` : ''}<div class="packet-grid"><aside><ol class="packet-route">${draft.steps.map((s, i) => `<li><button data-action="step:${i}" ${i === index ? 'aria-current="step"' : ''}><b>${packet?.checks.some((c) => c.stepId === s.id) ? '✓' : !dirty && handoff?.graph.find((r) => r.id === s.id)?.status === 'skipped' ? '↷' : i + 1}</b><span>${esc(s.title)}</span></button></li>`).join('')}</ol><div class="packet-toolbar"><button data-action="review" ${!reader && packet && !dirty && packetIssues(state, packet, false).length === 0 && !packet.review ? '' : 'disabled'}>✓ Review and approve</button></div><details><summary>Optional assistance</summary><p>${esc(assistant.message)}</p><button data-action="draft" ${reader || !assistant.available || job ? 'disabled' : ''}>Draft with Codex</button>${job ? '<p role="status">Preparing a draft…</p><button data-action="cancel-draft">Cancel draft</button>' : ''}${proposal ? '<p>Draft ready for inspection.</p><button data-action="use-proposal">Inspect Codex draft</button>' : ''}${previousDraft ? '<button data-action="restore-draft">Restore previous draft</button>' : ''}<div class="packet-toolbar"><button data-action="copy-prompt">Copy research brief</button><label class="button">Import packet<input id="import-packet" type="file" accept=".json" ${reader ? 'disabled' : ''}></label></div><p class="packet-limits">Account limits never prevent manual authoring.</p></details></aside><main class="packet-sheet" id="packet-main" tabindex="-1">${({ follow, edit, needs, sources, questions, finish, map, files, resource }[section] ?? follow)()}</main></div><footer class="packet-bottom">A clear action. A visible result. Evidence within reach.</footer>${printMarkup()}`;
   drawMapConnections(app, draft);
   if (busy) app.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = true));
   if (reader)
@@ -488,7 +500,7 @@ function base64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 async function uploadAsset(file: File, description: string, locator: string) {
-  if (file.size > 64 * 1024 * 1024) throw new Error('File exceeds 64 MiB.');
+  if (file.size > FILE_LIMIT) throw new Error('File exceeds 128 MiB.');
   const id = uid();
   busy = true;
   try {
@@ -698,6 +710,41 @@ async function action(a: string) {
     notice = bundle.missing.length
       ? `Export includes ${bundle.missing.length} explicitly missing file identities.`
       : 'Workspace exported with original files.';
+    render();
+    return;
+  }
+  if (a === 'copy-package-command') {
+    await navigator.clipboard.writeText(
+      `npm run cli -- package-export ${workspace} statework-${workspace}-${Date.now()}`,
+    );
+    notice =
+      'Export command copied. Run it with the same STATEWORK_HOME (data directory) as this server.';
+    render();
+    return;
+  }
+  if (a.startsWith('archive-asset:') || a.startsWith('unarchive-asset:')) {
+    const archived = a.startsWith('archive-asset:');
+    const id = a.slice(archived ? 'archive-asset:'.length : 'unarchive-asset:'.length);
+    await client.execute(workspace, {
+      schemaVersion: 1,
+      requestId: uid(),
+      expectedRevision: state.workspace.revision,
+      commands: [
+        {
+          type: 'asset.archive',
+          id,
+          archived,
+          reason: archived
+            ? 'Archived by the user in Files as not needed for current work.'
+            : 'Restored by the user from archived files.',
+        },
+      ],
+    });
+    state = await client.snapshot(workspace);
+    await refreshHandoff();
+    notice = archived
+      ? 'File archived. Its original bytes and history remain available.'
+      : 'File restored to active files.';
     render();
     return;
   }
@@ -1218,7 +1265,7 @@ app.addEventListener('change', (e) => {
     void (async () => {
       try {
         const file = el.files![0]!;
-        if (file.size > 64 * 1024 * 1024) throw new Error('File exceeds 64 MiB.');
+        if (file.size > FILE_LIMIT) throw new Error('File exceeds 128 MiB.');
         await client.restoreAsset(
           workspace,
           el.dataset.restoreAsset!,
@@ -1288,18 +1335,28 @@ async function importPacket(file: File) {
     if (value.format !== 'statework.packet' || value.formatVersion !== 1)
       throw new Error('Choose a StateWork packet export.');
     const p = toInput(value.packet);
-    pendingSources = [];
-    pendingAssets = [];
+    // A rejected import must leave the current draft and its unsaved originals intact.
+    const nextPendingSources: SourceInput[] = [];
+    const nextPendingAssets: AssetInput[] = [];
     const assetRemap = new Map<string, string>();
     for (const raw of value.assets ?? []) {
       const asset = parse(
         assetInputSchema,
         Object.fromEntries(Object.keys(assetInputSchema.shape).map((key) => [key, raw[key]])),
       );
-      const existing = assets.find((a) => a.sha256 === asset.sha256 && a.size === asset.size);
+      const existing = assets.find(
+        (a) => !a.archive && a.sha256 === asset.sha256 && a.size === asset.size,
+      );
+      if (
+        !existing &&
+        assets.some((a) => a.archive && a.sha256 === asset.sha256 && a.size === asset.size)
+      )
+        throw new Error(
+          `Restore the archived file ${asset.name} in Files before importing this packet.`,
+        );
       const id = existing?.id ?? uid();
       assetRemap.set(asset.id, id);
-      if (!existing) pendingAssets.push({ ...asset, id, taskIds: [taskId], replaces: null });
+      if (!existing) nextPendingAssets.push({ ...asset, id, taskIds: [taskId], replaces: null });
     }
     const remap = new Map<string, string>();
     for (const raw of value.sources ?? []) {
@@ -1309,20 +1366,26 @@ async function importPacket(file: File) {
       );
       const existing = source(s.id);
       if (s.assetId) {
-        const mapped = assetRemap.get(s.assetId) ?? assets.find((a) => a.id === s.assetId)?.id;
+        const mapped =
+          assetRemap.get(s.assetId) ?? assets.find((a) => !a.archive && a.id === s.assetId)?.id;
         if (!mapped)
           throw new Error(
             'This packet omits an original-file manifest. Export it again or use a complete workspace bundle.',
           );
         s.assetId = mapped;
       }
-      if (existing && existing.content === s.content && existing.locator === s.locator) {
+      if (
+        existing &&
+        existing.content === s.content &&
+        existing.locator === s.locator &&
+        existing.assetId === s.assetId
+      ) {
         remap.set(s.id, s.id);
         continue;
       }
       const id = uid();
       remap.set(s.id, id);
-      pendingSources.push({ ...s, id, taskIds: [taskId], replaces: null });
+      nextPendingSources.push({ ...s, id, taskIds: [taskId], replaces: null });
     }
     for (const part of [...p.steps, ...p.requirements, ...p.questions])
       for (const c of part.citations) c.sourceId = remap.get(c.sourceId) ?? c.sourceId;
@@ -1341,7 +1404,7 @@ async function importPacket(file: File) {
       r.confirmed = false;
       if (r.itemId && !state.items.some((i) => i.id === r.itemId)) r.itemId = null;
     }
-    draft = {
+    const nextDraft: PacketInput = {
       ...p,
       id: uid(),
       taskId,
@@ -1350,6 +1413,10 @@ async function importPacket(file: File) {
         : packetContext(state, taskId).key,
       origin: 'import',
     };
+    draft = nextDraft;
+    pendingSources = nextPendingSources;
+    pendingAssets = nextPendingAssets;
+    error = '';
     index = 0;
     section = 'edit';
     remember();

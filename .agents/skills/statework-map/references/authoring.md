@@ -43,7 +43,7 @@ Each command request is `{schemaVersion:1, requestId, expectedRevision, commands
 
 Capture at the narrowest relevant task/project scope. Attaching unrelated or incomplete material to the workspace root can make every descendant packet depend on its gaps. Preserve shared policy at a common ancestor only when it applies to those descendants.
 
-Inventory original file sizes and unique bytes before bulk attachment. Check the installed version's limits; 0.2 allows 64 MiB per file and 256 MiB of unique files per workspace. Preserve oversized originals privately. A task-specific page or archive-member extract can be an input only after inspecting that it contains every requirement needed for that task; record the original locator, digest and page/member lineage, and identify the extract as a derivative. Never call it the whole original or silently omit required content. If an essential input cannot be stored, keep the affected work blocked with a storage recovery action. Do not silently split connected work across workspaces and lose dependencies to evade the limit.
+Inventory file purpose, original sizes and unique bytes before bulk attachment. Follow [files.md](files.md) for relevance review, shared originals, safe cleanup, current storage limits and portable directory packages. Preserve full useful originals; file availability and inspected coverage are separate facts.
 
 ## Packets
 
@@ -87,6 +87,6 @@ Save with `packet.save` and the actual previous packet ID (or null). Review with
 
 ## Persistence and presentation
 
-Export a `statework.bundle` including files for handoff and audit. A snapshot alone loses original bytes. Verify round-trip import into a new temporary workspace and inspect handoffs there. Keep private source material local unless sharing that content was explicitly requested.
+Export a complete `statework.bundle` or portable directory package including files for handoff and audit, using the installed size limits. A snapshot alone loses original bytes. Verify round-trip import into a new temporary workspace and inspect handoffs there. Keep private source material local unless sharing that content was explicitly requested.
 
 Use saved views for required/chosen work, blockers and completed history. Verify their queries against the actual observation. Presentation preferences and planner settings may be client settings rather than workspace data; configure only supported controls and confirm the result in the UI. Let a person open the current task, inspect the exact source and follow a recovery link with minimal typing.

@@ -2,11 +2,17 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { openLocal, seedDemo } from '@statework/node';
+import {
+  openLocal,
+  seedDemo,
+  exportFilePackage,
+  importFilePackage,
+  readOriginalFile,
+} from '@statework/node';
 import { textAdapter, defaultProfile, WorkError } from '@statework/sdk';
 import type { Role } from '@statework/core';
 const [op, ...args] = process.argv.slice(2);
-const help = `StateWork — local work graph\n\n  list\n  create <workspace-id> <title>\n  demo\n  observe <workspace-id> [query.json]\n  snapshot <workspace-id>\n  instructions <workspace-id> <task-id>\n  handoff <workspace-id> <task-id> [environment.json]\n  files <workspace-id>\n  source <workspace-id> <source-id>\n  file-attach <workspace-id> <task-id> <file> [description]\n  file-export <workspace-id> <asset-id> <new-file>\n  file-restore <workspace-id> <asset-id> <original-file>\n  bundle-export <workspace-id> <new-file.json>\n  bundle-import <bundle.json> <new-workspace-id> <title>\n  command <workspace-id> <request.json|->\n  events <workspace-id> [after]\n  export <workspace-id> <new-file.json>\n  import <snapshot.json> <new-workspace-id> <title>\n  backup <new-file.sqlite>\n  grant <workspace-id> <actor-id> <reader|editor|owner>\n  token <actor-id> <label>\n\nSTATEWORK_HOME selects the local data directory. Commands and MCP use the same domain and database.\nToken/grant are trusted provisioning operations for developers with local filesystem access.\n`;
+const help = `StateWork — local work graph\n\n  list\n  create <workspace-id> <title>\n  demo\n  observe <workspace-id> [query.json]\n  snapshot <workspace-id>\n  instructions <workspace-id> <task-id>\n  handoff <workspace-id> <task-id> [environment.json]\n  files <workspace-id>\n  storage <workspace-id>\n  package-export <workspace-id> <new-directory>\n  package-import <directory> <new-workspace-id> <title>\n  source <workspace-id> <source-id>\n  file-attach <workspace-id> <task-id> <file> [description]\n  file-export <workspace-id> <asset-id> <new-file>\n  file-restore <workspace-id> <asset-id> <original-file>\n  bundle-export <workspace-id> <new-file.json>\n  bundle-import <bundle.json> <new-workspace-id> <title>\n  command <workspace-id> <request.json|->\n  events <workspace-id> [after]\n  export <workspace-id> <new-file.json>\n  import <snapshot.json> <new-workspace-id> <title>\n  backup <new-file.sqlite>\n  grant <workspace-id> <actor-id> <reader|editor|owner>\n  token <actor-id> <label>\n\nSTATEWORK_HOME selects the local data directory. Commands and MCP use the same domain and database. Original files support 128 MiB per file and 2 GiB unique bytes per workspace by default; STATEWORK_WORKSPACE_FILE_LIMIT_BYTES configures the host quota. JSON bundles retain 64 MiB per file and 256 MiB total; use package-export/package-import for larger portable collections.\nToken/grant are trusted provisioning operations for developers with local filesystem access.\n`;
 if (!op || op === 'help' || op === '--help') {
   process.stdout.write(help);
   process.exit(0);
@@ -53,6 +59,15 @@ try {
     case 'files':
       result = connection.assetManifest(arg(0));
       break;
+    case 'storage':
+      result = connection.storageInfo(arg(0));
+      break;
+    case 'package-export':
+      result = exportFilePackage(connection, arg(0), arg(1));
+      break;
+    case 'package-import':
+      result = importFilePackage(connection, arg(0), { id: arg(1), title: arg(2) });
+      break;
     case 'source':
       result = connection.source(arg(0), arg(1));
       break;
@@ -81,12 +96,12 @@ try {
             replaces: null,
           },
         },
-        new Uint8Array(readFileSync(path)),
+        readOriginalFile(path),
       );
       break;
     }
     case 'file-restore':
-      result = await connection.restoreAsset(arg(0), arg(1), new Uint8Array(readFileSync(arg(2))));
+      result = await connection.restoreAsset(arg(0), arg(1), readOriginalFile(arg(2)));
       break;
     case 'command':
       result = connection.execute(arg(0), json(arg(1)));
