@@ -2,6 +2,8 @@
 
 The [StateWork Map Builder](../.agents/skills/statework-map/SKILL.md) is a reusable Codex skill, maintained with the app's contracts. It creates a local workspace from original emails, project folders, portals and documents. Give it a starting source and the outcome you need. It researches the records, maps requirements, stores original files and prepares short linked actions with explicit blockers.
 
+To carry out an existing mapped task, use [StateWork Execute](EXECUTION_SKILL.md). It works from the current handoff, produces and verifies the actual artifact, and keeps review and submission separate.
+
 ## Install and start
 
 In a checkout, the skill lives at `.agents/skills/statework-map` for repository discovery. To use it across projects, copy that complete folder into the user skills directory used by your Codex installation, commonly `~/.agents/skills` in current Codex documentation. Some desktop installations expose `~/.codex/skills`; use the location shown by that installation. Start a fresh session and invoke `$statework-map`, or reference the exact `SKILL.md` path if it has not yet appeared in the skill list. Skill folders support progressive discovery through their metadata and supporting references. [Official Codex customization documentation](https://learn.chatgpt.com/docs/customization/overview#skills).
