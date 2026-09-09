@@ -46,6 +46,24 @@ function graph(items: WorkItem[], edges: [string, string][] = []): WorkState {
   };
 }
 describe('read-only daily planning', () => {
+  it('does not charge an exhausted estimate review block again when logged work is finished', () => {
+    const state = graph([task('a'), task('b', { effortMinutes: 240 })]),
+      prefs = newCalendarPreferences();
+    prefs.day = '2026-09-09';
+    prefs.override = { minutes: 60, used: 0 };
+    calendarPlan(state, prefs, now, options.timeZone);
+    state.items[0]!.extensions = {
+      'statework.planning/progress': { minutes: 60, days: { '2026-09-09': 60 } },
+    };
+    calendarPlan(state, prefs, now, options.timeZone);
+    prefs.override = { minutes: 120, used: calendarUsed(state, prefs) };
+    calendarPlan(state, prefs, now, options.timeZone);
+    state.items[0]!.status = 'done';
+    const plan = calendarPlan(state, prefs, now, options.timeZone);
+    expect(calendarUsed(state, prefs)).toBe(60);
+    expect(plan.days[0]!.capacityMinutes).toBe(120);
+    expect(plan.days[0]!.suggestions.every((s) => s.id === 'b')).toBe(true);
+  });
   it('supports valid IDs that match Object prototype properties and pulls a chosen task’s requirements forward', () => {
     const state = graph(
       [task('constructor'), task('toString'), task('a'), task('chosen')],

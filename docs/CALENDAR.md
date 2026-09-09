@@ -26,7 +26,7 @@ Fixed intervals reserve availability and remain unchanged. Four hours means flex
 
 The office projects 90 days; the core defaults to 42 and supports 1–90. Each day returns at most 100 blocks and explicitly reports when that bound is reached. Unplaced and partly projected tasks remain in **Needs review**, with pages covering every result. Month navigation outside the forecast shows actual records and says the forecast is unavailable. Finished and archived records remain in the work graph and history; a ✓ on a date refers to a finished record with an actual scheduled interval, not a guessed completion date.
 
-Finishing an allocation reserves its share of today's allowance so the app does not refill the day endlessly. That reservation is only a browser planning preference. **Only explicitly logged minutes are work-time records.** Undo/reopen restores the allowance, and the daily reservation resets on the next local date. Unknown review blocks are not charged again when you log their time and then finish. Clearing browser storage resets these preferences; it does not erase work.
+Finishing an allocation reserves its share of today's allowance so the app does not refill the day endlessly. That reservation is only a browser planning preference. **Only explicitly logged minutes are work-time records.** Undo/reopen restores the allowance, and the daily reservation resets on the next local date. Unknown or exhausted-estimate review blocks are not charged again when you log their time and then finish. Clearing browser storage resets these preferences; it does not erase work.
 
 ## Use the backend in another layer
 

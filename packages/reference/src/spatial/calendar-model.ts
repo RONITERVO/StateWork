@@ -106,9 +106,11 @@ export function calendarPlan(
       const allocation = p.allocations[item.id]!;
       // An unknown estimate is a review block. Logging it and then finishing must not
       // also charge the newly offered unknown block as if it had been performed.
-      const logged = planningProgress(item).days[today] ?? 0;
+      const progress = planningProgress(item);
+      const logged = progress.days[today] ?? 0;
+      const review = item.effortMinutes === null || progress.minutes >= item.effortMinutes;
       p.reservations[item.id] =
-        item.effortMinutes === null && logged > 0 ? logged : allocation.minutes + allocation.logged;
+        review && logged > 0 ? logged : allocation.minutes + allocation.logged;
     } else if (!isFinished(item)) delete p.reservations[item.id];
   }
   const used = calendarUsed(state, p),
