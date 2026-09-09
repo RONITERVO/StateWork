@@ -1,6 +1,12 @@
 import { isFinished, WorkError } from './model.js';
 import type { Principal, Query, Relation, WorkItem, WorkState } from './model.js';
-import { latestPacket, packetIssues, packetResultsComplete } from './instructions.js';
+import {
+  latestPacket,
+  packetActionable,
+  packetIssues,
+  packetResultsComplete,
+} from './instructions.js';
+import type { WorkerContext, WorkerEnvironment } from './execution.js';
 
 export interface SemanticNode {
   id: string;
@@ -38,13 +44,22 @@ export interface Observation {
   nodes: SemanticNode[];
 }
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-export function queryItems(state: WorkState, query: Query = {}): WorkItem[] {
+export function queryItems(
+  state: WorkState,
+  query: Query = {},
+  worker: WorkerContext = {},
+): WorkItem[] {
   const unfinished = new Set(state.items.filter((i) => !isFinished(i)).map((i) => i.id));
   const blockedIds = new Set(
     state.relations
       .filter((r) => r.kind === 'depends_on' && unfinished.has(r.to))
       .map((r) => r.from),
   );
+  if (query.actionable)
+    for (const item of state.items) {
+      const packet = latestPacket(state, item.id);
+      if (packet && !packetActionable(state, packet, worker)) blockedIds.add(item.id);
+    }
   const terms = (query.text ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
   const children = query.parentId
     ? new Set(
@@ -93,6 +108,7 @@ export function observe(
   query: Query = {},
   offset = 0,
   limit = 100,
+  environment: WorkerEnvironment = {},
 ): Observation {
   if (
     !Number.isSafeInteger(offset) ||
@@ -102,7 +118,8 @@ export function observe(
     limit > 500
   )
     throw new WorkError('VALIDATION', 'Invalid observation page.');
-  const ordered = queryItems(state, query);
+  const worker = { actorId: principal.id, environment };
+  const ordered = queryItems(state, query, worker);
   const byId = new Map(state.items.map((i) => [i.id, i]));
   const byEndpoint = new Map<string, Relation[]>();
   const completedDependents = new Set<string>();
@@ -128,13 +145,13 @@ export function observe(
     const finished = isFinished(item);
     const packet = latestPacket(state, item.id);
     const instructionGaps = packet ? packetIssues(state, packet) : [];
-    const packetPending =
-      !!packet && (instructionGaps.length > 0 || !packetResultsComplete(state, packet));
+    const packetBlocked = !!packet && !packetActionable(state, packet, worker);
+    const packetPending = !!packet && (packetBlocked || !packetResultsComplete(state, packet));
     return {
       id: item.id,
       label: item.title,
       kind: item.kind,
-      summary: `${item.title}. ${item.kind}. ${item.status}.${item.dueDate ? ` Due ${item.dueDate}.` : ''}${blocked.length ? ` Waiting for ${blocked.map((i) => i.title).join(', ')}.` : ''}`,
+      summary: `${item.title}. ${item.kind}. ${!finished && (blocked.length || packetBlocked) ? 'Needs attention' : item.status}.${item.dueDate ? ` Due ${item.dueDate}.` : ''}${blocked.length ? ` Waiting for ${blocked.map((i) => i.title).join(', ')}.` : ''}${packetBlocked && !finished ? ' Open the work packet to resolve its current blocker.' : ''}`,
       facts: [
         ...(packet
           ? [
@@ -149,12 +166,21 @@ export function observe(
                 label: 'Instruction results checked',
                 value: packet.checks.length,
               },
+              {
+                key: 'packet.actionable',
+                label: 'Packet has a ready action or checked finish',
+                value: !packetBlocked,
+              },
               { key: 'packet.steps', label: 'Instruction steps', value: packet.steps.length },
             ]
           : []),
         { key: 'status', label: 'Status', value: item.status },
         { key: 'priority', label: 'Priority', value: item.priority },
-        { key: 'blocked', label: 'Waiting for prerequisites', value: blocked.length > 0 },
+        {
+          key: 'blocked',
+          label: 'Needs prerequisites or packet attention',
+          value: !finished && (blocked.length > 0 || packetBlocked),
+        },
         { key: 'archived', label: 'Archived', value: item.archived },
         ...(item.description
           ? [{ key: 'description', label: 'Description', value: item.description }]
@@ -198,7 +224,7 @@ export function observe(
               : finished && completedDependents.has(item.id)
                 ? 'Reopen completed dependents in the same batch first'
                 : !finished && packetPending
-                  ? 'Open the work packet; review instructions and check each result'
+                  ? 'Open the work packet; resolve blockers and check each result'
                   : undefined,
         },
         {

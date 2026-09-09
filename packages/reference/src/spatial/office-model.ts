@@ -1,5 +1,5 @@
 import { isFinished, observe } from '@statework/sdk';
-import type { Role, SemanticNode, WorkState } from '@statework/sdk';
+import type { Role, SemanticNode, WorkState, WorkerContext } from '@statework/sdk';
 
 export interface OfficeFile {
   id: string;
@@ -34,17 +34,22 @@ export const inboxCabinet = 'office:inbox';
 export const cabinetCapacity = 12;
 
 /** The filing metaphor is derived from the complete graph, never from a filtered page. */
-export function officeCatalog(state: WorkState, role: Role): OfficeCatalog {
+export function officeCatalog(
+  state: WorkState,
+  role: Role,
+  worker: WorkerContext = {},
+): OfficeCatalog {
   const semantic = new Map<string, SemanticNode>();
   for (const archived of [false, true]) {
     let offset = 0;
     do {
       const result = observe(
         state,
-        { id: 'office-view', role },
+        { id: worker.actorId ?? '', role },
         { archived, sort: 'title' },
         offset,
         500,
+        worker.environment,
       );
       result.nodes.forEach((node) => semantic.set(node.id, node));
       if (result.nextOffset === null) break;

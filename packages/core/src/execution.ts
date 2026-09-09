@@ -39,6 +39,11 @@ export interface WorkerEnvironment {
   externalAccess?: boolean;
   availableAssetIds?: string[];
 }
+/** Read-only caller context; an omitted worker never inherits another person's access. */
+export interface WorkerContext {
+  actorId?: string;
+  environment?: WorkerEnvironment;
+}
 export function stepPredecessors(packet: PacketInput, step: PacketStep): string[] {
   const index = packet.steps.findIndex((s) => s.id === step.id);
   const after = packet.execution

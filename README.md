@@ -10,6 +10,8 @@ Inspired by the engine-first architecture of StateBeats in `3dRythm`. The backen
 
 Keep instructions short and the work complete: attach original files, link exact references, connect ordered or parallel actions, and record decisions and results. A fresh person or agent can retrieve the same work map and see what they can do now. [Connected work guide](docs/CONNECTED_WORK.md).
 
+**Build your map with Codex:** the reusable [StateWork Map Builder skill](.agents/skills/statework-map/SKILL.md) researches original records, captures files, builds connected instructions and audits what is missing. Start a fresh Codex session in this checkout and ask: “Use $statework-map to build my map from [a source, folder or mailbox sender].” For use outside this repository, copy the complete `statework-map` folder into your Codex user skills directory. The skill can install/connect to a fresh app and asks for specific access or decisions when needed; it does not require you to remember and type all your work requirements. See [installation, evaluation and limits](docs/MAP_SKILL.md).
+
 ## Start here
 
 Use Node **24.13+ in the 24.x line** (recommended), or Node 25. The SQLite module may print an experimental warning on these runtimes.

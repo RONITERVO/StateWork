@@ -67,6 +67,7 @@ const allowed = [
   'docs',
   'schemas',
   '.github',
+  '.agents',
   'README.md',
   'BUILD_BRIEF.md',
   'LICENSE',

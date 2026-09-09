@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="450" viewBox="0 0 700 450">
+  <rect width="700" height="450" fill="white" />
+  <g stroke="black" fill="none" stroke-width="2">
+    <rect x="100" y="100" width="400" height="240" />
+    <path d="M100 65H500 M100 55V90 M500 55V90" />
+  </g>
+  <g font-family="sans-serif" font-size="22" fill="black">
+    <text x="270" y="50">50 mm</text>
+    <text x="110" y="180">Thickness: 4 mm</text>
+    <text x="110" y="220">Height and hole geometry: sheet 2</text>
+    <text x="80" y="390">EW-09 · Sheet 1 of 2 · Not to scale</text>
+    <text x="80" y="425">Fictional exercise drawing</text>
+  </g>
+</svg>

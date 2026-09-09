@@ -6,7 +6,7 @@ import {
   planWork,
   shiftPlanDate,
 } from '@statework/sdk';
-import type { WorkPlan, WorkState } from '@statework/sdk';
+import type { WorkPlan, WorkState, WorkerContext } from '@statework/sdk';
 
 export interface CalendarPreferences {
   dailyMinutes: number;
@@ -89,6 +89,7 @@ export function calendarPlan(
   p: CalendarPreferences,
   now: string,
   timeZone: string,
+  worker: WorkerContext = {},
 ): WorkPlan {
   const today = planDate(now, timeZone);
   if (p.day !== today) {
@@ -121,16 +122,20 @@ export function calendarPlan(
       ? p.override.minutes - (used - p.override.used)
       : (workDay ? p.dailyMinutes : 0) - used,
   );
-  const plan = planWork(state, {
-    now,
-    timeZone,
-    days: 90,
-    dailyMinutes: p.dailyMinutes,
-    workDays: p.workDays,
-    todayMinutes: Math.min(720, todayMinutes),
-    notBefore: p.notBefore,
-    preferred: p.preferred,
-  });
+  const plan = planWork(
+    state,
+    {
+      now,
+      timeZone,
+      days: 90,
+      dailyMinutes: p.dailyMinutes,
+      workDays: p.workDays,
+      todayMinutes: Math.min(720, todayMinutes),
+      notBefore: p.notBefore,
+      preferred: p.preferred,
+    },
+    worker,
+  );
   p.allocations = Object.create(null);
   for (const s of plan.days[0]!.suggestions) {
     const a = p.allocations[s.id] ?? {

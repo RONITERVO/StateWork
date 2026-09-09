@@ -170,6 +170,73 @@ async function bundleFixture() {
   return bundle;
 }
 
+for (const readiness of ['draft', 'missing-file', 'ready'] as const) {
+  test(`calendar and next actions respect packet readiness: ${readiness}`, async ({ page }) => {
+    test.setTimeout(60000);
+    await page.clock.setFixedTime(new Date('2026-09-09T12:00:00.000Z'));
+    const bundle = await bundleFixture();
+    const packet = bundle.snapshot.state.instructions!.packets[0]!;
+    // Both independent actions need the same original, while the final receipt is still an output.
+    packet.steps[1]!.references = [{ ...packet.steps[0]!.references![0]!, id: 'label-drawing' }];
+    if (readiness === 'draft') packet.review = null;
+    if (readiness === 'missing-file') {
+      bundle.missing = bundle.files.map((file) => file.sha256);
+      bundle.files = [];
+    }
+    await page.goto('/');
+    const id = await page.evaluate(async (bundle) => {
+      const { token } = await (
+        await fetch('/local/session', {
+          method: 'POST',
+          headers: { 'X-StateWork-Local': '1' },
+        })
+      ).json();
+      const id = crypto.randomUUID();
+      const response = await fetch('/v1/bundle-import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bundle, target: { id, title: 'Packet readiness test' } }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return id;
+    }, bundle);
+    await page.reload();
+    await page.getByLabel('Workspace', { exact: true }).selectOption(id);
+    if (readiness !== 'ready') {
+      const row = page.locator('.work-list li').filter({ hasText: 'Square kit' });
+      await expect(row.locator('.status')).toHaveText('Needs attention');
+    }
+    await page.getByRole('button', { name: 'Next actions', exact: false }).click();
+    await expect(page.locator('.item-title').filter({ hasText: 'Square kit' })).toHaveCount(
+      readiness === 'ready' ? 1 : 0,
+    );
+    if (readiness === 'ready') {
+      await page.locator('[data-mode="focus"]').click();
+      await expect(
+        page.getByRole('button', { name: 'Mark complete', exact: false }),
+      ).toBeDisabled();
+    }
+    await page.goto('/spatial/');
+    await page.getByLabel('Your workspace').selectOption(id);
+    await page.getByRole('button', { name: 'Calendar', exact: true }).click();
+    const calendar = page.locator('#calendar-dialog');
+    await calendar.getByRole('button', { name: '4h', exact: true }).click();
+    if (readiness === 'ready') {
+      const card = calendar.locator('.cal-task').filter({ hasText: 'Square kit' });
+      await expect(card).toContainText('Ready');
+      await expect(card.getByRole('button', { name: 'Start', exact: false })).toBeEnabled();
+      await expect(card.getByRole('button', { name: 'Finish', exact: false })).toBeDisabled();
+    } else {
+      await expect(calendar.locator('.cal-task')).toHaveCount(0);
+      await calendar.getByText('Needs review · 1', { exact: true }).click();
+      const review = calendar.locator('.cal-review-row').filter({ hasText: 'Square kit' });
+      await expect(review).toContainText('Open work packet · resolve blocker');
+      await review.getByRole('button', { name: 'Next', exact: false }).click();
+      await expect(calendar.locator('.cal-task')).toHaveCount(0);
+    }
+  });
+}
+
 test('fresh worker uses map, exact files, parallel actions, a branch and a delivery-only blocker', async ({
   page,
   browserName,

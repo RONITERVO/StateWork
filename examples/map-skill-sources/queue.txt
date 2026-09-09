@@ -1,0 +1,3 @@
+A1|OPEN|Check storage labels
+B2|CLOSED|Replace notice board
+C3|OPEN|Review handover shelf
