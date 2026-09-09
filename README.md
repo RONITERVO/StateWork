@@ -24,6 +24,10 @@ Prefer working in 3D? Open **[StateWork Office](http://127.0.0.1:4180/spatial/)*
 
 ![Original 1980s office with a held folder, dependency X-ray and related files in Quick View. Desktop WebGL capture with fictional work.](docs/images/office-dependencies.png)
 
+The **Detective board** connects the complete workspace on the right wall. Open project groups, follow requirements or downstream work, and keep persistent pins beside your investigation. **Unblock** shows which prerequisites open work now and which reach further. The full-screen board adds search, zoom, pan and text controls. Walk with **WASD / controller thumbsticks**, or use one-click desk and board stations. [Board and room guide](docs/DETECTIVE_BOARD.md).
+
+![A fictional 1,020-record workspace grouped into 20 project cards, with cross-project requirements and remembered investigation controls.](docs/images/detective-company.png)
+
 Capture something with **Add work**. Open it to edit its status, notes, tags, dates, effort or schedule. Link prerequisites and navigate directly between related work. **Next actions** shows unfinished tasks whose prerequisites are clear. **Archive** keeps work and its connections available for restoration. **Save view** preserves the current query and presentation.
 
 Reading & interaction offers text size, contrast, detail, motion, page size and time zone settings. Everything is reachable through standard keyboard controls. Text view offers plain text and on-demand local browser speech when a local voice exists. Focus view offers one actionable task at a time. There is no mandatory spatial, audio, color-only, drag or timed interaction.

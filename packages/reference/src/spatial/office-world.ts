@@ -11,6 +11,7 @@ import {
 import type { OfficeHand, OfficeIntent, OfficeSession } from './office-model';
 import { stateMark } from './model';
 import type { SpatialView } from './scene';
+import { DetectiveWall } from './detective-wall';
 
 export interface OfficeTarget {
   mesh: THREE.Mesh;
@@ -45,7 +46,11 @@ const fileColor = (mark: string) =>
 
 export class OfficeWorld {
   readonly root = new THREE.Group();
-  readonly targets: OfficeTarget[] = [];
+  private workTargets: OfficeTarget[] = [];
+  private detective = new DetectiveWall();
+  get targets(): OfficeTarget[] {
+    return [...this.workTargets, ...this.detective.targets];
+  }
   private staticArt = new OfficeArt();
   private dynamicArt = new OfficeArt();
   private shell: THREE.Group;
@@ -81,7 +86,7 @@ export class OfficeWorld {
   ) {
     this.root.name = 'StateWork interactive office';
     this.shell = makeOfficeShell(this.staticArt);
-    this.root.add(this.shell, this.content, this.traceLines);
+    this.root.add(this.shell, this.content, this.traceLines, this.detective.root);
     this.lamp.position.set(1.2, 1.26, -0.12);
     this.lamp.layers.enableAll();
     this.root.add(this.lamp);
@@ -142,6 +147,7 @@ export class OfficeWorld {
     this.dispatch({ type: 'inspect', id });
   }
   update(view: SpatialView) {
+    this.detective.update(view.board, view.large, view.movement !== false);
     const oldKeys = new Set(this.view?.catalog.keys.map((k) => k.id) ?? []);
     const switched = this.view?.catalog.workspaceId !== view.catalog.workspaceId;
     this.view = view;
@@ -372,7 +378,7 @@ export class OfficeWorld {
   }
   private bind(group: THREE.Object3D, action: string, fileId?: string) {
     group.traverse((object) => {
-      if (object instanceof THREE.Mesh) this.targets.push({ mesh: object, action, fileId });
+      if (object instanceof THREE.Mesh) this.workTargets.push({ mesh: object, action, fileId });
     });
   }
   private button(
@@ -418,7 +424,7 @@ export class OfficeWorld {
     this.traceLines.clear();
     this.dynamicArt.dispose();
     this.dynamicArt = new OfficeArt();
-    this.targets.length = 0;
+    this.workTargets.length = 0;
     this.folderActors.clear();
     this.drawers.clear();
     this.keyActors.clear();
@@ -1137,6 +1143,7 @@ export class OfficeWorld {
     return moving;
   }
   dispose() {
+    this.detective.dispose();
     this.clearDynamic();
     this.staticArt.dispose();
     this.root.removeFromParent();
