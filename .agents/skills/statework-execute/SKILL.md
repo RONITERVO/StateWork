@@ -29,6 +29,8 @@ Check actual application, license, input and account availability. Another agent
 
 Perform the next ready, authorized action and inspect its observable result before recording evidence. Refresh the handoff after each material change. Keep preparation, construction, verification, human review and delivery distinct. Work can proceed locally while later submission awaits review or account access, provided the local requirements are known. If a malformed packet incorrectly blocks fully specified preparation, repair its scope/order with evidence; do not clear unknown coverage or remove an actual delivery obligation merely to obtain a green state.
 
+Keep the selected task's visible summary and status consistent with the established procedure and actual progress. Correct stale blockers only with source evidence; preserve pending review, delivery and acceptance. Do not leave a started task described as untouched or an optional tutorial described as mandatory after establishing an allowed alternative.
+
 Save native/editable outputs and any required exports in the private run directory. Reopen the saved files in the required application, inspect them against the specification and resolve failures. Preserve full original quality. Read [evidence.md](references/evidence.md) before attaching results and recording checks.
 
 If blocked, name the missing fact, file or capability and the smallest action that unlocks it. Research independent branches while waiting. Prefer a short access/permission choice over a long memory question. Respect a user-specified reply window; silence is not approval. Keep the blocked task visible and preserve usable partial work without marking it successful.
