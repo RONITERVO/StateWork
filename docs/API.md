@@ -44,6 +44,8 @@ Send `Authorization: Bearer <token>` on every `/v1` request. Read the token from
 
 See [daily planning semantics and examples](CALENDAR.md) for capacity, conditional recommendations, fixed schedules and explicit progress.
 
+The trusted `createServer` host can set `requestsPerMinute` (1–60000). The personal application retains the default 600; this is not a client/API request option. The isolated multi-browser test host uses a larger explicit traffic budget.
+
 ## Commands
 
 Every command is wrapped in:

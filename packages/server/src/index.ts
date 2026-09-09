@@ -27,6 +27,8 @@ interface Options {
   staticRoot?: string;
   localToken?: string;
   port?: number;
+  /** Trusted host configuration; the personal app retains the 600/minute default. */
+  requestsPerMinute?: number;
 }
 export async function createServer(options: Options) {
   const app = Fastify({
@@ -35,7 +37,14 @@ export async function createServer(options: Options) {
     requestTimeout: 15000,
     connectionTimeout: 15000,
   });
-  await app.register(rateLimit, { max: 600, timeWindow: '1 minute' });
+  const requestsPerMinute = options.requestsPerMinute ?? 600;
+  if (
+    !Number.isSafeInteger(requestsPerMinute) ||
+    requestsPerMinute < 1 ||
+    requestsPerMinute > 60000
+  )
+    throw new WorkError('VALIDATION', 'Host request budget must be 1–60000 per minute.');
+  await app.register(rateLimit, { max: requestsPerMinute, timeWindow: '1 minute' });
   const allowedHost = new Set([
     `127.0.0.1:${options.port ?? 4180}`,
     `localhost:${options.port ?? 4180}`,

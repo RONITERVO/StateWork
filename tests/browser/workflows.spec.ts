@@ -160,6 +160,10 @@ test('saved queries, archive restoration, file import, and text escaping', async
   await page.getByLabel('Snapshot file').setInputFiles(file);
   await page.getByLabel('Name for the imported workspace').fill('Restored copy');
   await page.getByRole('button', { name: 'Import workspace', exact: true }).click();
+  await expect(page.locator('#import-dialog')).not.toBeVisible();
+  await expect(
+    page.getByRole('combobox', { name: 'Workspace', exact: true }).locator('option:checked'),
+  ).toHaveText('Restored copy');
   await expect(page.getByRole('combobox', { name: 'Workspace', exact: true })).toContainText(
     'Restored copy',
   );

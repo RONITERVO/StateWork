@@ -59,6 +59,8 @@ async function setup(page: Page) {
 test('reader can adjust a private plan while completion and progress writes stay disabled', async ({
   page,
 }) => {
+  // CI WebKit can spend over 20 seconds creating its first page before setup runs.
+  test.setTimeout(60000);
   await setup(page);
   let writes = 0;
   await page.route('**/v1/workspaces', async (route) => {

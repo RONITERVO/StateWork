@@ -34,6 +34,23 @@ async function setup() {
   return { app, store, service };
 }
 describe('local HTTP boundary', () => {
+  it('enforces a trusted host traffic budget and rejects invalid configuration', async () => {
+    const service = new WorkService(new MemoryStore());
+    const app = await createServer({
+      service,
+      authenticate: () => undefined,
+      requestsPerMinute: 2,
+    });
+    apps.push(app);
+    expect((await app.inject({ url: '/health', headers: host })).statusCode).toBe(200);
+    expect((await app.inject({ url: '/health', headers: host })).statusCode).toBe(200);
+    const limited = await app.inject({ url: '/health', headers: host });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json().error.message).toContain('Too many requests');
+    await expect(
+      createServer({ service, authenticate: () => undefined, requestsPerMinute: 0 }),
+    ).rejects.toThrow('request budget');
+  });
   it('offers an authenticated read-only plan, with strict options and no history changes', async () => {
     const { app, service, store } = await setup();
     const owner = service.connect('owner');
