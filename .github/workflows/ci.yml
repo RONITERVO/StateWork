@@ -34,6 +34,16 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Exclude unused Chrome apt feed from browser dependency setup
+        run: |
+          # Playwright downloads its own pinned browsers. The runner's Chrome
+          # apt feed is unrelated and can fail apt update during feed rotation.
+          # Preserve that feed's file; keep all package integrity checks enabled.
+          for source in /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            if [ -f "$source" ] && [ ! -L "$source" ] && grep -Fq 'dl.google.com/linux/chrome' "$source"; then
+              sudo mv -- "$source" "$source.statework-disabled"
+            fi
+          done
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
       - uses: actions/upload-artifact@v4
