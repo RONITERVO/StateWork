@@ -846,6 +846,8 @@ async function action(a: string) {
   if (a.startsWith('requirement-ready:') || a.startsWith('requirement-unavailable:')) {
     const id = a.slice(a.indexOf(':') + 1),
       r = draft.requirements.find((r) => r.id === id)!;
+    // Choose the destination now so the save cannot overwrite later navigation.
+    section = 'follow';
     await execute([
       {
         type: 'packet.confirm',
@@ -855,7 +857,6 @@ async function action(a: string) {
         evidence: `${a.startsWith('requirement-ready:') ? 'Confirmed' : 'Unavailable'}: ${r.check}`,
       },
     ]);
-    section = 'follow';
     render();
     return;
   }
