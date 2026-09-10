@@ -16,6 +16,8 @@ Consult installed API help for the exact method, overload, enum and release. Man
 
 Read operational notes as well as the generated signature. Some typed setters exist but are explicitly unimplemented: for example, the loft's `StartConstraintApplyToAll` and `EndConstraintApplyToAll` are documented as get-only. A successful compilation does not establish that a setter works. Trace consequential setters separately so a failure can be attributed before changing the model again.
 
+When a .NET API requires an array of `IDispatch` objects, follow its [marshaling contract](https://help.solidworks.com/2012/english/api/sldworksapiprogguide/Overview/IDispatch_Object_Arrays_as_Input_in_.NET.htm) and runtime support; use `DispatchWrapper[]` where documented. Do not apply this conversion to numeric or string arrays. Read back the retained entity count and identities before the next operation; a plain `object[]` setter can return without retaining the intended native objects.
+
 ## Bounded jobs
 
 For a session probe, write a private JSON file containing the absolute installed skill directory:
