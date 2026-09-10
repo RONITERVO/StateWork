@@ -18,6 +18,8 @@ Read operational notes as well as the generated signature. Some typed setters ex
 
 When a .NET API requires an array of `IDispatch` objects, follow its [marshaling contract](https://help.solidworks.com/2012/english/api/sldworksapiprogguide/Overview/IDispatch_Object_Arrays_as_Input_in_.NET.htm) and runtime support; use `DispatchWrapper[]` where documented. Do not apply this conversion to numeric or string arrays. Read back the retained entity count and identities before the next operation; a plain `object[]` setter can return without retaining the intended native objects.
 
+Inspect numeric return arrays before casting: `GetUnits` can return `Int16[]`, so a direct `int[]` cast can fail after successful modeling. Preserve the actual type and values, then enumerate the `Array` and convert documented numeric elements deliberately. Null remains unavailable. If only the reader failed, preserve the completed geometry and correct that reader before repeating construction.
+
 ## Bounded jobs
 
 For a session probe, write a private JSON file containing the absolute installed skill directory:

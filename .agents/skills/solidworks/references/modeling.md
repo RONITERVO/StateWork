@@ -26,6 +26,8 @@ Check body count and native body validity as well as the feature tree's errors/s
 
 For lofts, inspect profile order and connector correspondence. `ILoftFeatureData.PickPoints` contains connector chains, each containing native `MathPoint` objects; read their `ArrayData` instead of treating the outer array as one numeric point per profile. Preserve already-correct connectors. At a tangent join, check the direction and body validity: an apparently smooth, error-free feature can double back into its neighbor. Diagnose returned fault codes and affected faces before changing the tangent direction; do not assume a universal reverse setting.
 
+For material assignment, distinguish the database path supplied to `SetMaterialPropertyName2` from the database name returned by `GetMaterialPropertyName2`; the latter may omit `.sldmat`. Resolve the name to a unique intended installed database and retain its path/hash. Verify the actual material, density, mass and override state separately from visual appearance. A returned naming difference alone does not justify reconstructing correct geometry.
+
 ## Assemblies
 
 Determine component counts, configuration choices, placement, intended motion and mate requirements. Reuse exact verified inputs through working copies or a portable dependency set. Do not edit a previously reviewed dependency in place. Verify transforms and seating against the specification; convenient lock mates are appropriate only when the required result permits a static arrangement.
