@@ -16,6 +16,8 @@ Where an assembly list is required, verify actual components and quantities, ite
 
 Save the required editable parts, assemblies and drawings plus requested exports. Keep full original quality. Inspect returned save status and warning flags. Do not save over source examples or previously reviewed artifacts merely to simplify filenames.
 
+Before a native packaging call, preserve recoverable byte copies of the candidate and its dependencies, and verify their hashes. A read-only document open is not sufficient proof that packaging cannot write a source file. Check source identities afterward as well as package outputs. If a source changes, retain the actual changed bytes and failed preservation check; a historical hash alone cannot recover the earlier file. Revalidate the resulting native models and references before granting a new acceptance.
+
 Use the requested packaging workflow. For SOLIDWORKS Pack & Go, inspect the actual document list and options, including drawings when required. Keep drafts and unrelated models out of the delivery folder. Validate each package save status and the resulting archive members. Record prepackage and packaged identities separately: rewriting file references can legitimately change assembly/drawing bytes.
 
 Extract into a new private folder. Confirm ZIP integrity and a complete native dependency set. Close only job-owned candidate documents first, then open the extracted assembly and drawings without another same-named model already loaded. Inspect resolved component and drawing paths: a successful open can otherwise borrow an already open original and conceal a missing packaged file.
