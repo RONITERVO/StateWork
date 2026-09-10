@@ -24,6 +24,8 @@ Locate a face using its actual trimmed boundaries and component transform. The o
 
 Check body count and native body validity as well as the feature tree's errors/suppressions. Fillet/chamfer success may depend on feature order; use a justified sequence, preserve failed attempts and inspect the resulting surfaces. A saved file with no feature error can still contain the wrong geometry.
 
+For lofts, inspect profile order and connector correspondence. `ILoftFeatureData.PickPoints` contains connector chains, each containing native `MathPoint` objects; read their `ArrayData` instead of treating the outer array as one numeric point per profile. Preserve already-correct connectors. At a tangent join, check the direction and body validity: an apparently smooth, error-free feature can double back into its neighbor. Diagnose returned fault codes and affected faces before changing the tangent direction; do not assume a universal reverse setting.
+
 ## Assemblies
 
 Determine component counts, configuration choices, placement, intended motion and mate requirements. Reuse exact verified inputs through working copies or a portable dependency set. Do not edit a previously reviewed dependency in place. Verify transforms and seating against the specification; convenient lock mates are appropriate only when the required result permits a static arrangement.

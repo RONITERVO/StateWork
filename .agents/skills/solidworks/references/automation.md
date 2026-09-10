@@ -14,6 +14,8 @@ Use the installation's `SolidWorks.Interop.sldworks.dll` and `SolidWorks.Interop
 
 Consult installed API help for the exact method, overload, enum and release. Many SOLIDWORKS APIs expose system values in meters and radians even when the document displays millimeters/degrees. Establish conversions at the boundary and verify a known dimension in the saved model. Do not infer a return type, success code, selection mark or relation name from a similar method.
 
+Read operational notes as well as the generated signature. Some typed setters exist but are explicitly unimplemented: for example, the loft's `StartConstraintApplyToAll` and `EndConstraintApplyToAll` are documented as get-only. A successful compilation does not establish that a setter works. Trace consequential setters separately so a failure can be attributed before changing the model again.
+
 ## Bounded jobs
 
 For a session probe, write a private JSON file containing the absolute installed skill directory:
