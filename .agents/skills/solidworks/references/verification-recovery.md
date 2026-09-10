@@ -1,0 +1,31 @@
+# Verify without repeating a stalled calculation
+
+## Saved-state evidence
+
+Record document units, required sketch/feature state, body/component counts, source-critical dimensions, external references and open/save/rebuild flags. Decode warnings with the installed version's enums; they are bitmasks, and load warnings differ from save warnings. A read-only-open warning and a regeneration warning can appear together.
+
+Save, close and reopen the candidate in SOLIDWORKS. Keep the original return flags. A successful rebuild or a clean feature tree does not prove the next reopen will be warning-free. `Extension.NeedsRebuild2`, configuration `NeedsRebuild`/`IsDirty` and `GetSaveFlag` describe different state; report disagreements rather than picking the most favorable signal. Verify all configurations that the task actually requires. Consult the installed documentation before using all-configuration rebuild/save operations.
+
+Use an independent source-derived check for critical geometry. Sketch constraints, actual native fits, sectioned solids, measured placements and reopened references supply different evidence. A hash establishes file identity, not geometric correctness. An inspection that triggers in-memory recalculation can set a save flag; do not save a frozen review candidate or describe that recalculation as a repair of the saved bytes.
+
+Require every file-identity read to succeed and return an actual digest before comparing identities. Two failed reads producing null do not establish preservation. If an open native file prevents a hash read, use an appropriate read-sharing mode or close only the owned document after handling unsaved work; preserve the failed attempt and record the successful replacement evidence separately.
+
+## Explicit interference calculation
+
+Keep interference detection out of generic open-document or metadata probes. Use the current installed `InterferenceDetectionManager` interface when suitable, with options chosen deliberately and recorded. Do not assume an older API is obsolete merely because it failed in one installation; verify its documented status and preserve the actual failure.
+
+Both `GetInterferences()` and `GetInterferenceCount()` are documented calculation operations. Do not call the second as a progress poll or automatically call both for the same geometry. Use one successful count-only calculation when the count is sufficient, or retrieve the interference objects once and inspect their result. Preserve a null or unexpected return shape explicitly; do not coerce it to an empty array and claim zero. Consult the installed contract for the empty-result representation before interpreting it. Obtain additional detail only when it is needed.
+
+Log the exact call/options and start time before it runs; log its actual return, result count, duration and app process identity afterward. Use the documented `Done()` cleanup in a `finally` path after a returned calculation when the manager remains usable. `Done()` is not a documented guarantee that another blocked thread can be interrupted safely. Restore changed options/preferences and release the manager.
+
+Run the check once for the candidate's meaningful geometry state and once where independent acceptance requires it. A new source geometry, configuration, component transform or unresolved interference question can justify another calculation. Reopening a drawing, calculating a hash or copying unchanged files does not by itself justify repeating it. Validate a reusable detector on known separated and overlapping fictional solids before relying on a universal zero-result claim.
+
+## Nonreturning call or crash
+
+A blank progress bar, dialog disappearance, chime or closed helper does not identify the result. Stop issuing additional native calls while the operation's outcome is unknown. Inspect the current app/window and the job log. Let a responsive, justified long calculation continue within a bounded deadline; do not restart it as a polling strategy.
+
+If cancellation is available in the observed dialog and appropriate for the job, use that control through computer use, then inspect the outcome. Terminating only the identified helper process may recover the controller but does not prove that SOLIDWORKS stopped. Do not kill the CAD application, discard unrelated unsaved work or silently relaunch it. If a crash is suspected, inspect a narrowly scoped local application event record and current process identity; preserve the event time, fault module and exception, without claiming a causal stack trace you do not have.
+
+After a crash, treat the in-flight operation as failed/unknown. Preserve surviving files and autosave candidates. Reestablish actual application/license/document state before recovery. Inspect and reopen the last saved checkpoint; compare hashes and source geometry as needed before continuing. A later successful check can verify the later candidate, but does not turn the earlier crash into a successful attempt.
+
+Ask the user for the smallest necessary action when recovery would require handling their unrelated unsaved documents, unavailable access or an uncertain destructive choice. Continue independent source work while waiting. Never hide a remaining warning, repeat a known crashing path without a justified change, or mark cancelled verification as passed.
