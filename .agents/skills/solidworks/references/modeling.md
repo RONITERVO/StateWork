@@ -10,6 +10,8 @@ Use native dimensions and meaningful coincidence, tangent, parallel, perpendicul
 
 Check native contour connectivity and closure after trims, splits, merges or sketch patterns. Matching endpoint coordinates and a fully defined status do not establish that the intended profile is connected. Reacquire sketch entities after topology changes, then verify the intended shared vertices, relations and open endpoints before using the profile in a feature.
 
+Re-read source-driving values and their witnesses after solver-driven edits such as sketch fillets. A fully defined result can retain the correct witnesses while a dimension value has changed. Determine which changed before deleting a dimension or replacing its references. For doubled dimensions, verify the actual system value and native diameter semantics after saving and reopening; a display getter need not echo the creation method's dimension-type argument.
+
 Verify native tolerance and fit properties, including hole/shaft fits, rather than adding their names as unrelated notes. Keep driven/reference measurements derived from geometry where required. Do not overconstrain a system by forcing a rounded reference value; compare its calculated value and displayed precision separately.
 
 ## Features and edits
@@ -17,6 +19,8 @@ Verify native tolerance and fit properties, including hole/shaft fits, rather th
 Create the required native features and preserve source-required construction order. When modifying a supplied model, inspect existing features, references and configurations before choosing what to edit. If an exercise requires editing the original extrusion or changing a sketch plane, adding a visually equivalent replacement feature can violate the method requirement.
 
 Validate selections, start/end conditions, direction and actual material removed after each consequential feature. A through-all cut may pierce an opposite wall that the source section leaves intact. Blind depth, D-shaped openings, tangent blends and chamfers must be checked in useful sections or measured geometry. Feature or face names can change after edits; reacquire references rather than relying on stale object handles or assumed face indices.
+
+Locate a face using its actual trimmed boundaries and component transform. The origin of an underlying cylindrical surface can lie outside the bounded face; it does not establish a hole's height, flange location or assembly orientation.
 
 Check body count and native body validity as well as the feature tree's errors/suppressions. Fillet/chamfer success may depend on feature order; use a justified sequence, preserve failed attempts and inspect the resulting surfaces. A saved file with no feature error can still contain the wrong geometry.
 

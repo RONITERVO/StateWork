@@ -4,6 +4,8 @@
 
 Record document units, required sketch/feature state, body/component counts, source-critical dimensions, external references and open/save/rebuild flags. Decode warnings with the installed version's enums; they are bitmasks, and load warnings differ from save warnings. A read-only-open warning and a regeneration warning can appear together.
 
+Interpret auxiliary outputs only when their API contract makes them meaningful. For `IFeature.GetErrorCode2`, inspect `IsWarning` only when the returned feature code is nonzero; that Boolean alone cannot turn a zero feature code into a failure. Preserve raw observations while keeping interpreted results separate.
+
 Save, close and reopen the candidate in SOLIDWORKS. Keep the original return flags. A successful rebuild or a clean feature tree does not prove the next reopen will be warning-free. `Extension.NeedsRebuild2`, configuration `NeedsRebuild`/`IsDirty` and `GetSaveFlag` describe different state; report disagreements rather than picking the most favorable signal. Verify all configurations that the task actually requires. Consult the installed documentation before using all-configuration rebuild/save operations.
 
 Use an independent source-derived check for critical geometry. Sketch constraints, actual native fits, sectioned solids, measured placements and reopened references supply different evidence. A hash establishes file identity, not geometric correctness. An inspection that triggers in-memory recalculation can set a save flag; do not save a frozen review candidate or describe that recalculation as a repair of the saved bytes.
