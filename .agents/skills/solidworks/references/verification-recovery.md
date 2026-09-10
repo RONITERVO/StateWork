@@ -8,6 +8,8 @@ Save, close and reopen the candidate in SOLIDWORKS. Keep the original return fla
 
 Use an independent source-derived check for critical geometry. Sketch constraints, actual native fits, sectioned solids, measured placements and reopened references supply different evidence. A hash establishes file identity, not geometric correctness. An inspection that triggers in-memory recalculation can set a save flag; do not save a frozen review candidate or describe that recalculation as a repair of the saved bytes.
 
+Require every file-identity read to succeed and return an actual digest before comparing identities. Two failed reads producing null do not establish preservation. If an open native file prevents a hash read, use an appropriate read-sharing mode or close only the owned document after handling unsaved work; preserve the failed attempt and record the successful replacement evidence separately.
+
 ## Explicit interference calculation
 
 Keep interference detection out of generic open-document or metadata probes. Use the current installed `InterferenceDetectionManager` interface when suitable, with options chosen deliberately and recorded. Do not assume an older API is obsolete merely because it failed in one installation; verify its documented status and preserve the actual failure.

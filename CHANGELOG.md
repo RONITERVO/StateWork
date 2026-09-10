@@ -6,6 +6,7 @@
 - Add a read-only installed-session helper with explicit runtime, process and interop checks, plus a bounded job launcher that preserves exact attempts and reports uncertain timeouts without killing SOLIDWORKS.
 - Add offline connection and process-control regressions; keep interference calculations explicit and preserve native warning/error evidence.
 - Include a fictional part, drawing and assembly specification with known separated/overlapping configurations for independent evaluation.
+- Record its native SOLIDWORKS 2025 trial and incorporate checks for configuration-specific mate state and successful file-identity reads.
 - Refresh calendar action availability when a pending workspace load finishes, so an already-open calendar does not leave ready work disabled.
 
 ## Unreleased — Work execution skill
