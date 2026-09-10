@@ -22,6 +22,8 @@ Both `GetInterferences()` and `GetInterferenceCount()` are documented calculatio
 
 Log the exact call/options and start time before it runs; log its actual return, result count, duration and app process identity afterward. Use the documented `Done()` cleanup in a `finally` path after a returned calculation when the manager remains usable. `Done()` is not a documented guarantee that another blocked thread can be interrupted safely. Restore changed options/preferences and release the manager.
 
+If a returned calculation leaves the document marked modified, retain its result and inspect the separate save, configuration-dirty and rebuild flags. Record any failed post-check as a failure even when the calculation itself returned a valid count. When the inspection was the only in-memory change to an owned frozen review candidate, close without saving and verify the unchanged bytes and clean reopened model. Do not repeat the calculation solely to obtain a clean save flag.
+
 Run the check once for the candidate's meaningful geometry state and once where independent acceptance requires it. A new source geometry, configuration, component transform or unresolved interference question can justify another calculation. Reopening a drawing, calculating a hash or copying unchanged files does not by itself justify repeating it. Validate a reusable detector on known separated and overlapping fictional solids before relying on a universal zero-result claim.
 
 ## Nonreturning call or crash
