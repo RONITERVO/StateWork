@@ -16,6 +16,10 @@ Replace template placeholders with factual values or leave unspecified fields bl
 
 Where an assembly list is required, verify actual components and quantities, item numbers, balloons and configurations against the assembly. Do not count a stale table as evidence that referenced parts are present.
 
+Recheck sheet scale after inserting views: automatic scaling can change the sheet despite a view being linked to it. Restore the required sheet scale and verify the view, sheet and printed scale together. A display-mode setter can return false when the requested mode already applies; inspect the actual mode and precision setting before repeating it.
+
+Read native BOM objects and membership deliberately. A saved table reference can resolve directly to `IBomTableAnnotation` instead of `IAnnotation`, and tables can belong to the sheet view. Inspect the returned interface and existing tables before inserting a replacement. Component getters can include suppressed occurrences even when the displayed quantity excludes them. Preserve the raw inventory, compare active occurrence identities with the intended configuration, and verify the displayed quantity separately. Keep distinct configurations separate when the specification requires them.
+
 ## Save and package
 
 Save the required editable parts, assemblies and drawings plus requested exports. Keep full original quality. Inspect returned save status and warning flags. Do not save over source examples or previously reviewed artifacts merely to simplify filenames.
