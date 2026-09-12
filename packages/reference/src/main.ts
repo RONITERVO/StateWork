@@ -430,6 +430,7 @@ async function mutate(commands: Command[], revision = state.workspace.revision) 
   if (busy) throw new WorkError('CONFLICT', 'A save is still in progress. Please wait.');
   busy = true;
   $('#error').hidden = true;
+  announce('Saving on this computer…');
   const active = document.activeElement as HTMLInputElement | null;
   const formId = active?.closest('form')?.id;
   const name = active?.name;
