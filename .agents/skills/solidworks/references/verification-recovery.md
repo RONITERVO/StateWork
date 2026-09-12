@@ -16,6 +16,8 @@ Where body or annotation-attachment order is unspecified, match entities through
 
 Require every file-identity read to succeed and return an actual digest before comparing identities. Two failed reads producing null do not establish preservation. If an open native file prevents a hash read, use an appropriate read-sharing mode or close only the owned document after handling unsaved work; preserve the failed attempt and record the successful replacement evidence separately.
 
+When an assembly saves without errors but remains dirty or reopens needing regeneration, inspect the save and configuration flags of its referenced documents too. A full hierarchy rebuild can dirty dependent parts; saving only the top-level assembly may leave those changes unsaved. If diagnosis supports saving dependencies together, preserve recoverable copies, verify that every resolved reference belongs to the owned working set, and use the documented `swSaveAsOptions_SaveReferenced` option. Then verify the saved hierarchy by closing and reopening it; configuration rebuild/save marks alone do not establish that the warning is resolved.
+
 ## Explicit interference calculation
 
 Keep interference detection out of generic open-document or metadata probes. Use the current installed `InterferenceDetectionManager` interface when suitable, with options chosen deliberately and recorded. Do not assume an older API is obsolete merely because it failed in one installation; verify its documented status and preserve the actual failure.
