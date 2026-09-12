@@ -379,8 +379,42 @@ test('fresh worker uses map, exact files, parallel actions, a branch and a deliv
   await page.locator('.map-node[data-action="step:4"]').click();
   await expect(page.locator('.compact-blocker')).toContainText('Portal account');
   await page.getByRole('button', { name: 'Check requirement', exact: true }).click();
+  let releaseConfirmation!: () => void;
+  let confirmationSaved!: () => void;
+  const confirmationResponse = new Promise<void>((resolve) => {
+    releaseConfirmation = resolve;
+  });
+  const savedConfirmation = new Promise<void>((resolve) => {
+    confirmationSaved = resolve;
+  });
+  // Keep the save response pending while the user chooses another packet section.
+  await page.route(`**/v1/workspaces/${id}/commands`, async (route) => {
+    const commands = route.request().postDataJSON().commands as { type: string }[];
+    if (!commands.some((command) => command.type === 'packet.confirm')) {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    confirmationSaved();
+    await confirmationResponse;
+    await route.fulfill({ response });
+  });
   await page.getByRole('button', { name: '✓ I checked: ready', exact: true }).click();
-  await page.getByRole('button', { name: '▧ Files', exact: true }).click();
+  await savedConfirmation;
+  try {
+    await page.getByRole('button', { name: '▧ Files', exact: true }).click();
+    await expect(page.getByRole('meter', { name: 'Workspace file storage' })).toBeVisible();
+    await expect(page.locator('.packet-status')).toContainText('Needs attention');
+  } finally {
+    releaseConfirmation();
+  }
+  // This status requires the confirmed prerequisite's refreshed handoff to render.
+  await expect(page.locator('.packet-status')).toContainText('Ready to follow');
+  await expect(page.getByRole('button', { name: '▧ Files', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(page.getByRole('meter', { name: 'Workspace file storage' })).toBeVisible();
   await page.getByText('Attach a file', { exact: true }).click();
   await page.locator('#asset-file').setInputFiles({

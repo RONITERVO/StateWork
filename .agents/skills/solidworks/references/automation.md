@@ -14,6 +14,14 @@ Use the installation's `SolidWorks.Interop.sldworks.dll` and `SolidWorks.Interop
 
 Consult installed API help for the exact method, overload, enum and release. Many SOLIDWORKS APIs expose system values in meters and radians even when the document displays millimeters/degrees. Establish conversions at the boundary and verify a known dimension in the saved model. Do not infer a return type, success code, selection mark or relation name from a similar method.
 
+Normalize native file and template arguments to absolute Windows paths before invoking the API. If a valid template yields a null `NewDocument` result, inspect path syntax as well as template identity and application state before recreating the template.
+
+Read operational notes as well as the generated signature. Some typed setters exist but are explicitly unimplemented: for example, the loft's `StartConstraintApplyToAll` and `EndConstraintApplyToAll` are documented as get-only. A successful compilation does not establish that a setter works. Trace consequential setters separately so a failure can be attributed before changing the model again.
+
+When a .NET API requires an array of `IDispatch` objects, follow its [marshaling contract](https://help.solidworks.com/2012/english/api/sldworksapiprogguide/Overview/IDispatch_Object_Arrays_as_Input_in_.NET.htm) and runtime support; use `DispatchWrapper[]` where documented. Do not apply this conversion to numeric or string arrays. Read back the retained entity count and identities before the next operation; a plain `object[]` setter can return without retaining the intended native objects.
+
+Inspect numeric return arrays before casting: `GetUnits` can return `Int16[]`, so a direct `int[]` cast can fail after successful modeling. Preserve the actual type and values, then enumerate the `Array` and convert documented numeric elements deliberately. Null remains unavailable. If only the reader failed, preserve the completed geometry and correct that reader before repeating construction.
+
 ## Bounded jobs
 
 For a session probe, write a private JSON file containing the absolute installed skill directory:

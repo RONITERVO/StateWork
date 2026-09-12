@@ -24,8 +24,21 @@ test('local work creation, detail editing, dependencies, views, persistence and 
     .getByRole('combobox', { name: 'Status', exact: true })
     .selectOption('active');
   await page.locator('#details').getByLabel('Notes').fill('Keep one clear next step.');
-  await page.getByRole('button', { name: 'Save changes' }).click();
+  // Hold this save to distinguish it from the preceding "Saved" announcement.
+  let releaseSave!: () => void;
+  const saveGate = new Promise<void>((resolve) => (releaseSave = resolve));
+  await page.route('**/v1/workspaces/*/commands', async (route) => {
+    await saveGate;
+    await route.continue();
+  });
+  try {
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByRole('status')).toContainText('Saving');
+  } finally {
+    releaseSave();
+  }
   await expect(page.getByRole('status')).toContainText('Saved');
+  await page.unroute('**/v1/workspaces/*/commands');
   await page.getByRole('button', { name: 'Close details' }).click();
   for (const view of ['Board', 'Timeline', 'Map', 'Focus', 'Text', 'List']) {
     await page.getByRole('button', { name: view, exact: true }).click();
