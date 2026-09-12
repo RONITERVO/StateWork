@@ -14,6 +14,8 @@ Re-read source-driving values and their witnesses after solver-driven edits such
 
 Verify native tolerance and fit properties, including hole/shaft fits, rather than adding their names as unrelated notes. Keep driven/reference measurements derived from geometry where required. Do not overconstrain a system by forcing a rounded reference value; compare its calculated value and displayed precision separately.
 
+If sketch creation fails or shifts geometry through snapping or inference, inspect the active sketch before retrying. `ISketchManager.AddToDB` can create exact entities without UI inference; restore its original value afterward, then add the intended relations and verify coordinates and constraint status. Resume an observed empty sketch or correct the actual partial instead of blindly creating another feature.
+
 ## Features and edits
 
 Create the required native features and preserve source-required construction order. When modifying a supplied model, inspect existing features, references and configurations before choosing what to edit. If an exercise requires editing the original extrusion or changing a sketch plane, adding a visually equivalent replacement feature can violate the method requirement.
@@ -28,6 +30,8 @@ For lofts, inspect profile order and connector correspondence. `ILoftFeatureData
 
 For material assignment, distinguish the database path supplied to `SetMaterialPropertyName2` from the database name returned by `GetMaterialPropertyName2`; the latter may omit `.sldmat`. Resolve the name to a unique intended installed database and retain its path/hash. Verify the actual material, density, mass and override state separately from visual appearance. A returned naming difference alone does not justify reconstructing correct geometry.
 
+When a small cut fails a volume comparison, establish the calculation accuracy before changing correct geometry or widening the tolerance. Compare both source and result using `IMassProperty2` at the appropriate accuracy with explicit units and recalculation results. Coarse body mass properties can obscure small removed volumes. Preserve the failed comparison and distinguish calculation error from a geometric discrepancy.
+
 ## Assemblies
 
 Determine component counts, configuration choices, placement, intended motion and mate requirements. Reuse exact verified inputs through working copies or a portable dependency set. Do not edit a previously reviewed dependency in place. Verify transforms and seating against the specification; convenient lock mates are appropriate only when the required result permits a static arrangement.
@@ -37,6 +41,8 @@ An assembly can already hold an insertion source in memory without a separate vi
 Reacquire the exact selection immediately before operations such as `FixComponent`; assigning a component transform can invalidate an earlier selection. Read back its fixed state and transform. Choose mates for the actual entity types: native reference-axis pairs can use a coincident mate to align their lines while retaining rotation; do not assume every coaxial relationship accepts a concentric mate.
 
 For planar seating, distinguish the physical face normal from the underlying surface normal. Verify which material sides meet after solving, and recheck earlier mates whose alignment the solver may have changed.
+
+For component patterns, verify the created feature's direction, instance positions, spacing and configuration policy. A setter or missing getter on an uncommitted definition does not establish the saved result. Follow the documented selection marks during creation; if a setting such as `ForceUseSeedConfiguration` was not retained, modify the existing feature and verify it again. Use selection access when the operation requires it, release it appropriately, and observe any rollback or dirty-state effect rather than assuming every inspection is passive.
 
 Verify independent movement by comparing the target and all other affected component transforms after the solve. Moving a nested component can move its parent and siblings. If a relative drag reaches the wrong pose, inspect the coordinate frame and the installed `IDragOperator` contract; an absolute root-coordinate target with deliberate transform and drag modes can resolve that ambiguity. Read back the final pose even when the drag reports success or correction. Test the required motion, restore the starting arrangement and distinguish sampled positions from a continuous swept-path check.
 
