@@ -303,6 +303,13 @@ export function packetIssues(
   const replaced = new Set((state.instructions?.sources ?? []).map((s) => s.replaces));
   for (const id of packet.sourceIds) {
     const source = sourceMap.get(id);
+    const verification = state.knowledge?.verifications.filter((v) => v.sourceId === id).at(-1);
+    if (verification && verification.result !== 'unchanged')
+      add(
+        'source',
+        `Recheck ${source?.title ?? id}: the latest source verification reports ${verification.result}.`,
+        id,
+      );
     if (!source || source.coverage === 'unreadable' || !source.content.trim())
       add('source', 'Source contents are unavailable.', id);
     if (

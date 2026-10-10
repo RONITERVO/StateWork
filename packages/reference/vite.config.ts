@@ -8,6 +8,7 @@ export default defineConfig({
         work: fileURLToPath(new URL('index.html', import.meta.url)),
         spatial: fileURLToPath(new URL('spatial/index.html', import.meta.url)),
         instructions: fileURLToPath(new URL('instructions/index.html', import.meta.url)),
+        brief: fileURLToPath(new URL('brief/index.html', import.meta.url)),
       },
     },
   },

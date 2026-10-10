@@ -181,7 +181,7 @@ officeTools
   .querySelector('.actions')!
   .insertAdjacentHTML(
     'afterbegin',
-    '<button data-action="packet:open">Work packet / Print</button><button data-action="packet:read">Read in room</button><button data-action="cal:open-view" class="primary">Calendar</button><button data-action="board:open-view">Detective board</button>',
+    '<button data-action="brief:open">Work overview</button><button data-action="packet:open">Work packet / Print</button><button data-action="packet:read">Read in room</button><button data-action="cal:open-view" class="primary">Calendar</button><button data-action="board:open-view">Detective board</button>',
   );
 officeTools
   .querySelector('[aria-label="Look around office"]')!
@@ -744,6 +744,14 @@ async function act(action: string) {
     const task = selectedItem() ?? calendar.next;
     location.assign(
       `/instructions/?workspace=${encodeURIComponent(workspaceId)}${task ? `&task=${encodeURIComponent(task.id)}${state && latestPacket(state, task.id)?.steps[packetStep] ? `&step=${encodeURIComponent(latestPacket(state, task.id)!.steps[packetStep]!.id)}` : ''}` : ''}`,
+    );
+    return;
+  }
+  if (action === 'brief:open') {
+    if (immersive) await scene?.exit();
+    const task = selectedItem() ?? calendar.next;
+    location.assign(
+      `/brief/?workspace=${encodeURIComponent(workspaceId)}${task ? `&task=${encodeURIComponent(task.id)}` : ''}`,
     );
     return;
   }

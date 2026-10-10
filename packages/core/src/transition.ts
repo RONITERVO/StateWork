@@ -1,4 +1,5 @@
 import { WorkError, isFinished } from './model.js';
+import { applyKnowledgeCommand } from './knowledge.js';
 import {
   applyInstructionCommand,
   latestPacket,
@@ -65,6 +66,12 @@ export function transition(
   };
   for (const command of request.commands) {
     switch (command.type) {
+      case 'fact.record':
+      case 'source.verify':
+      case 'source.relink':
+      case 'calendar.record':
+        applyKnowledgeCommand(next, command, actor, at);
+        break;
       case 'source.capture':
       case 'asset.register':
       case 'asset.archive':

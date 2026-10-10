@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "statework.calendar-comparison"
+    },
+    "formatVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "bindingId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "provider": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "calendarId": {
+      "type": "string"
+    },
+    "eventId": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "stopped",
+        "remote-missing",
+        "conflict",
+        "stop-series",
+        "cancel-event",
+        "in-sync",
+        "update-remote",
+        "review-remote"
+      ]
+    },
+    "shouldStop": {
+      "type": "boolean"
+    },
+    "localChanged": {
+      "type": "boolean"
+    },
+    "remoteChanged": {
+      "type": "boolean"
+    },
+    "expectedRemoteVersion": {
+      "type": "string"
+    },
+    "observedAt": {
+      "type": "string"
+    },
+    "externalActionsAuthorized": {
+      "type": "boolean",
+      "const": false
+    },
+    "guidance": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "format",
+    "formatVersion",
+    "workspaceId",
+    "revision",
+    "bindingId",
+    "provider",
+    "calendarId",
+    "eventId",
+    "action",
+    "shouldStop",
+    "localChanged",
+    "remoteChanged",
+    "expectedRemoteVersion",
+    "observedAt",
+    "externalActionsAuthorized",
+    "guidance"
+  ],
+  "additionalProperties": false
+}

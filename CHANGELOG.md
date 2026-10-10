@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Compact work context
+
+- Add a visual Work overview and shared paginated discovery/brief, exact-step, source-range and evidenced-record reads through SDK, HTTP, CLI and MCP. Existing full handoffs remain compatible.
+- Record independently evidenced choices, attendance, submission, acceptance and decisions with immutable corrections and host attribution. Preserve original captures while repairing task associations.
+- Distinguish historical captures, current verification, expired checks and superseded sources. Known changed/unavailable sources block affected packet execution.
+- Add provider-neutral calendar bindings and pure three-way comparisons with concurrency tokens, conflicts, missing-event detection and evidenced stop conditions. No automatic provider writes or new cloud dependency.
+
 ## Unreleased — SOLIDWORKS skill
 
 - Add a reusable native SOLIDWORKS workflow for source inspection, editable modeling, associated drawings, portable packages and saved-file verification.

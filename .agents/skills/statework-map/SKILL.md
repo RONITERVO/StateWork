@@ -19,6 +19,8 @@ Mapping permits local draft/map writes and authorized research, not submitting w
 
 ## Connect and record
 
+For an existing map, use `work_brief` when available to locate the actual task/course and inspect its next action, gaps and evidence dates without loading the whole workspace. Load exact sources and originals as needed. Scope captures to their actual work with `source.relink`; retain shared references and history. Record evidence-backed choices, attendance, submission and acceptance separately with `fact.record`, correcting the latest matching fact explicitly. Use `source.verify` only after a real source check, with a justified validity period; a recent capture is not proof of currency. Fall back to existing handoffs and source commands on older installs.
+
 Read [connection.md](references/connection.md) for a fresh install or an unconfigured StateWork connection. Verify the workspace identity and use an absolute data path. A new map goes into a new workspace; never overwrite an existing map to simulate a fresh start. Keep private captures, credentials, research logs and bundles outside published source files.
 
 Start a private research ledger before collecting evidence. Read [research.md](references/research.md) for its small format and the discovery/completeness rules. Record searches, pagination, source openings, original downloads, decisions, failures and map changes as they happen. Save tool results or capture identities where possible. A final narrative written from memory is not a process trace.

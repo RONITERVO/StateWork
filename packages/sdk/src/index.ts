@@ -6,3 +6,4 @@ export * from './perception.js';
 export * from './client.js';
 export * from './instruction-schemas.js';
 export * from './files.js';
+export * from './knowledge-schemas.js';

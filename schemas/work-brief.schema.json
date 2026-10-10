@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "statework.brief"
+    },
+    "formatVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "workspace": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "generatedAt": {
+      "type": "string"
+    },
+    "task": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "kind": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "url": {
+              "type": "string"
+            },
+            "packetId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "kind",
+            "status",
+            "version",
+            "url",
+            "packetId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "section": {
+      "type": "string",
+      "enum": [
+        "overview",
+        "steps",
+        "sources",
+        "facts",
+        "questions",
+        "calendar"
+      ]
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "nextOffset": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "entries": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "kind": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "url": {
+            "type": "string"
+          },
+          "at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceIds": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "state",
+          "detail",
+          "url",
+          "at",
+          "sourceIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "next": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "taskId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+            },
+            "stepId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "label": {
+              "type": "string",
+              "maxLength": 240
+            },
+            "url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "taskId",
+            "stepId",
+            "label",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "counts": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ready": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "blockers": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "questions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "facts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sources": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "historical": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "needsCheck": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "steps",
+        "ready",
+        "blockers",
+        "questions",
+        "facts",
+        "sources",
+        "historical",
+        "needsCheck"
+      ],
+      "additionalProperties": false
+    },
+    "notice": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "format",
+    "formatVersion",
+    "workspace",
+    "generatedAt",
+    "task",
+    "section",
+    "total",
+    "offset",
+    "nextOffset",
+    "entries",
+    "next",
+    "counts",
+    "notice"
+  ],
+  "additionalProperties": false
+}

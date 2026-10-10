@@ -78,6 +78,39 @@ export class WorkClient {
   plan(id: string, options: PlanOptions) {
     return this.call<WorkPlan>(`/workspaces/${encodeURIComponent(id)}/plan`, options);
   }
+  brief(id: string, options: import('@statework/core').BriefOptions = {}) {
+    return this.call<import('@statework/core').WorkBrief>(
+      `/workspaces/${encodeURIComponent(id)}/brief`,
+      options,
+    );
+  }
+  step(id: string, taskId: string, stepId: string, options: { expectedRevision?: number } = {}) {
+    return this.call<ReturnType<import('./service.js').WorkConnection['step']>>(
+      `/workspaces/${encodeURIComponent(id)}/instructions/${encodeURIComponent(taskId)}/steps/${encodeURIComponent(stepId)}`,
+      options,
+    );
+  }
+  sourceRead(
+    id: string,
+    sourceId: string,
+    options: { offset?: number; limit?: number; expectedRevision?: number } = {},
+  ) {
+    return this.call<ReturnType<import('./service.js').WorkConnection['sourceRead']>>(
+      `/workspaces/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}/read`,
+      options,
+    );
+  }
+  record(id: string, kind: 'facts' | 'verifications' | 'calendars', recordId: string) {
+    return this.call<ReturnType<import('./service.js').WorkConnection['record']>>(
+      `/workspaces/${encodeURIComponent(id)}/records/${kind}/${encodeURIComponent(recordId)}`,
+    );
+  }
+  calendarCompare(id: string, input: import('@statework/core').CalendarComparison) {
+    return this.call<ReturnType<import('./service.js').WorkConnection['calendarCompare']>>(
+      `/workspaces/${encodeURIComponent(id)}/calendar/compare`,
+      input,
+    );
+  }
   instructions(id: string, taskId: string) {
     return this.call<{
       context: PacketContext;

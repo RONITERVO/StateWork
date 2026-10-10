@@ -4,9 +4,14 @@ The tools call the same service directly against local SQLite. They work with or
 
 ## CLI
 
+For discovery and routine continuation, start with `brief` / MCP `work_brief`; load exact `step` and `source-read` results as needed. The [compact retrieval guide](BRIEFING.md) covers pagination, revision checks, progress facts, source freshness and provider-neutral calendar comparisons. Full snapshots and handoffs remain available when the work requires them.
+
 ```sh
 npm run cli -- help
 npm run cli -- list
+npm run cli -- brief personal
+npm run cli -- step personal task-id step-id
+npm run cli -- source-read personal capture-id
 npm run cli -- create personal "My work"
 npm run cli -- command personal examples/create-task.json
 npm run cli -- observe personal

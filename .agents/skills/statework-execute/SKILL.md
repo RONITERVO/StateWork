@@ -9,6 +9,8 @@ Deliver the actual result a task requires, with enough evidence for a person or 
 
 ## Find the right work
 
+When available, start with `work_brief` to discover the intended workspace task by title or source URL and load its compact overview. Fetch one exact `work_step` and its `work_source_read` ranges/original files before acting; continue pagination for relevant requirements. Pass `expectedRevision` from the brief to avoid mixing changed records. Use the full `work_handoff` when broader execution context is needed or the compact tools are unavailable. Summary snippets and historical evidence do not establish current progress.
+
 Read [connection.md](references/connection.md) to connect without relying on another chat. Verify the intended workspace and current actor. Use the user's selected task when given. Otherwise inspect today's plan, deadlines, active work and dependencies within the authorized scope. Prefer a genuinely urgent or already-started task before the next course/project item. A planner's order is a suggestion; explain a material departure in one sentence. Do not manufacture dates, remaining time or prerequisite completion to make a choice fit.
 
 Follow the applicable course/project sequence when there is no stronger priority. Distinguish mandatory/chosen work from optional practice. If the user asks for several tasks, select a bounded set and keep their results separate. Do not quietly skip a blocked task and report a different set as completed.
