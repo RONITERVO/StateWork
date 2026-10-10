@@ -32,6 +32,15 @@ import {
   workSourceSchema,
   fileBundleSchema,
   storageInfoSchema,
+  briefOptionsSchema,
+  workBriefSchema,
+  readOptionsSchema,
+  workStepSchema,
+  sourceReadSchema,
+  sourceReadResultSchema,
+  calendarComparisonSchema,
+  calendarComparisonResultSchema,
+  knowledgeRecordSchema,
 } from '@statework/sdk';
 import type { WorkService } from '@statework/sdk';
 import { existsSync } from 'node:fs';
@@ -228,6 +237,11 @@ export function openapi() {
     WorkerHandoff: workerHandoffSchema,
     WorkAsset: workAssetSchema,
     FileBundle: fileBundleSchema,
+    WorkBrief: workBriefSchema,
+    WorkStep: workStepSchema,
+    SourceRead: sourceReadResultSchema,
+    CalendarComparison: calendarComparisonResultSchema,
+    KnowledgeRecord: knowledgeRecordSchema,
   };
   const schemas = Object.fromEntries(
     Object.entries(definitions).map(([name, definition]) => {
@@ -267,6 +281,64 @@ export function openapi() {
       schemas,
     },
     paths: {
+      '/workspaces/{id}/brief': {
+        parameters: [pathParam],
+        post: {
+          operationId: 'workBrief',
+          requestBody: body(jsonSchema(briefOptionsSchema)),
+          responses: response({ $ref: '#/components/schemas/WorkBrief' }),
+        },
+      },
+      '/workspaces/{id}/instructions/{taskId}/steps/{stepId}': {
+        parameters: [
+          pathParam,
+          ...['taskId', 'stepId'].map((name) => ({
+            name,
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+          })),
+        ],
+        post: {
+          operationId: 'workStep',
+          requestBody: body(jsonSchema(readOptionsSchema)),
+          responses: response({ $ref: '#/components/schemas/WorkStep' }),
+        },
+      },
+      '/workspaces/{id}/sources/{sourceId}/read': {
+        parameters: [
+          pathParam,
+          { name: 'sourceId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        post: {
+          operationId: 'sourceRead',
+          requestBody: body(jsonSchema(sourceReadSchema)),
+          responses: response({ $ref: '#/components/schemas/SourceRead' }),
+        },
+      },
+      '/workspaces/{id}/records/{kind}/{recordId}': {
+        parameters: [
+          pathParam,
+          ...['kind', 'recordId'].map((name) => ({
+            name,
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+          })),
+        ],
+        get: {
+          operationId: 'knowledgeRecord',
+          responses: response({ $ref: '#/components/schemas/KnowledgeRecord' }),
+        },
+      },
+      '/workspaces/{id}/calendar/compare': {
+        parameters: [pathParam],
+        post: {
+          operationId: 'calendarCompare',
+          requestBody: body(jsonSchema(calendarComparisonSchema)),
+          responses: response({ $ref: '#/components/schemas/CalendarComparison' }),
+        },
+      },
       '/workspaces/{id}/instructions/{taskId}/handoff': {
         parameters: [
           pathParam,

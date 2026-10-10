@@ -31,6 +31,32 @@ export async function instructionRoutes(
       error?: string;
     }
   >();
+  api.post<{ Params: { id: string } }>('/workspaces/:id/brief', async (r) =>
+    connection(r.headers.authorization).brief(r.params.id, r.body ?? {}),
+  );
+  api.post<{ Params: { id: string; taskId: string; stepId: string } }>(
+    '/workspaces/:id/instructions/:taskId/steps/:stepId',
+    async (r) =>
+      connection(r.headers.authorization).step(
+        r.params.id,
+        r.params.taskId,
+        r.params.stepId,
+        r.body ?? {},
+      ),
+  );
+  api.post<{ Params: { id: string; sourceId: string } }>(
+    '/workspaces/:id/sources/:sourceId/read',
+    async (r) =>
+      connection(r.headers.authorization).sourceRead(r.params.id, r.params.sourceId, r.body ?? {}),
+  );
+  api.get<{ Params: { id: string; kind: string; recordId: string } }>(
+    '/workspaces/:id/records/:kind/:recordId',
+    async (r) =>
+      connection(r.headers.authorization).record(r.params.id, r.params.kind, r.params.recordId),
+  );
+  api.post<{ Params: { id: string } }>('/workspaces/:id/calendar/compare', async (r) =>
+    connection(r.headers.authorization).calendarCompare(r.params.id, r.body),
+  );
   api.addHook('onClose', async () => {
     for (const job of jobs.values()) job.controller.abort();
     jobs.clear();

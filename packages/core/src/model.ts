@@ -1,4 +1,5 @@
 import type { Instructions, InstructionCommand } from './instructions.js';
+import type { WorkKnowledge, KnowledgeCommand } from './knowledge.js';
 export const SCHEMA_VERSION = 1 as const;
 export type ItemKind = 'task' | 'project' | 'note' | 'event';
 export type Status = 'inbox' | 'ready' | 'active' | 'done' | 'cancelled';
@@ -86,9 +87,11 @@ export interface WorkState {
   views: SavedView[];
   /** Optional additive source/packet store; old workspaces remain valid without it. */
   instructions?: Instructions;
+  knowledge?: WorkKnowledge;
 }
 export type Command =
   | InstructionCommand
+  | KnowledgeCommand
   | { type: 'item.create'; item: ItemInput }
   | { type: 'item.update'; id: string; expectedVersion: number; patch: ItemPatch }
   | { type: 'item.archive'; id: string; expectedVersion: number; archived: boolean }

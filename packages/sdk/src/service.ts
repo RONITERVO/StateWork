@@ -10,6 +10,11 @@ import {
   workerHandoff,
   executionReadiness,
   requiredStepAssets,
+  workBrief,
+  workStep,
+  assertReadRevision,
+  sourceFreshness,
+  reconcileCalendar,
 } from '@statework/core';
 import type {
   CommandResult,
@@ -44,6 +49,12 @@ import {
   filePackageSchema,
 } from './schemas.js';
 import type { FilePackageManifest } from './schemas.js';
+import {
+  briefOptionsSchema,
+  readOptionsSchema,
+  sourceReadSchema,
+  calendarComparisonSchema,
+} from './knowledge-schemas.js';
 
 export interface Receipt {
   fingerprint: string;
@@ -190,6 +201,75 @@ export class WorkConnection {
         },
       )(taskId),
     );
+  }
+  brief(workspaceId: string, input: unknown = {}) {
+    const options = parse(briefOptionsSchema, input);
+    return this.with(workspaceId, (tx) =>
+      structuredClone(
+        workBrief(tx.state, { id: this.actorId, role: tx.role }, this.clock(), options, {
+          availableAssetIds: this.availableAssets(tx),
+        }),
+      ),
+    );
+  }
+  step(workspaceId: string, taskId: string, stepId: string, input: unknown = {}) {
+    parse(idSchema, taskId);
+    parse(idSchema, stepId);
+    const options = parse(readOptionsSchema, input);
+    return this.with(workspaceId, (tx) =>
+      structuredClone(
+        workStep(
+          tx.state,
+          { id: this.actorId, role: tx.role },
+          taskId,
+          stepId,
+          { availableAssetIds: this.availableAssets(tx) },
+          options.expectedRevision,
+        ),
+      ),
+    );
+  }
+  sourceRead(workspaceId: string, sourceId: string, input: unknown = {}) {
+    parse(idSchema, sourceId);
+    const options = parse(sourceReadSchema, input),
+      offset = options.offset ?? 0,
+      limit = options.limit ?? 4000;
+    return this.with(workspaceId, (tx) => {
+      assertReadRevision(tx.state, options.expectedRevision);
+      const source = tx.state.instructions?.sources.find((s) => s.id === sourceId);
+      if (!source) throw new WorkError('NOT_FOUND', 'Source not found.');
+      if (offset > source.content.length)
+        throw new WorkError('VALIDATION', 'Offset exceeds source length.');
+      const { content, ...metadata } = source;
+      return structuredClone({
+        format: 'statework.source-read' as const,
+        formatVersion: 1 as const,
+        workspaceId,
+        revision: tx.state.workspace.revision,
+        source: metadata,
+        freshness: sourceFreshness(tx.state, sourceId, this.clock()),
+        offset,
+        total: content.length,
+        nextOffset: offset + limit < content.length ? offset + limit : null,
+        content: content.slice(offset, offset + limit),
+      });
+    });
+  }
+  record(workspaceId: string, kind: string, id: string) {
+    parse(idSchema, id);
+    if (!['facts', 'verifications', 'calendars'].includes(kind))
+      throw new WorkError('VALIDATION', 'Unknown record kind.');
+    return this.with(workspaceId, (tx) => {
+      const record = tx.state.knowledge?.[kind as 'facts' | 'verifications' | 'calendars'].find(
+        (r) => r.id === id,
+      );
+      if (!record) throw new WorkError('NOT_FOUND', 'Record not found.');
+      return structuredClone({ workspaceId, revision: tx.state.workspace.revision, kind, record });
+    });
+  }
+  calendarCompare(workspaceId: string, input: unknown) {
+    const options = parse(calendarComparisonSchema, input);
+    return this.with(workspaceId, (tx) => reconcileCalendar(tx.state, options, this.clock()));
   }
   source(workspaceId: string, sourceId: string) {
     parse(idSchema, sourceId);

@@ -1284,6 +1284,333 @@
             "packets"
           ],
           "additionalProperties": false
+        },
+        "knowledge": {
+          "type": "object",
+          "properties": {
+            "facts": {
+              "maxItems": 10000,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "itemId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "chosen",
+                      "attended",
+                      "submitted",
+                      "accepted",
+                      "decision"
+                    ]
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "occurredAt": {
+                    "type": "string"
+                  },
+                  "sourceIds": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                    }
+                  },
+                  "replaces": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "recordedAt": {
+                    "type": "string"
+                  },
+                  "recordedBy": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "itemId",
+                  "key",
+                  "kind",
+                  "value",
+                  "occurredAt",
+                  "sourceIds",
+                  "replaces",
+                  "recordedAt",
+                  "recordedBy"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "verifications": {
+              "maxItems": 10000,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "sourceId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "observedAt": {
+                    "type": "string"
+                  },
+                  "validUntil": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "type": "string",
+                    "enum": [
+                      "unchanged",
+                      "changed",
+                      "unavailable"
+                    ]
+                  },
+                  "evidence": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "recordedAt": {
+                    "type": "string"
+                  },
+                  "recordedBy": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "sourceId",
+                  "observedAt",
+                  "validUntil",
+                  "result",
+                  "evidence",
+                  "recordedAt",
+                  "recordedBy"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "calendars": {
+              "maxItems": 10000,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "itemId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  },
+                  "calendarId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "eventId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "remoteVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "observedAt": {
+                    "type": "string"
+                  },
+                  "sourceIds": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                    }
+                  },
+                  "baseline": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 240
+                      },
+                      "actionUrl": {
+                        "type": "string",
+                        "maxLength": 2048
+                      },
+                      "schedule": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "start": {
+                                "type": "string"
+                              },
+                              "end": {
+                                "type": "string"
+                              },
+                              "timeZone": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "start",
+                              "end",
+                              "timeZone"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dueDate": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "recurrence": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        }
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "actionUrl",
+                      "schedule",
+                      "dueDate",
+                      "recurrence"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "stopWhen": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "itemId": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                          },
+                          "key": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "chosen",
+                              "attended",
+                              "submitted",
+                              "accepted",
+                              "decision"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000
+                          }
+                        },
+                        "required": [
+                          "itemId",
+                          "key",
+                          "kind",
+                          "value"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "recordedAt": {
+                    "type": "string"
+                  },
+                  "recordedBy": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "itemId",
+                  "provider",
+                  "calendarId",
+                  "eventId",
+                  "remoteVersion",
+                  "observedAt",
+                  "sourceIds",
+                  "baseline",
+                  "stopWhen",
+                  "recordedAt",
+                  "recordedBy"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "facts",
+            "verifications",
+            "calendars"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { knowledgeSchema, knowledgeCommandSchemas } from './knowledge-schemas.js';
 import { INLINE_BASE64_LIMIT, FILE_PACKAGE_HELP } from './files.js';
 import {
   WorkError,
@@ -7,6 +8,7 @@ import {
   executionReadiness,
   packetAssetIds,
   stepPredecessors,
+  validateKnowledge,
 } from '@statework/core';
 import type { WorkState } from '@statework/core';
 import {
@@ -198,6 +200,7 @@ export const viewSchema = z.strictObject({
 });
 export const commandSchema = z.discriminatedUnion('type', [
   ...instructionCommandSchemas,
+  ...knowledgeCommandSchemas,
   z.strictObject({ type: z.literal('item.create'), item: itemInputSchema }),
   z.strictObject({
     type: z.literal('item.update'),
@@ -252,6 +255,7 @@ export const workStateSchema = z.strictObject({
   relations: z.array(relationSchema).max(30000),
   views: z.array(viewSchema).max(100),
   instructions: instructionsSchema.optional(),
+  knowledge: knowledgeSchema.optional(),
 });
 export const domainEventSchema = z.strictObject({
   sequence: z.number().int().min(1),
@@ -348,6 +352,61 @@ export const workerHandoffSchema = z.strictObject({
 export const commandResultSchema = z.strictObject({
   revision: z.number().int().min(1),
   event: domainEventSchema,
+});
+export const workStepSchema = z.strictObject({
+  format: z.literal('statework.step'),
+  formatVersion: z.literal(1),
+  workspace: workerHandoffSchema.shape.workspace,
+  taskId: idSchema,
+  packetId: idSchema,
+  packetRevision: z.number().int().positive(),
+  outcome: z.string(),
+  finish: z.string(),
+  step: workPacketSchema.shape.steps.element,
+  check: workPacketSchema.shape.checks.element.nullable(),
+  readiness: workerHandoffSchema.shape.graph.element,
+  requirements: workPacketSchema.shape.requirements,
+  blockers: workerHandoffSchema.shape.blockers,
+  outputs: z.array(
+    z.strictObject({
+      id: idSchema,
+      label: z.string(),
+      description: z.string(),
+      stepId: idSchema,
+      required: z.boolean(),
+    }),
+  ),
+  sources: workerHandoffSchema.shape.sources,
+  assets: workerHandoffSchema.shape.assets,
+  externalActionsAuthorized: z.literal(false),
+});
+export const sourceReadResultSchema = z.strictObject({
+  format: z.literal('statework.source-read'),
+  formatVersion: z.literal(1),
+  workspaceId: idSchema,
+  revision: z.number().int().nonnegative(),
+  source: workSourceSchema.omit({ content: true }),
+  freshness: z.strictObject({
+    status: z.enum(['missing', 'superseded', 'historical', 'needs-check', 'verified']),
+    capturedAt: instantSchema.nullable(),
+    observedAt: instantSchema.nullable(),
+    validUntil: instantSchema.nullable(),
+    verificationId: idSchema.nullable(),
+  }),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+  nextOffset: z.number().int().nonnegative().nullable(),
+  content: z.string().max(16000),
+});
+export const knowledgeRecordSchema = z.strictObject({
+  workspaceId: idSchema,
+  revision: z.number().int().nonnegative(),
+  kind: z.enum(['facts', 'verifications', 'calendars']),
+  record: z.union([
+    knowledgeSchema.shape.facts.element,
+    knowledgeSchema.shape.verifications.element,
+    knowledgeSchema.shape.calendars.element,
+  ]),
 });
 export const observationResultSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -493,6 +552,7 @@ export function parse<T>(schema: z.ZodType<T>, input: unknown): T {
 }
 export function validateState(input: unknown): WorkState {
   const state = parse(workStateSchema, input) as WorkState;
+  validateKnowledge(state);
   for (const list of [state.items, state.relations, state.views])
     if (new Set(list.map((i) => i.id)).size !== list.length)
       throw new WorkError('VALIDATION', 'Duplicate IDs in snapshot.');

@@ -15,6 +15,9 @@ const [op, ...args] = process.argv.slice(2);
 const help = `StateWork — local work graph\n\n  list\n  create <workspace-id> <title>\n  demo\n  observe <workspace-id> [query.json]\n  snapshot <workspace-id>\n  instructions <workspace-id> <task-id>\n  handoff <workspace-id> <task-id> [environment.json]\n  files <workspace-id>\n  storage <workspace-id>\n  package-export <workspace-id> <new-directory>\n  package-import <directory> <new-workspace-id> <title>\n  source <workspace-id> <source-id>\n  file-attach <workspace-id> <task-id> <file> [description]\n  file-export <workspace-id> <asset-id> <new-file>\n  file-restore <workspace-id> <asset-id> <original-file>\n  bundle-export <workspace-id> <new-file.json>\n  bundle-import <bundle.json> <new-workspace-id> <title>\n  command <workspace-id> <request.json|->\n  events <workspace-id> [after]\n  export <workspace-id> <new-file.json>\n  import <snapshot.json> <new-workspace-id> <title>\n  backup <new-file.sqlite>\n  grant <workspace-id> <actor-id> <reader|editor|owner>\n  token <actor-id> <label>\n\nSTATEWORK_HOME selects the local data directory. Commands and MCP use the same domain and database. Original files support 128 MiB per file and 2 GiB unique bytes per workspace by default; STATEWORK_WORKSPACE_FILE_LIMIT_BYTES configures the host quota. JSON bundles retain 64 MiB per file and 256 MiB total; use package-export/package-import for larger portable collections.\nToken/grant are trusted provisioning operations for developers with local filesystem access.\n`;
 if (!op || op === 'help' || op === '--help') {
   process.stdout.write(help);
+  process.stdout.write(
+    '  brief <workspace> [options.json]\n  step <workspace> <task> <step> [options.json]\n  source-read <workspace> <source> [options.json]\n  record <workspace> <facts|verifications|calendars> <record>\n  calendar-compare <workspace> <comparison.json>\n',
+  );
   process.exit(0);
 }
 const local = openLocal();
@@ -49,6 +52,21 @@ try {
     }
     case 'snapshot':
       result = connection.snapshot(arg(0));
+      break;
+    case 'brief':
+      result = connection.brief(arg(0), args[1] ? json(args[1]) : {});
+      break;
+    case 'step':
+      result = connection.step(arg(0), arg(1), arg(2), args[3] ? json(args[3]) : {});
+      break;
+    case 'source-read':
+      result = connection.sourceRead(arg(0), arg(1), args[2] ? json(args[2]) : {});
+      break;
+    case 'record':
+      result = connection.record(arg(0), arg(1), arg(2));
+      break;
+    case 'calendar-compare':
+      result = connection.calendarCompare(arg(0), json(arg(1)));
       break;
     case 'instructions':
       result = connection.instructions(arg(0), arg(1));

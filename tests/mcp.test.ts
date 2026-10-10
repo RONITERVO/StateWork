@@ -27,6 +27,11 @@ it('serves real MCP discovery, observe and atomic mutations over stdio', async (
     expect(tools.tools.map((t) => t.name)).toEqual(
       expect.arrayContaining([
         'work_handoff',
+        'work_brief',
+        'work_step',
+        'work_source_read',
+        'work_record',
+        'work_calendar_compare',
         'work_source',
         'work_files',
         'work_file',
@@ -63,6 +68,12 @@ it('serves real MCP discovery, observe and atomic mutations over stdio', async (
       arguments: { workspaceId: 'mcp' },
     });
     expect(JSON.stringify(observed)).toContain('Accessible to agents');
+    const brief = await client.callTool({
+      name: 'work_brief',
+      arguments: { workspaceId: 'mcp', options: { taskId: 'task' } },
+    });
+    expect(brief.isError).not.toBe(true);
+    expect(JSON.stringify(brief)).toContain('statework.brief');
     const upload = {
       requestId: 'file',
       expectedRevision: 1,

@@ -415,7 +415,7 @@ function renderDetails() {
           .map((i) => `<option value="${esc(i.id)}">${esc(i.title)}</option>`)
           .join('')}</select><button type="submit">＋ Link</button></form>`
       : ''
-  }</section><a class="button" href="/instructions/?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(item.id)}">Work packet / Print →</a><div class="detail-bottom"><button data-archive="${esc(item.id)}" ${writable ? '' : 'disabled'}>${item.archived ? 'Restore from archive' : 'Move to archive'}</button><span>Version ${item.version}</span></div>`;
+  }</section><a class="button" href="/brief/?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(item.id)}">Work overview →</a><a class="button" href="/instructions/?workspace=${encodeURIComponent(workspaceId)}&task=${encodeURIComponent(item.id)}">Work packet / Print →</a><div class="detail-bottom"><button data-archive="${esc(item.id)}" ${writable ? '' : 'disabled'}>${item.archived ? 'Restore from archive' : 'Move to archive'}</button><span>Version ${item.version}</span></div>`;
 }
 function openDialog(id: string) {
   const dialog = $<HTMLDialogElement>(`#${id}-dialog`);

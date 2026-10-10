@@ -7,3 +7,5 @@ export * from './resources.js';
 export * from './execution.js';
 export * from './handoff.js';
 export * from './proposals.js';
+export * from './knowledge.js';
+export * from './briefing.js';
