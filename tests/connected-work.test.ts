@@ -662,6 +662,15 @@ describe('connected worker execution', () => {
     expect(s.c.handoff('work', 'kit').blockers).toEqual(
       expect.arrayContaining([expect.objectContaining({ target: 'completion' })]),
     );
+    const brief = s.c.brief('work', { taskId: 'kit' });
+    expect(brief.next).toBeNull();
+    expect(brief.counts.blockers).toBe(1);
+    expect(brief.entries).toEqual([
+      expect.objectContaining({
+        kind: 'blocker',
+        label: expect.stringContaining('stopped without reaching an accepted finish'),
+      }),
+    ]);
     expect(() => s.run([packetCompleteCommand(s.c.snapshot('work'), s.p.id)])).toThrow(
       'Review and check',
     );
@@ -679,6 +688,7 @@ describe('connected worker execution', () => {
     s.check('deliver');
     s.run([packetCompleteCommand(s.c.snapshot('work'), s.p.id)]);
     expect(s.c.handoff('work', 'kit').completion.outcome).toBe('successful');
+    expect(s.c.brief('work', { taskId: 'kit' }).counts.blockers).toBe(0);
     s.service.close();
   });
   it('lets independent production proceed, records a branch, and blocks only delivery access', () => {
@@ -934,6 +944,28 @@ describe.each(['memory', 'sqlite'])('original file storage: %s', (kind) => {
           ],
         }),
       ).toThrow('original or result file');
+      const missingInput = s.c.step('missing', 'kit', 'inspect');
+      expect(missingInput.readiness.status).toBe('blocked');
+      expect(missingInput.assets).toEqual([
+        expect.objectContaining({ id: 'drawing', sha256: meta.sha256, available: false }),
+      ]);
+      // Independent actions do not inherit unrelated files, but dependent actions do.
+      expect(s.c.step('work', 'kit', 'label').assets).toEqual([]);
+      s.check('label');
+      const inspect = s.c.step('work', 'kit', 'inspect');
+      expect(inspect.readiness.status).toBe('ready');
+      expect(inspect.assets).toEqual([
+        expect.objectContaining({
+          id: 'drawing',
+          name: 'drawing.cad',
+          size: bytes.length,
+          sha256: meta.sha256,
+          available: true,
+        }),
+      ]);
+      expect(s.c.asset('work', inspect.assets[0]!.id).bytes).toEqual(bytes);
+      s.check('inspect', { choice: 'yes' });
+      expect(s.c.step('work', 'kit', 'deliver').assets).toEqual(inspect.assets);
     } finally {
       s.service.close();
       rmSync(dir, { recursive: true, force: true });

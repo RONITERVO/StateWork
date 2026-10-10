@@ -1,9 +1,10 @@
 import { WorkError, isFinished } from './model.js';
 import type { Principal, WorkState } from './model.js';
-import { latestPacket, packetIssues } from './instructions.js';
+import { latestPacket } from './instructions.js';
 import { workerHandoff } from './handoff.js';
 import { currentFacts, sourceFreshness } from './knowledge.js';
 import { workDeepLink } from './resources.js';
+import { requiredStepAssets } from './execution.js';
 import type { WorkerEnvironment } from './execution.js';
 import { queryItems } from './observe.js';
 
@@ -51,7 +52,7 @@ export function workBrief(
   const handoff = task ? workerHandoff(state, actor, environment)(task.id) : undefined;
   const issues =
     task && packet
-      ? packetIssues(state, packet)
+      ? handoff!.blockers
       : task?.kind === 'task'
         ? [{ code: 'missing', label: 'Build and review the instructions.', target: 'packet' }]
         : [];
@@ -295,9 +296,10 @@ export function workStep(
   );
   for (const r of step.references ?? [])
     if (r.kind === 'source' && r.targetId) sourceIds.add(r.targetId);
-  const assetIds = new Set(
-    (step.references ?? []).filter((r) => r.kind === 'asset').map((r) => r.targetId),
-  );
+  const assetIds = new Set([
+    ...requiredStepAssets(h.packet, stepId),
+    ...(step.references ?? []).filter((r) => r.kind === 'asset').map((r) => r.targetId),
+  ]);
   const check = h.packet.checks.find((c) => c.stepId === stepId) ?? null;
   for (const output of check?.outputs ?? []) assetIds.add(output.assetId);
   h.sources.forEach((s) => {
