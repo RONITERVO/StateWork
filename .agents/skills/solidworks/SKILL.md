@@ -1,6 +1,6 @@
 ---
 name: solidworks
-description: Create, modify and verify editable SOLIDWORKS parts, assemblies and drawings from supplied requirements using the installed application, its supported API and native UI. Use for SOLIDWORKS modeling, drawing, packaging or automation recovery; not for substituting meshes or images for required native CAD files.
+description: Create, modify, render and verify editable SOLIDWORKS parts, assemblies, drawings and Visualize scenes from supplied requirements using the installed applications, their supported APIs and native UI. Use for SOLIDWORKS modeling, drawing, photorealistic rendering, packaging or automation recovery; not for substituting meshes or viewport screenshots for required native CAD files or ray-traced renders.
 ---
 
 # Work in SOLIDWORKS
@@ -11,7 +11,7 @@ Produce the requested editable CAD result and evidence that the saved files meet
 
 Identify required parts, assemblies, configurations, drawings, exports and dependent files. Inspect archive contents for embedded briefs as well as CAD components. Inspect the source figures at readable scale, including sections and small dimension symbols. Record the source pages and original file hashes. Determine units, dimensions, fits, tolerances and any required construction method. Resolve missing or conflicting requirements from authorized sources; do not turn a guessed measurement into a driving dimension.
 
-Distinguish a specification that permits a chosen modeling method from an exercise that requires a feature sequence or tutorial. A correct-looking result does not establish that the required method was used. Keep original files unchanged, make named working copies and retain failed attempts before replacing them. Store real work and traces privately when publishing reusable automation.
+Distinguish a specification that permits a chosen modeling method from an exercise that requires a feature sequence or tutorial. When walkthrough videos are supplied alongside drawings or transcripts, inspect the actual video steps for feature order, wall directions, hidden reference geometry and UI-only settings that summaries omit. A correct-looking result does not establish that the required method was used. Keep original files unchanged, make named working copies and retain failed attempts before replacing them. Store real work and traces privately when publishing reusable automation.
 
 ## Use the actual application
 
@@ -24,6 +24,8 @@ Before a material operation, record its input identity, intended result and star
 Read [modeling.md](references/modeling.md) when creating or editing sketches, features and assembly relationships. Keep design intent editable: source dimensions and meaningful geometric relations, appropriate native feature types and deliberate component placement. Prefer fully defined construction sketches when practical; always satisfy an explicit fully defined requirement. Report remaining freedom instead of concealing it with indiscriminate fixed relations.
 
 Read [drawings-packages.md](references/drawings-packages.md) when drawings or portable packages are required. Native views, associated dimensions, sections and file dependencies are part of the result. Screenshots, neutral exports and a prose dimension list supplement required native files; they do not replace them.
+
+Read [visualize.md](references/visualize.md) when photorealistic renders, appearances or decals in SOLIDWORKS Visualize are required. Verify active GPU/engine throughput, transparent-vessel geometry clearances, decal readability and actual output dimensions/DPI rather than substituting SOLIDWORKS viewport screenshots.
 
 ## Verify saved results
 

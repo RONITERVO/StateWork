@@ -331,7 +331,7 @@ function Connect-SolidWorks {
         }
     }
     if ($null -eq $application) {
-        throw (New-SolidWorksContextException -Code 'SW_ATTACH' -Stage 'AttachRunningObject' -Message 'Could not attach to the discovered running process. Ensure SOLIDWORKS has finished starting and use the same Windows user/session and integrity level. No application was launched.' -InnerException $lastAttachException -AttachAttempts $failures)
+        throw (New-SolidWorksContextException -Code 'SW_ATTACH' -Stage 'AttachRunningObject' -Message 'Could not attach to the discovered running process. Ensure SOLIDWORKS has finished starting and use the same Windows user, interactive desktop, session and integrity level. No application was launched.' -InnerException $lastAttachException -AttachAttempts $failures)
     }
 
     $apiRoot = Join-Path $root 'api'
