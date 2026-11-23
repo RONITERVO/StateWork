@@ -1,6 +1,6 @@
 # Create and verify native SOLIDWORKS work
 
-The [SOLIDWORKS skill](../.agents/skills/solidworks/SKILL.md) guides a Codex worker through source inspection, editable modeling, associated drawings, portable packages and verification in the installed desktop application. It works from ordinary briefs and files, or alongside [StateWork Execute](EXECUTION_SKILL.md) when the job comes from a work map.
+The [SOLIDWORKS skill](../.agents/skills/solidworks/SKILL.md) guides a Codex worker through source inspection, editable modeling, associated drawings, photorealistic rendering in SOLIDWORKS Visualize, portable packages and verification in the installed desktop applications. It works from ordinary briefs and files, or alongside [StateWork Execute](EXECUTION_SKILL.md) when the job comes from a work map.
 
 ## Use it
 
@@ -22,7 +22,7 @@ With the intended SOLIDWORKS instance already running, create a private JSON inp
 powershell.exe -NoProfile -STA -File "<skill>\scripts\invoke-solidworks-job.ps1" -JobPath "<skill>\scripts\jobs\probe-session.ps1" -InputJsonPath "<private>\probe-input.json" -RunDirectory "<private>\new-probe-attempt" -TimeoutSeconds 30
 ```
 
-The helper requires **64-bit Windows PowerShell 5.1**, the same user/session and integrity level as SOLIDWORKS, and the matching installed interop assemblies. It rejects an absent or ambiguous running instance and unsupported runtimes. It returns JSON with the process, installation, API version and current documents, or a JSON error retaining native error details. It compares two document observations and rejects observed changes; it does not lock the session. It does not launch the application, open or save documents, rebuild geometry or calculate interference.
+The helper requires **64-bit Windows PowerShell 5.1**, the same user, interactive desktop, session and integrity level as SOLIDWORKS, and the matching installed interop assemblies. It rejects an absent or ambiguous running instance and unsupported runtimes. It returns JSON with the process, installation, API version and current documents, or a JSON error retaining native error details. It compares two document observations and rejects observed changes; it does not lock the session. It does not launch the application, open or save documents, rebuild geometry or calculate interference.
 
 The launcher preserves exact script/input snapshots, hashes, process identity, output and a result receipt in a new directory. A deadline ends only the owned helper; the native call may still be running, so timeout remains unknown. It does not retry or kill SOLIDWORKS. The private parent directory must exist, and the new run directory must not contain brackets or backticks. The probe's external helper files are observed by hash, not frozen. See [automation guidance](../.agents/skills/solidworks/references/automation.md) for complete invocation, outcomes and subprocess limits.
 
