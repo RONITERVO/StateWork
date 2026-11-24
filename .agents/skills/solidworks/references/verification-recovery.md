@@ -20,6 +20,8 @@ Require every file-identity read to succeed and return an actual digest before c
 
 When an assembly saves without errors but remains dirty or reopens needing regeneration, inspect the save and configuration flags of its referenced documents too. A full hierarchy rebuild can dirty dependent parts; saving only the top-level assembly may leave those changes unsaved. If diagnosis supports saving dependencies together, preserve recoverable copies, verify that every resolved reference belongs to the owned working set, and use the documented `swSaveAsOptions_SaveReferenced` option. Then verify the saved hierarchy by closing and reopening it; configuration rebuild/save marks alone do not establish that the warning is resolved.
 
+Show review previews in the product's real-world orientation even when the model frame differs, for example a design built with its floor along +Y. Set `IModelView.Orientation3` to a `MathTransform` whose first nine array values form a rotation whose columns are the screen x, screen y and view-toward-viewer z axes expressed in model coordinates. Confirm that convention against a stored named view such as `*Isometric` before relying on it. Hide planes, sketches and origins for the capture with the document toggle `swViewDisplayHideAllTypes` rather than blanking features one by one, and record that the preview is a viewport capture.
+
 ## Explicit interference calculation
 
 Keep interference detection out of generic open-document or metadata probes. Use the current installed `InterferenceDetectionManager` interface when suitable, with options chosen deliberately and recorded. Do not assume an older API is obsolete merely because it failed in one installation; verify its documented status and preserve the actual failure.

@@ -16,11 +16,19 @@ Verify native tolerance and fit properties, including hole/shaft fits, rather th
 
 If sketch creation fails or shifts geometry through snapping or inference, inspect the active sketch before retrying. `ISketchManager.AddToDB` can create exact entities without UI inference; always restore its original value in a `finally` path afterward, then add the intended relations and verify coordinates and constraint status. On non-Front planes (`Top`, `Right`, tilted reference planes), read `ISketch.ModelToSketchTransform` rather than guessing sketch-axis signs. When tracing calibrated reference sketch pictures, keep them in a dedicated folder, capture alignment verification overlays while visible, and hide them at completion when required. Resume an observed empty sketch or correct the actual partial instead of blindly creating another feature.
 
+Not every creation call honors `AddToDB`. `ISketchManager.CreateSketchSlot` can still infer against nearby or projected geometry and move a slot center (observed: a center moved 1 mm onto an unrelated reference-plane line). The location dimensions added afterwards then come back driven. Around such calls, also turn off the `swSketchInference` and `swSketchAutomaticRelations` user toggles and restore them in `finally`. Then read the arc centers back in model coordinates and add the relation that automatic relations would otherwise supply, such as a vertical centerline. Confirm the constraint status.
+
+After adding a dimension, read `IDimension.DrivenState`. A dimension placed on already-constrained geometry is driven (reference). Setting its value or attaching an equation to it is accepted without error but changes nothing. Remove the unintended relation or recreate the entity cleanly instead of layering equations on a driven value.
+
+A dimension needs a nonzero measured distance. `AddHorizontalDimension2` between vertically aligned points, or `AddVerticalDimension2` between horizontally aligned points, returns null. Express a zero offset as a relation instead: `sgVERTICALPOINTS2D` or `sgHORIZONTALPOINTS2D` with the origin or the other point, or a coincident relation.
+
 ## Features and edits
 
 Create the required native features and preserve source-required construction order. When modifying a supplied model, inspect existing features, references and configurations before choosing what to edit. If an exercise requires editing the original extrusion or changing a sketch plane, adding a visually equivalent replacement feature can violate the method requirement.
 
 Validate selections, start/end conditions, direction and actual material removed after each consequential feature. A through-all cut may pierce an opposite wall that the source section leaves intact. Blind depth, D-shaped openings, tangent blends and chamfers must be checked in useful sections or measured geometry. Feature or face names can change after edits; reacquire references rather than relying on stale object handles or assumed face indices.
+
+`FeatureCut4` toward a side with no material returns null and changes nothing. Retrying the opposite direction is acceptable only with a check of the material actually removed, such as volume or a probe point, because a cut in the unintended direction also succeeds wherever material exists. An offset `InsertRefPlane` with the flip option (256) places the plane on the opposite side of its reference. Read the plane's actual position back before sketching on it or driving its offset from an equation.
 
 Locate a face using its actual trimmed boundaries and component transform. The origin of an underlying cylindrical surface can lie outside the bounded face; it does not establish a hole's height, flange location or assembly orientation.
 
@@ -30,9 +38,33 @@ For lofts, inspect profile order and connector correspondence. `ILoftFeatureData
 
 In multibody modeling and split-to-assembly workflows (`Save Bodies`), keep an explicit copy of any tool body (`Body-Move/Copy`) before `Combine (Subtract)` consumes it, and order `Shell` deliberately relative to embossed or recessed surface features so interior walls stay clean.
 
+For constant-wall enclosures, one native `Shell` is more robust and editable than separate cavity and plate features. Use `IModelDoc2.InsertFeatureShell` with the open faces preselected. It returns nothing, so take the last feature, check its type and error code, and drive its thickness dimension from the wall parameter. Shell walls end in the plane of each removed face. On a wall inclined at angle θ to that plane, the opening's inner edge is offset by `T / sin θ` (`T·√2` at 45°). Size mating panels and their clearances from the measured inner edge, not from the outer profile line.
+
+For perforation fields, the native Fill Pattern works through `CreateDefinition(swFmFillPattern)` → `IFillPatternFeatureData` → `CreateFeature`. Select the seed feature (mark 4), a straight model edge as the direction (mark 1) and the boundary sketch (mark 16384) together. Then set the complete definition, not only the layout type. A seed placed at the boundary's centroid sat exactly on a grid position; verify against neighboring instances if you place it elsewhere. Driving the pitch dimension of the fill feature from a parameter keeps the field editable. The same boundary, seed position, direction edge and pitch in two parts produced coincident hole grids. Verify that kind of alignment by comparing unique hole-axis positions in both parts; counting cylindrical faces can overstate the holes. Use a blind seed depth when bosses or ribs sit behind the perforated wall.
+
+`IFeature.GetTypeName2` can return `ICE` for both later boss-extrudes and cut-extrudes. Classify a feature by its definition interface or its observed material change, not by the type name alone. Solid-body names are not stable either: a later upstream edit can rename a body after its final feature even after you named it. Reidentify bodies by geometry, such as bounds, before per-body exports or checks.
+
 For material assignment, distinguish the database path supplied to `SetMaterialPropertyName2` from the database name returned by `GetMaterialPropertyName2`; the latter may omit `.sldmat`. Resolve the name to a unique intended installed database and retain its path/hash. Verify the actual material, density, mass and override state separately from visual appearance. When assigning body-level materials (`IBody2.SetMaterialProperty`), do not suppress exceptions or assume a visual color override (`MaterialPropertyValues2`) persisted a material; read `GetMaterialPropertyName` back on each body after saving and reopening. A returned naming difference alone does not justify reconstructing correct geometry.
 
 When a small cut fails a volume comparison, establish the calculation accuracy before changing correct geometry or widening the tolerance. Compare both source and result using `IMassProperty2` at the appropriate accuracy with explicit units and recalculation results. Coarse body mass properties can obscure small removed volumes. Preserve the failed comparison and distinguish calculation error from a geometric discrepancy.
+
+## Parameters, equations and configurations
+
+Name the owner in every equation target exactly. Sketch dimensions belong to the sketch (`"D3@SketchName"`) and feature dimensions to the feature (`"D1@Cut-Extrude1"`). A target naming the wrong owner can be accepted and drive a different dimension. After each addition, read back the stored text, `IEquationMgr.Value` and the target dimension.
+
+Edit an existing equation through the indexed `Equation` setter and read the stored text back. Adding a second equation for an existing global variable does not modify it. Global variables can reference globals defined later in the list. `IIF(condition, a, b)` and `sqr()` (square root) evaluate in equations, which keeps derived offsets such as `T*sqr(2)` exact. Check the evaluated values. Sketch fillets created through `CreateFillet` add their own radius dimensions, and an equation on one of those can be flagged as an error. When a radius must follow a parameter, delete those dimensions in a sketch edit session, add fresh driving radius dimensions, then attach the equations.
+
+Drive a family of variants (clearances, board offsets, sizes) from one global variable whose value is configuration-specific. Do not maintain copies or independent per-configuration dimensions. For each configuration:
+
+1. Activate it with `ShowConfiguration2`.
+2. Fetch `GetEquationMgr()` again; it must be re-fetched after a configuration change.
+3. Call `SetEquationAndConfigurationOption(index, text, swThisConfiguration, null)`.
+
+On SOLIDWORKS 2025 this worked for globals created with `Add2`, despite the remark that only `Add3` equations are modifiable. Verify it: reactivate each configuration, rebuild, and read both the variable's `Value` and a geometric witness such as the body extent. Tie every dependent placement to the master variable, not just the obvious features: vents, ports, hole depths (`IIF` for thresholds) and reference planes. Before exporting, sample every configuration for rebuild errors, body count and envelope. Panels or covers that do not depend on the variable should stay configuration-free parts.
+
+A linear pattern's spacing is not necessarily its `D1` dimension; one pattern exposed its spacing as `D3`. Identify the dimension by its current value or through the pattern definition before attaching an equation. After a parameter change, verify the instance positions. `AddConfiguration3` returns the new configuration object rather than a Boolean in this release. Check the returned object and the configuration name list instead of testing the return for truth.
+
+In the assembly, create matching configurations. While each one is active, set `IComponent2.ReferencedConfiguration` on the driven component. A layout or reference component that must follow the variable should be mated to a reference plane in the driven part whose offset is an equation, not fixed at a transform. Then verify each configuration's component transforms, mate errors and constraint status. Renaming the active configuration through `Configuration.Name` carried through to an open referencing assembly; verify the referenced configuration name afterwards.
 
 ## Assemblies
 
