@@ -6,7 +6,8 @@ Read before declaring any SOLIDWORKS result complete, and when a call does not r
 
 - Compare critical geometry with values derived from the source: volume against an analytic expectation, exact extents, hole positions and counts, and interfaces. Do not compare with the script's own constants.
 - Check feature errors (`GetErrorCode2`), sketch constrained status, body count and validity, mate errors and component constrained status in every required configuration.
-- Run interference once, deliberately, with recorded options, and release the manager.
+- In configured models, confirm that nothing you added is suppressed in another configuration (`PartlySuppressedFeatures`), and check body count per configuration: a floating boss or silently suppressed feature shows up there first.
+- Run interference once, deliberately, with recorded options, and release the manager. When reference envelopes overlap by design, compare the pair list (`InterferencePairs`) with a recorded baseline instead of a bare count.
 - Save, close and reopen. Record the save and load flags and the output hashes.
 - After a timeout or crash, stop issuing calls, inspect the application state, and continue from the last verified checkpoint.
 
@@ -48,7 +49,7 @@ Run the check once for the candidate's meaningful geometry state and once where 
 
 ## Nonreturning call or crash
 
-A blank progress bar, dialog disappearance, chime or closed helper does not identify the result. Stop issuing additional native calls while the operation's outcome is unknown. Inspect the current app/window and the job log. Let a responsive, justified long calculation continue within a bounded deadline; do not restart it as a polling strategy.
+A blank progress bar, dialog disappearance, chime or closed helper does not identify the result. Stop issuing additional native calls while the operation's outcome is unknown. Inspect the current app/window and the job log. `scripts/list-dialogs.ps1` lists SOLIDWORKS' visible windows and their control texts without attaching, so it is safe while a call is blocked; a `#32770` window or an unexpected title usually names the modal that holds the call. Let a responsive, justified long calculation continue within a bounded deadline; do not restart it as a polling strategy.
 
 If cancellation is available in the observed dialog and appropriate for the job, use that control through computer use, then inspect the outcome. Terminating only the identified helper process may recover the controller but does not prove that SOLIDWORKS stopped. Do not kill the CAD application, discard unrelated unsaved work or silently relaunch it. If a crash is suspected, inspect a narrowly scoped local application event record and current process identity; preserve the event time, fault module and exception, without claiming a causal stack trace you do not have.
 

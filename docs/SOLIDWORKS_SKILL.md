@@ -26,6 +26,24 @@ The helper requires **64-bit Windows PowerShell 5.1**, the same user, interactiv
 
 The launcher preserves exact script/input snapshots, hashes, process identity, output and a result receipt in a new directory. A deadline ends only the owned helper; the native call may still be running, so timeout remains unknown. It does not retry or kill SOLIDWORKS. The private parent directory must exist, and the new run directory must not contain brackets or backticks. The probe's external helper files are observed by hash, not frozen. See [automation guidance](../.agents/skills/solidworks/references/automation.md) for complete invocation, outcomes and subprocess limits.
 
+## Typed jobs (SwKit)
+
+Modeling work runs as C# job bodies against `scripts/lib/SwKit.cs`. The kit takes millimetres, checks every native return and throws with the failing step. It covers sketches with driving dimensions, features, equations, configurations and their traps, editing existing models (rollback, reorder, definitions), assemblies and mates, interference pairs, STL/STEP export and view capture. One command runs a stage:
+
+```text
+powershell.exe -NoProfile -STA -File "<skill>\scripts\sw-job.ps1" -BodyPath "<private>\stage1.cs" -ArgsPath "<private>\stage1-args.json" -TimeoutSeconds 180
+```
+
+It compiles the kit and body offline first: a C# error stops with exit 3 before SOLIDWORKS is touched. Then it runs the job under the bounded launcher and prints the result, keeping frozen copies of the compiled sources with the run's evidence. `scripts/api-lookup.ps1` prints exact API signatures and enum values from the installed interop in any shell. `scripts/list-dialogs.ps1` shows which SOLIDWORKS window holds a blocked call, without attaching.
+
+Two smoke tests exercise the kit end to end: `scripts/examples/smoke-tray.cs` and `scripts/examples/smoke-features.cs`. On SOLIDWORKS 2025 (33.5) both passed:
+- every volume matched values derived from the specification;
+- a two-sided cut was refused, and the expected-volume cut kept the correct side;
+- a concentric pin landed on the hole axis;
+- documents were cleaned up and every preference was restored.
+
+The kit was also used for a full multi-configuration edit of a printed PC case. That work found the traps now documented: configurations that silently suppress new features, feature order deciding body merges, and handles disconnecting after configuration switches. `tests/solidworks-helper/run-kit-offline.ps1` checks the tooling without a session.
+
 ## What review receives
 
 Keep original files unchanged. The result includes the required editable parts, assemblies and drawings, any specified exports or portable package, a readable preview, and a short source-to-result checklist. The private record preserves source locations, exact script attempts, app identity, file hashes, actual checks, warnings and recovery attempts.

@@ -1,4 +1,5 @@
 // Smoke test and worked example for SwKit (run with scripts/jobs/run-csharp-job.ps1).
+// Also exercises the editing helpers: rollback/insert, reorder, equation delete, EdgeAt, configuration checks, interference pairs.
 //
 // Builds an open-top tray 80 x 50 x 20 mm with:
 //   global variables Wall and Height, a native Shell, a floor hole + linear pattern,
@@ -25,7 +26,7 @@ namespace SwKitJob
 
         public static object Run(Cad cad, IDictionary<string, object> args)
         {
-            string outDir = (string)args["outDir"];
+            string outDir = Cad.ArgString(args, "outDir");
             Directory.CreateDirectory(outDir);
             Dictionary<string, object> result = new Dictionary<string, object>();
             List<string> failures = new List<string>();
@@ -132,6 +133,41 @@ namespace SwKitJob
             }
             result["configurations"] = configs;
 
+            // 7b. Editing an existing model: configuration guard, insert during rollback, reorder, equation delete,
+            //     an edge whose end points moved (fillets), and a per-configuration report.
+            cad.UseConfiguration("W2");
+            result["suppressingNewItems"] = cad.ConfigurationsSuppressingNewItems();
+            cad.AllowNewItemsInAllConfigurations();
+            cad.RollBackBefore("Shell");
+            // Handles taken earlier (front, top, right) can be disconnected after configuration switches and rollback.
+            cad.OffsetPlane(cad.DefaultPlanes()[0], "MidPlane", H / 2, false);
+            cad.RollForward();
+            cad.MoveBefore("MidPlane", "Block");
+            List<string> order = cad.Features(null).Select(f => f.Name).ToList();
+            if (order.IndexOf("MidPlane") > order.IndexOf("Block")) failures.Add("MidPlane was not moved before Block");
+            List<string> partly = cad.PartlySuppressedFeatures();
+            result["partlySuppressed"] = partly;
+            if (partly.Count > 0) failures.Add("features suppressed in some configurations: " + string.Join("; ", partly.ToArray()));
+            cad.SetEquation("SmokeTemp", "1mm");
+            cad.DeleteEquation("SmokeTemp");
+            if (cad.EquationIndex("SmokeTemp") >= 0) failures.Add("DeleteEquation left the equation");
+            IEdge rimEdge = cad.EdgeAt(L / 2, 0, H, 0);                 // outer top edge, shortened by the corner fillets
+            double[] ra = (double[])((IVertex)rimEdge.GetStartVertex()).GetPoint(), rb = (double[])((IVertex)rimEdge.GetEndVertex()).GetPoint();
+            double rimLength = Math.Abs(ra[0] - rb[0]) / Cad.Mm;
+            result["rimEdgeLengthMm"] = Math.Round(rimLength, 4);
+            if (Math.Abs(rimLength - (L - 2 * FilletR)) > 1e-4) failures.Add("EdgeAt found an edge of length " + rimLength);
+            Dictionary<string, object> report = cad.ConfigurationReport();
+            result["configurationReport"] = report;
+            foreach (string config in new string[] { "W2", "W3" })
+            {
+                Dictionary<string, object> row = (Dictionary<string, object>)report[config];
+                double expectedVolume = (double)((Dictionary<string, object>)configs[config])["expectedMm3"];
+                if (((List<string>)row["errors"]).Count > 0 || (int)row["bodies"] != 1 || (int)row["suppressedFeatures"] != 0
+                    || Math.Abs((double)row["volumeMm3"] - expectedVolume) > 0.5)
+                    failures.Add(config + " configuration report differs: " + row["volumeMm3"] + " / " + expectedVolume);
+            }
+            if (cad.Doc.ConfigurationManager.ActiveConfiguration.Name != "W2") failures.Add("ConfigurationReport did not restore W2");
+
             // 8. Save, export STEP and STL (active configuration W2), compare the STL volume.
             string partPath = Path.Combine(outDir, "SwKitSmoke_Tray.SLDPRT");
             cad.SaveAs(partPath);
@@ -157,6 +193,9 @@ namespace SwKitJob
             result["mateErrors"] = cad.MateErrors(assembly);
             int interferences = cad.InterferenceCount(assembly);
             result["interferences"] = interferences;
+            List<string> pairs = cad.InterferencePairs(assembly);
+            result["interferencePairs"] = pairs;
+            if (pairs.Count != interferences) failures.Add("InterferencePairs (" + pairs.Count + ") disagrees with InterferenceCount (" + interferences + ")");
             if (Math.Abs(t[11] / Cad.Mm - H) > 1e-6 || Math.Abs(t[9]) > 1e-9 || Math.Abs(t[10]) > 1e-9) failures.Add("upper tray not stacked at Z = H");
             if (interferences != 0) failures.Add("unexpected interference");
             if (cad.MateErrors(assembly).Count > 0) failures.Add("mate errors");

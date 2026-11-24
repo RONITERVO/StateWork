@@ -1,6 +1,6 @@
 # Cookbook: working code for common tasks
 
-Each recipe is C# for a job body compiled with [`scripts/lib/SwKit.cs`](../scripts/lib/SwKit.cs) and run by `scripts/jobs/run-csharp-job.ps1` (see [automation.md](automation.md#c-jobs-with-swkit)). All of them come from the smoke test [`scripts/examples/smoke-tray.cs`](../scripts/examples/smoke-tray.cs). That test builds and checks a part with configurations and an assembly. It passed end to end on SOLIDWORKS 2025 (33.5); read it for the complete sequence.
+Each recipe is C# for a job body compiled with [`scripts/lib/SwKit.cs`](../scripts/lib/SwKit.cs) and run with `scripts/sw-job.ps1` (see [automation.md](automation.md#c-jobs-with-swkit)). The recipes come from two smoke tests. [`smoke-tray.cs`](../scripts/examples/smoke-tray.cs) builds a shelled part with configurations, edits it and assembles it. [`smoke-features.cs`](../scripts/examples/smoke-features.cs) covers multibody parts, interior walls, two-sided cuts, multi-slot sketches, concentric mates and view capture. Both passed end to end on SOLIDWORKS 2025 (33.5); read them for complete sequences.
 
 SwKit methods take millimetres and model coordinates, check every native return, and throw `CadException` with the step name. `cad.Doc` is the current document. `cad.App`, `cad.MathUtil` and the raw interop types are available whenever the kit lacks a call; see [api-quick-reference.md](api-quick-reference.md).
 
@@ -23,7 +23,8 @@ namespace SwKitJob
     {
         public static object Run(Cad cad, IDictionary<string, object> args)
         {
-            string outDir = (string)args["outDir"];          // args come from input.json "args"
+            string outDir = Cad.ArgString(args, "outDir");  // args come from the args JSON; never cast directly
+            double wall = Cad.ArgDouble(args, "wall", 2.0);  // integers arrive as Int32, decimals as Double
             Dictionary<string, object> result = new Dictionary<string, object>();
             List<string> failures = new List<string>();      // spec checks that did not pass
             // ... one stage of work ...
@@ -198,6 +199,73 @@ cad.Close(part, false);
 ```
 
 Close only documents the job created or opened. Leave a failed job's documents open for inspection.
+
+## Edit an existing model
+
+Most real work changes a saved model rather than building one. The smoke test exercises these calls (section 7b); the HDPLEX PSU pass on a three-configuration case body used all of them.
+
+```csharp
+IModelDoc2 doc = cad.Open(path, "Gap10");
+cad.Activate(doc);                                     // sketching needs a window
+List<string> traps = cad.ConfigurationsSuppressingNewItems();   // e.g. "Gap4: new features"
+cad.AllowNewItemsInAllConfigurations();               // or unsuppress afterwards; otherwise new features vanish there silently
+
+cad.RollBackBefore("Shell");                          // new features are inserted at the rollback bar
+IFeature[] planes = cad.DefaultPlanes();              // re-fetch handles after rollback or a configuration switch
+// ... sketch + cad.Extrude(...) here ...
+cad.RollForward();
+cad.MoveBefore("BayWall", "CpuPanelBossSketch");      // move the consuming feature; its absorbed sketch moves with it
+
+cad.DeleteEquation("D16@RearOpeningsSketch");         // before deleting the geometry it drives
+IFeature sk = cad.Feature("RearOpeningsSketch");      // delete sketch entities: edit, select, delete, exit
+sk.Select2(false, 0);
+doc.EditSketch();
+// select the segments found by model position (ModelToSketchTransform.Inverse()), then:
+doc.Extension.DeleteSelection2((int)swDeleteSelectionOptions_e.swDelete_Absorbed);
+doc.SketchManager.InsertSketch(true);
+
+IFeature gp = cad.Feature("GussetPattern");           // change a definition value
+ILinearPatternFeatureData gd = (ILinearPatternFeatureData)gp.GetDefinition();
+gd.AccessSelections(doc, null);
+gd.D1TotalInstances = 2;
+gp.ModifyDefinition(gd, doc, null);
+
+IEdge e = cad.EdgeAt(127.6, 0, 20, 0);                // edge through a point, along X; survives earlier fillets/chamfers
+Dictionary<string, object> report = cad.ConfigurationReport();   // errors, bodies, suppressed features, volume per configuration
+List<string> partly = cad.PartlySuppressedFeatures(); // nothing you just added may appear here
+```
+
+When an equation-driven dimension's index is unknown (two arcs share a radius variable), point one candidate at the new variable, rebuild, and keep it only if the intended arc changed; otherwise restore it and try the next. A feature that must attach to new geometry has to come after that geometry in the tree. Otherwise it rebuilds as a separate body, and cuts earlier in the tree (seats, pockets) never reach it. After every stage, check the body count in every configuration.
+
+For assemblies: `cad.InterferencePairs(asm)` lists pairs with volumes, so new clashes stand out from known reference overlaps. Switching assembly configurations marks referenced parts dirty without edits. Use `cad.SaveDirtyUnder(ownFolder)` for the job's own files, and close reference-only documents without saving.
+
+## Interior walls, cut direction and multi-slot sketches
+
+```csharp
+IFace2 wall = cad.PlanarFaceAt(0, 25, -1);           // face at X = 25 facing -X; PlanarFace(-1, 0, 0, -25) is the same
+// PlanarFace's offset is measured along the normal; a wrong sign throws and lists the offsets that exist.
+cad.Cut(sketch, "Hole", 8, null);                     // throws "material on both sides" inside or between walls
+cad.CutExpecting(sketch, "WallHole", 8, Math.PI * 2 * 2 * 3, 0.5);   // keeps the direction that removes the expected volume
+cad.OpenSketch(cad.PlanarFaceAt(1, 0, -1));
+foreach (double x in new double[] { 15, 45 })        // several slots in one sketch: each Slot() only touches its own segments
+{
+    ISketchPoint[] c = cad.Slot(new double[] { x, 0, 10 }, new double[] { x, 0, 20 }, 4);
+    cad.Locate(c[0], 0, x, 4);
+    cad.Locate(c[0], 2, 10, 4);
+}
+cad.Extrude(cubeSketch, "Cube", 10, false, false, 0, false);   // merge:false = separate body
+```
+
+## Assembly mates beyond planes, view capture and cleanup
+
+```csharp
+IComponent2 block = cad.AddComponent(asm, partPath, 0, 0, 0, "Alt");   // inserted in configuration Alt (verified)
+IFace2 hole = cad.ComponentFaces(block).First(f => ((ISurface)f.GetSurface()).IsCylinder());   // assembly context
+object pinFace = cad.InComponent(pinComp, pinPartFace);   // part entity -> component; the part must show the component's configuration
+cad.Mate(asm, swMateType_e.swMateCONCENTRIC, swMateAlign_e.swMateAlignCLOSEST, 0, pinFace, hole);
+cad.CaptureView(Path.Combine(outDir, "preview.png"), new double[] { 1, 1, 1 }, new double[] { 0, 0, 1 });   // toward viewer, up
+List<string> closed = cad.CloseDocumentsUnder(outDir, false);   // drawings, assemblies, then parts; throws if any stay open
+```
 
 ## Raw API inside a job
 

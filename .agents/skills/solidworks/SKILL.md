@@ -9,44 +9,49 @@ Produce the requested editable CAD result and evidence that the saved files meet
 
 ## Quick start
 
-1. **Probe** the running session (read-only; prints installation, version and open documents):
-   `powershell.exe -NoProfile -STA -File "<skill>/scripts/probe-solidworks.ps1"`. Use the bounded form in [automation.md](references/automation.md#bounded-jobs) when the application may be busy.
-2. **Write** one stage of work as a C# job body against `scripts/lib/SwKit.cs`. Start from the skeleton and recipes in [cookbook.md](references/cookbook.md).
-3. **Compile-check** it offline, without touching SOLIDWORKS:
-   `powershell.exe -NoProfile -STA -File "<skill>/scripts/compile-check.ps1" -BodyPath "D:/private-work/job.cs"`.
-4. **Run** it bounded with `scripts/invoke-solidworks-job.ps1 -JobPath "<skill>/scripts/jobs/run-csharp-job.ps1"` and an input JSON `{ "skillRoot", "bodyPath", "args" }` ([automation.md](references/automation.md#c-jobs-with-swkit)).
-5. **Verify** the saved result against the source, then save, close and reopen ([verification-recovery.md](references/verification-recovery.md)).
+1. **Probe** the running session, read-only: installation, version and open documents. Use the bounded probe job (`scripts/jobs/probe-session.ps1` through `scripts/invoke-solidworks-job.ps1`; the command is in [automation.md](references/automation.md#bounded-jobs)). `scripts/probe-solidworks.ps1` gives the same answer without a deadline when SOLIDWORKS is known to be idle.
+2. **Write** one stage of work as a C# job body against `scripts/lib/SwKit.cs`. Start from the skeleton and recipes in [cookbook.md](references/cookbook.md). Look up any raw call offline with `scripts/api-lookup.ps1 -Type IFeatureManager -Member FeatureCut4`, or `-Enum swEndConditions_e`, or `-Search Rollback`.
+3. **Run** it with one command. This compiles the kit and body offline first (exit 3 on a C# error, nothing touches SOLIDWORKS), then runs the job bounded and prints `{Stage, Outcome, Ok, Error, Result, Log, RunDirectory}`:
+   `powershell.exe -NoProfile -STA -File "<skill>/scripts/sw-job.ps1" -BodyPath "D:/work/stage1.cs" -ArgsPath "D:/work/stage1-args.json" -TimeoutSeconds 180`.
+   Exit 0 means the job returned Ok, 1 that it threw (`Error` names the step), and 2 a timeout or unknown outcome: inspect SOLIDWORKS before any new call, starting with `scripts/list-dialogs.ps1`. The pieces can also be run separately (`compile-check.ps1`, `invoke-solidworks-job.ps1` with `jobs/run-csharp-job.ps1`; see [automation.md](references/automation.md#c-jobs-with-swkit)).
+4. **Verify** the saved result against the source, then save, close and reopen ([verification-recovery.md](references/verification-recovery.md)).
 
-On a new machine or SOLIDWORKS version, run `scripts/examples/smoke-tray.cs` once before real work. It builds, checks and closes a sample part and assembly in a scratch folder.
+On a new machine or SOLIDWORKS version, run both smoke tests once before real work, through `sw-job.ps1` with an `outDir` in a scratch folder:
+
+- `scripts/examples/smoke-tray.cs` — shelled part with configurations, edits and an assembly.
+- `scripts/examples/smoke-features.cs` — multibody part, interior walls, two-sided cuts, multi-slot sketch, concentric mate and view capture; args `{"outDir", "wallMm": 2.5, "count": 2, "flag": true}`.
+
+Both build, check and close their documents. `tests/solidworks-helper/run-kit-offline.ps1` checks the tooling without a session.
 
 ## Find the right reference
 
-| When you need to                                                            | Read                                                                    |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Connect, run bounded jobs, write C# jobs, own a session, change preferences | [automation.md](references/automation.md)                               |
-| Copy working code for a task                                                | [cookbook.md](references/cookbook.md)                                   |
-| Look up arguments, selection marks, enums or return values of a call        | [api-quick-reference.md](references/api-quick-reference.md)             |
-| Draw sketches, dimensions and relations                                     | [sketches.md](references/sketches.md)                                   |
-| Create or edit features, bodies or materials                                | [features.md](references/features.md)                                   |
-| Drive a model by parameters or build a family of variants                   | [parameters-configurations.md](references/parameters-configurations.md) |
-| Assemble, mate, pattern components, explode, test motion, check clearances  | [assemblies.md](references/assemblies.md)                               |
-| Make drawings, BOMs and balloons                                            | [drawings.md](references/drawings.md)                                   |
-| Save, export STEP/STL, Pack and Go, relocate a project                      | [files-exports.md](references/files-exports.md)                         |
-| Verify results, run interference, recover from a stall or crash             | [verification-recovery.md](references/verification-recovery.md)         |
-| Render photorealistic images in SOLIDWORKS Visualize                        | [visualize.md](references/visualize.md)                                 |
+| When you need to                                                                          | Read                                                                    |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Connect, run bounded jobs, write C# jobs, own a session, change preferences               | [automation.md](references/automation.md)                               |
+| Copy working code for a task                                                              | [cookbook.md](references/cookbook.md)                                   |
+| Edit an existing model: rollback, reorder, sketch edits, definitions, configuration traps | [cookbook.md](references/cookbook.md#edit-an-existing-model)            |
+| Look up arguments, selection marks, enums or return values of a call                      | [api-quick-reference.md](references/api-quick-reference.md)             |
+| Draw sketches, dimensions and relations                                                   | [sketches.md](references/sketches.md)                                   |
+| Create or edit features, bodies or materials                                              | [features.md](references/features.md)                                   |
+| Drive a model by parameters or build a family of variants                                 | [parameters-configurations.md](references/parameters-configurations.md) |
+| Assemble, mate, pattern components, explode, test motion, check clearances                | [assemblies.md](references/assemblies.md)                               |
+| Make drawings, BOMs and balloons                                                          | [drawings.md](references/drawings.md)                                   |
+| Save, export STEP/STL, Pack and Go, relocate a project                                    | [files-exports.md](references/files-exports.md)                         |
+| Verify results, run interference, recover from a stall or crash                           | [verification-recovery.md](references/verification-recovery.md)         |
+| Render photorealistic images in SOLIDWORKS Visualize                                      | [visualize.md](references/visualize.md)                                 |
 
 ## Rules that prevent most failures
 
 1. The API takes metres and radians, whatever the document displays. SwKit takes millimetres and converts at its boundary.
 2. A failed call usually returns null or false instead of throwing. Check every return, and check `GetErrorCode2` on every new feature.
 3. Find planes, faces and edges by type and position, never by display name or index. Find them again after each feature and after a new document's first save, and name every feature you create.
-4. Map model points into each sketch through `ModelToSketchTransform`. Create entities with `AddToDB` (slots also with inference off), and add dimensions with "Input dimension value" switched off so no modal box blocks the call. Confirm each dimension comes back driving.
+4. Read job arguments with `Cad.ArgDouble`/`ArgInt`/`ArgBool`/`ArgString`, never direct casts (integers arrive as Int32). Map model points into each sketch through `ModelToSketchTransform`. Create entities with `AddToDB` (slots also with inference off), and add dimensions with "Input dimension value" switched off so no modal box blocks the call. Confirm each dimension comes back driving.
 5. Keep intent editable: one global variable per design quantity, equations naming the exact dimension owner, and variants as configuration-specific values rather than copies.
 6. Do one stage per job, with the job and its input persisted and a deadline set. After a stall or timeout, inspect the application before any new call, and never resend blindly.
-7. Verify against the source specification, not against the script's own constants. Check every required configuration.
+7. Verify against the source specification, not against the script's own constants. Check every required configuration, including its body count and whether features you added are suppressed there: a configuration can silently suppress new features.
 8. Save, close and reopen before claiming success. Open packaged or relocated copies with no same-named originals loaded, and check the resolved paths.
 9. Touch only documents the job created or opened, never discard others' unsaved work, and restore every preference you change.
-10. When the kit lacks a call, read the installed API help for the exact signature, then compile-check before running.
+10. When the kit lacks a call, get the exact signature and enum values with `scripts/api-lookup.ps1` (read the official help page for remarks), write it raw through `cad.Doc`/`cad.App`, and let the compile gate check it before anything runs.
 
 ## Establish the job
 
