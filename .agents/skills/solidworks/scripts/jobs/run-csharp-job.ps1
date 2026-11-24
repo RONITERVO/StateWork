@@ -16,8 +16,13 @@ The body defines:
   }
 and returns a Dictionary<string, object> (or any value ConvertTo-Json can render).
 
-Before connecting, the job writes dependencies.json (SHA-256 of the kit, body and
-connect helper) in its run directory. Stdout is one JSON object:
+Before connecting, the job copies the kit and the body into its run directory
+(SwKit.cs, body.cs) and compiles those copies, so the run's evidence holds the exact
+source that ran even if the originals are edited for a retry. dependencies.json
+records SHA-256 of the originals and the copies. Numbers in args arrive as Int32/Int64
+(integers) or Double (decimals; Windows PowerShell's Decimal is converted); read them
+with SwKit.Cad.ArgDouble/ArgInt/ArgBool/ArgString. A compile error is reported with
+file(line,column). Stdout is one JSON object:
   { Ok, Result, Error, Log, Dependencies }
 Exit 0 when Run returned, 1 when compilation or Run threw. Documents a failed body
 left open stay open for inspection; the job never closes or saves on failure.
@@ -34,6 +39,22 @@ function Get-Receipt([string[]] $Paths) {
         $files += [pscustomobject]@{ Path = $item.FullName; Sha256 = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant(); Length = $item.Length }
     }
     return [pscustomobject]@{ ObservedAtUtc = [DateTime]::UtcNow.ToString('o'); Files = $files }
+}
+
+function ConvertTo-JobValue($Value) {
+    if ($null -eq $Value) { return $null }
+    if ($Value -is [decimal]) { return [double]$Value }
+    if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        $map = New-Object 'System.Collections.Generic.Dictionary[string,object]'
+        foreach ($p in $Value.PSObject.Properties) { $map[$p.Name] = ConvertTo-JobValue $p.Value }
+        return $map
+    }
+    if ($Value -is [Array]) {
+        $list = New-Object 'System.Collections.Generic.List[object]'
+        foreach ($item in $Value) { $list.Add((ConvertTo-JobValue $item)) }
+        return ,($list.ToArray())
+    }
+    return $Value
 }
 
 function Assert-AbsoluteFile([string] $Path, [string] $Name) {
@@ -56,7 +77,12 @@ try {
     $connectPath = Join-Path $skillRoot 'scripts/connect-solidworks.ps1'
     $bodyPath = (Get-Item -LiteralPath $inputData.bodyPath -ErrorAction Stop).FullName
 
-    $receipt = Get-Receipt -Paths @($kitPath, $bodyPath, $connectPath)
+    # Freeze the exact sources that will be compiled next to the run's other evidence.
+    $kitCopy = Join-Path $PSScriptRoot 'SwKit.cs'
+    $bodyCopy = Join-Path $PSScriptRoot 'body.cs'
+    Copy-Item -LiteralPath $kitPath -Destination $kitCopy -ErrorAction Stop
+    Copy-Item -LiteralPath $bodyPath -Destination $bodyCopy -ErrorAction Stop
+    $receipt = Get-Receipt -Paths @($kitPath, $bodyPath, $connectPath, $kitCopy, $bodyCopy)
     $output.Dependencies = $receipt
     $bytes = (New-Object Text.UTF8Encoding($false)).GetBytes(($receipt | ConvertTo-Json -Depth 6))
     $stream = [IO.File]::Open((Join-Path $PSScriptRoot 'dependencies.json'), [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
@@ -66,11 +92,21 @@ try {
     $connection = Connect-SolidWorks
 
     # Separate source files keep each file's using directives and real line numbers in errors.
-    Add-Type -ReferencedAssemblies @($connection.InteropPath, $connection.ConstantsPath, 'System.Core') -Path @($kitPath, $bodyPath) -ErrorAction Stop | Out-Null
+    try {
+        Add-Type -ReferencedAssemblies @($connection.InteropPath, $connection.ConstantsPath, 'System.Core') -Path @($kitCopy, $bodyCopy) -ErrorAction Stop | Out-Null
+    } catch {
+        $compileErrors = @()
+        $ex = $_.Exception
+        if ($ex.PSObject.Properties.Name -contains 'Errors' -and $ex.Errors) {
+            foreach ($e in $ex.Errors) { $compileErrors += ('{0}({1},{2}): {3} {4}' -f [IO.Path]::GetFileName($e.FileName), $e.Line, $e.Column, $e.ErrorNumber, $e.ErrorText) }
+        }
+        if ($compileErrors.Count -gt 0) { throw ('Compile failed (body.cs is the frozen copy of ' + $bodyPath + '): ' + ($compileErrors -join ' | ')) }
+        throw
+    }
 
     $jobArgs = New-Object 'System.Collections.Generic.Dictionary[string,object]'
     if ($names -contains 'args' -and $null -ne $inputData.args) {
-        foreach ($property in $inputData.args.PSObject.Properties) { $jobArgs[$property.Name] = $property.Value }
+        foreach ($property in $inputData.args.PSObject.Properties) { $jobArgs[$property.Name] = ConvertTo-JobValue $property.Value }
     }
     $cad = New-Object SwKit.Cad -ArgumentList $connection.Application
     $output.Result = [SwKitJob.Job]::Run($cad, $jobArgs)

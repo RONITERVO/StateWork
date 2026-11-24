@@ -20,6 +20,10 @@ For per-body STL output from a multibody part, hide the other bodies with `IBody
 
 To export only the product from an assembly that also contains reference envelopes or layout components, suppress those components in the active configuration and export. Restore their suppression in `finally`, and repeat per configuration. Hidden components are not a reliable exclusion.
 
+## Per-configuration exports of an assembly
+
+To export a case-only STEP per configuration, suppress the reference components (`IComponent2.SetSuppression2(swComponentSuppressed)` applies to the active configuration). Then export, unsuppress, and repeat for the next configuration. Afterwards, verify that no component is left suppressed in any configuration before saving. Export STL per body in model coordinates (`cad.ExportBodiesStl`) and do bed orientation outside SOLIDWORKS. Multibody files are named `<prefix>_<body name>.stl`, because body order is not stable. SOLIDWORKS names a body after the last feature that changed it (for example `Slots`), so set `IBody2.Name` first when the file names matter. `Cad.StlVolumeMm3` reads binary STL only and rejects other files. Then compare each STL's volume with its CAD body; 0.13 % was the worst seen on fine quality.
+
 ## Pack and Go and relocation
 
 Before a native packaging call, preserve recoverable byte copies of the candidate and its dependencies, and verify their hashes. A read-only document open is not sufficient proof that packaging cannot write a source file. Check source identities afterward as well as package outputs. If a source changes, retain the actual changed bytes and failed preservation check; a historical hash alone cannot recover the earlier file. Revalidate the resulting native models and references before granting a new acceptance.

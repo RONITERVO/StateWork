@@ -20,6 +20,10 @@ Validate selections, start/end conditions, direction and actual material removed
 
 Locate a face using its actual trimmed boundaries and component transform. The origin of an underlying cylindrical surface can lie outside the bounded face; it does not establish a hole's height, flange location or assembly orientation.
 
+## Feature order when editing a model
+
+A feature only merges with, or is cut by, what exists at its position in the tree. A boss that should hang from a wall added later (for example a magnet boss moved onto a new partition) rebuilds as a separate body. Seat or pocket cuts that come before a newly patterned support never reach it, so a panel pad then clashes with the bare support. Insert new supporting geometry earlier with `cad.RollBackBefore(...)`, or move the dependent feature with `cad.MoveBefore(...)`. Then check the body count in every configuration. A merged face, such as a raised strip coplanar with an existing open face, kept the Shell's open-face reference in SOLIDWORKS 2025. Still check the Shell's error code after inserting anything before it.
+
 ## Bodies, validity and identity
 
 Check body count and native body validity as well as the feature tree's errors/suppressions. Fillet/chamfer success may depend on feature order; use a justified sequence, preserve failed attempts and inspect the resulting surfaces. A saved file with no feature error can still contain the wrong geometry.

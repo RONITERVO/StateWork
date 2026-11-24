@@ -8,7 +8,8 @@ Read when a model must stay editable through named parameters, or when one desig
 - Read back the stored equation text, the evaluated `Value` and the driven dimension after every equation change.
 - Make variants configuration-specific values of the same variable, never copies of the model.
 - Re-fetch the equation manager after every configuration change.
-- Rebuild and check every configuration (errors, bodies, extents, a geometric witness) before export.
+- Rebuild and check every configuration (errors, bodies, extents, a geometric witness) before export. `cad.ConfigurationReport()` returns errors, body count, suppressed-feature count and volume per configuration.
+- Before adding features to a configured model, call `cad.ConfigurationsSuppressingNewItems()`. A configuration with "suppress new features" (on by default for some configurations) silently suppresses everything added while another configuration is active: no error code, and `FeatureErrors()` cannot see it. Switch it off with `cad.AllowNewItemsInAllConfigurations()`, or unsuppress afterwards, then confirm `cad.PartlySuppressedFeatures()` lists none of the new features. Assemblies have the same option for new components and mates.
 
 ## Equations
 
