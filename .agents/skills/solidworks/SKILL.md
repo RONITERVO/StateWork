@@ -23,6 +23,8 @@ Before a material operation, record its input identity, intended result and star
 
 Read [modeling.md](references/modeling.md) when creating or editing sketches, features and assembly relationships. Keep design intent editable: source dimensions and meaningful geometric relations, appropriate native feature types and deliberate component placement. Prefer fully defined construction sketches when practical; always satisfy an explicit fully defined requirement. Report remaining freedom instead of concealing it with indiscriminate fixed relations.
 
+When a requirement varies between builds (clearance, offset, size), make it one configuration-specific global variable that drives every dependent feature and placement, as described in [modeling.md](references/modeling.md). Verify and export every configuration rather than editing copies.
+
 Read [drawings-packages.md](references/drawings-packages.md) when drawings or portable packages are required. Native views, associated dimensions, sections and file dependencies are part of the result. Screenshots, neutral exports and a prose dimension list supplement required native files; they do not replace them.
 
 Read [visualize.md](references/visualize.md) when photorealistic renders, appearances or decals in SOLIDWORKS Visualize are required. Verify active GPU/engine throughput, transparent-vessel geometry clearances, decal readability and actual output dimensions/DPI rather than substituting SOLIDWORKS viewport screenshots.
