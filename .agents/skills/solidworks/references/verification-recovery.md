@@ -1,5 +1,15 @@
 # Verify without repeating a stalled calculation
 
+Read before declaring any SOLIDWORKS result complete, and when a call does not return.
+
+## Checklist
+
+- Compare critical geometry with values derived from the source: volume against an analytic expectation, exact extents, hole positions and counts, and interfaces. Do not compare with the script's own constants.
+- Check feature errors (`GetErrorCode2`), sketch constrained status, body count and validity, mate errors and component constrained status in every required configuration.
+- Run interference once, deliberately, with recorded options, and release the manager.
+- Save, close and reopen. Record the save and load flags and the output hashes.
+- After a timeout or crash, stop issuing calls, inspect the application state, and continue from the last verified checkpoint.
+
 ## Saved-state evidence
 
 Record document units, required sketch/feature state, body/component counts, source-critical dimensions, external references and open/save/rebuild flags. Decode warnings with the installed version's enums; they are bitmasks, and load warnings differ from save warnings. A read-only-open warning and a regeneration warning can appear together.
