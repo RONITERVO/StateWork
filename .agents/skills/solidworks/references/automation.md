@@ -1,5 +1,7 @@
 # Session and native automation
 
+In short: probe the session, write a C# job body against SwKit, compile-check it offline, run it through the bounded launcher, then verify the saved result. The sections below explain each step and its limits.
+
 Use the installed desktop SOLIDWORKS application and that installation's API documentation. This workflow is for Windows desktop SOLIDWORKS; a browser-only CAD session, an installation record or another agent's connection does not prove usable desktop access.
 
 ## Connection
@@ -51,6 +53,40 @@ For other jobs, supply an existing self-contained `.ps1`, accepting `param([stri
 Choose `TimeoutSeconds` for the operation (1–3600, default 30). Exit 0 / `returned` means the helper reported successful return and its output was drained; inspect its actual CAD result separately. Exit 1 / `failed` reports setup or job failure. Exit 2 / `unknown` means completion could not be established, including a deadline or missing return receipt. Timeout cleanup acts only on the retained helper process and waits at most five seconds. It never kills SOLIDWORKS, kills a process tree or retries. A native call may continue after the helper ends.
 
 The monotonic deadline bounds waiting for the owned helper and its redirected streams, not a hard real-time OS guarantee. Jobs must await their own subprocesses when their completion matters. Unawaited descendants can survive a returned helper and retain outer host output pipes; the launcher cannot bound that host's collection. After timeout inspect the live application before starting further work.
+
+## C# jobs with SwKit
+
+Use typed C# for anything that changes CAD data. Ref/out parameters, enums and interface casts behave as documented there, and the compiler catches typing mistakes before SOLIDWORKS is touched. The skill ships four pieces:
+
+- `scripts/lib/SwKit.cs` holds the `SwKit.Cad` helper class: documents, geometry lookup by type and position, exact sketch creation, dimensions and relations, features, equations, configurations, assemblies, interference and exports. It takes millimetres, checks every native return and throws `CadException` naming the step. Its header lists the conventions.
+- `scripts/jobs/run-csharp-job.ps1` is the job for the bounded launcher. It records SHA-256 hashes of the kit, body and connect helper in `dependencies.json`, connects, compiles the kit with your body, calls `SwKitJob.Job.Run(cad, args)`, and prints `{Ok, Result, Error, Log, Dependencies}`.
+- `scripts/compile-check.ps1` compiles the kit and a body against the installed interop without attaching to SOLIDWORKS.
+- `scripts/examples/smoke-tray.cs` is the end-to-end example and smoke test. It builds and checks a part with a shell, cuts, patterns, a fill pattern and two configurations, then a mated assembly with an interference count.
+
+Workflow:
+
+1. Write the body from the skeleton in [cookbook.md](cookbook.md) in a private work folder, one stage per job. Read arguments with `Cad.ArgString/ArgDouble/ArgInt/ArgBool`: JSON integers arrive as Int32/Int64, decimals as Double (the runner converts Windows PowerShell's Decimal), booleans as Boolean, arrays as object[] and objects as dictionaries. A direct `(double)args["x"]` compiles and then throws for an integer.
+2. Run it with `scripts/sw-job.ps1 -BodyPath <body.cs> -ArgsPath <args.json> -TimeoutSeconds <n>`. The wrapper:
+   - compiles the kit with the body offline and stops with exit 3 on a C# error;
+   - writes the input JSON `{skillRoot, bodyPath, args}` next to a new run directory under `-RunRoot` (default: `runs` beside the body, created if missing);
+   - runs `invoke-solidworks-job.ps1` with `jobs/run-csharp-job.ps1` and prints `{Stage, Outcome, Ok, Error, Result, Log, RunDirectory, TimedOut}`.
+
+   Exit codes: 0 Ok, 1 the job threw, 2 timeout or unknown, 3 compile error, 4 wrapper failure. Size `-TimeoutSeconds` to the work: tens of seconds for a simple part, minutes for fill patterns, large assemblies, interference or per-feature definition edits on a big part (each `ModifyDefinition` rebuilds).
+
+3. The run directory keeps frozen copies of the kit and body (`SwKit.cs`, `body.cs`), and those copies are what was compiled. It also holds their hashes and the originals' (`dependencies.json`), stdout/stderr and the launcher receipt. You may edit the body for a retry without losing the evidence of the earlier attempt.
+4. If `Ok` is false, `Error.Message` names the failing step and `Log` lists the completed steps. Documents stay open as they were. Inspect them and continue from that state with a new job; do not rerun the whole body.
+
+The manual path still works: `compile-check.ps1 -BodyPath`, then `invoke-solidworks-job.ps1 -JobPath <skill>/scripts/jobs/run-csharp-job.ps1 -InputJsonPath <json> -RunDirectory <new dir>`. Create the run directory's parent first; the launcher creates only the run directory itself.
+
+Look up any call the kit does not wrap with `scripts/api-lookup.ps1` (signatures, properties and enum values from the installed interop; no session needed). When a job stops returning, run `scripts/list-dialogs.ps1`. It lists SOLIDWORKS' visible windows and their control texts through Win32 only, without attaching, so it is safe while a call is blocked. It shows whether a modal (Modify box, rebuild error, save prompt) is holding the call.
+
+The compiler is C# 5, from .NET Framework, as used by Windows PowerShell 5.1 `Add-Type`. String interpolation, `?.`, `nameof`, `out var`, tuples and expression-bodied members are unavailable. Compiled types cannot be reloaded in a process, so each run and each compile check needs a fresh process; the launcher already provides one.
+
+Run both smoke tests (`smoke-tray.cs`, then `smoke-features.cs` with args `{"outDir", "wallMm": 2.5, "count": 2, "flag": true}`) once per machine or SOLIDWORKS version, with an `outDir` in a private scratch folder. `Result.passed` must be true for both. `tests/solidworks-helper/run-kit-offline.ps1` checks the compile gate, the wrapper's compile stage, `api-lookup` and `list-dialogs` without a session. The test creates and saves `SwKitSmoke_*` files there and closes the documents it created. A failure there is a kit or installation problem to fix before modeling real work.
+
+The kit and `smoke-tray.cs` were verified end to end on SOLIDWORKS 2025 (33.5) Student Edition. In both configurations the volumes matched the specification-derived values exactly; the STL volume was within 0.005 %; the upper tray mated fully defined at Z = 20 with no interference; and every changed user preference read back at its original value afterwards. It was re-run after the editing helpers were added (rollback/insert, reorder, equation delete, `EdgeAt`, configuration checks, interference pairs) and passed again. Rerun the test after changing the kit.
+
+If a job stops returning, check for a modal SOLIDWORKS window, such as the Modify dimension box, before waiting out the deadline. The API call stays blocked until the window is answered. Stop only the job's own helper `powershell.exe` (the launcher's child, identified by its run-directory command line), then dismiss the window with Escape. The application then usually still has an open command, so press Escape again. Close the never-saved document the job created with a small cleanup job, fix the cause, and run again. Never stop `SLDWORKS.exe`.
 
 ## Ownership and execution
 
