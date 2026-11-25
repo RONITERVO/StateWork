@@ -54,7 +54,8 @@ try {
     Add-Type -Path $constants
     try {
         # Separate source files keep each file's using directives and real line numbers in errors.
-        Add-Type -ReferencedAssemblies @($interop, $constants, 'System.Core') -Path $sources -ErrorAction Stop | Out-Null
+        $uiAutomation = @('UIAutomationClient', 'UIAutomationTypes', 'WindowsBase') | ForEach-Object { [Reflection.Assembly]::Load($_ + ', Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35').Location }
+        Add-Type -ReferencedAssemblies (@($interop, $constants, 'System.Core') + $uiAutomation) -Path $sources -ErrorAction Stop | Out-Null
         $result.Ok = $true
     } catch {
         $messages = @()

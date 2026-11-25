@@ -34,6 +34,17 @@ Several slots can share one sketch: `Cad.Slot` works only on the segments its ow
 
 Not every creation call honors `AddToDB`. `ISketchManager.CreateSketchSlot` can still infer against nearby or projected geometry and move a slot center (observed: a center moved 1 mm onto an unrelated reference-plane line). The location dimensions added afterwards then come back driven. Around such calls, also turn off the `swSketchInference` and `swSketchAutomaticRelations` user toggles and restore them in `finally`. Then read the arc centers back in model coordinates and add the relation that automatic relations would otherwise supply, such as a vertical centerline. Confirm the constraint status.
 
+## 3D sketches, imports and blocks
+
+- 3D sketches: `Open3DSketch`, `Line3D`, `Polyline3D`, `Arc3Points`, `SketchPlane3D`, `Dim3D` (text at a model point), closed with `CloseSketch`. `CreateFillet` in a 3D sketch edited in context ignores a selected corner point; `SketchFillet` retries with the two lines meeting there. For pipe routes use `FilletedPolyline3D(radius, points)`: exact tangent arcs and lines, ready for `SweepCircle` (with `thinMm` for a tube).
+- `SketchAddConstraints` returns nothing, and a relation such as `sgPARALLELYZ3D` on a lone line is dropped silently: `Relate` checks that the relation count grew and accepts an identical existing relation.
+- Sketch segment wrappers are not comparable with `==`/`!=`: the same segment fetched twice compares unequal. Compare geometry or IDs.
+- `EditRebuild3` inside an open sketch closes the sketch.
+- `CreateEllipticalArc` always runs counter-clockwise in sketch space: choose start and end by sketch x to get the intended half.
+- `SketchOffset2` on non-planar model edges (drafted or filleted faces) returns false; `OffsetEntities` converts those edges first and offsets the converted loop.
+- DXF/DWG: `InsertDxf` imports onto a plane. The import sketch cannot be opened for editing (EditSketch, InsertSketch and RunCommand silently do nothing): copy its segments into normal sketches (`CopySegmentsToNewSketch`, `KeepOnlySegments`, `MoveSegmentsTo`). Hidden lines import as construction geometry; section arrows and symbols import as tiny closed regions, so filter regions by area (`SketchRegions`, `RegionAreaMm2`). `SelectByID2` with `SKETCHREGION` misses regions of planes seen edge-on; use the kit's region helpers.
+- Blocks (`MakeBlock`): the definition origin is the bounding-box centre and `InstancePosition` the insertion point; block point coordinates are definition coordinates. Merge block points with `sgMERGEPOINTS` (`sgCOINCIDENT` fails) and use `sgSAMELENGTH` for equal length. A sketch made only of block instances exposes regions but no contours, so extrude it by regions; overlapping block outlines split into own and overlap regions. Setting `ISketchBlockInstance.Angle` through the API read back 0 here; drive a block mechanism from the UI or by relations.
+
 ## Dimensions that do not drive
 
 After adding a dimension, read `IDimension.DrivenState`. A dimension placed on already-constrained geometry is driven (reference). Setting its value or attaching an equation to it is accepted without error but changes nothing. Remove the unintended relation or recreate the entity cleanly instead of layering equations on a driven value.

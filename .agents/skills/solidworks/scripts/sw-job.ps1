@@ -12,7 +12,9 @@ Run with 64-bit Windows PowerShell 5.1:
 3. Runs scripts/invoke-solidworks-job.ps1 with scripts/jobs/run-csharp-job.ps1 into a new
    run directory <RunRoot>/<body>-<stamp>, which keeps frozen copies of the kit and body,
    hashes, stdout/stderr and the launcher receipt.
-4. Prints {Stage:"run", Outcome, Ok, Error, Result, Log, RunDirectory}.
+4. Prints {Stage:"run", Outcome, LastSteps, Ok, Error, Result, Log, RunDirectory, Memory}. LastSteps is the tail
+   of progress.log, which the kit appends to as each step starts: after a timeout its last
+   line names the call that did not return.
 
 Exit codes: 0 the job returned Ok; 1 the job threw (Error says where); 2 timeout or
 unknown outcome (the native call may still be running: inspect SOLIDWORKS before any new
@@ -82,16 +84,38 @@ try {
         $raw = [IO.File]::ReadAllText($stdout)
         if ($raw.Contains('{')) { try { $job = $raw.Substring($raw.IndexOf('{')) | ConvertFrom-Json } catch { } }
     }
+    # The kit appends every step to progress.log as it starts: after a timeout its last line is the call that hung.
+    $progress = @()
+    $progressPath = Join-Path $runDir 'progress.log'
+    # Plain .NET strings: Get-Content output carries PSDrive/PSProvider note properties that ConvertTo-Json -Depth 20
+    # walks for minutes.
+    if (Test-Path -LiteralPath $progressPath) { $progress = @([IO.File]::ReadAllLines($progressPath) | Select-Object -Last 12 | ForEach-Object { [string]$_ }) }
     $summary = [pscustomobject]@{
         Stage = 'run'
         Outcome = $outcome
+        LastSteps = $progress
         Ok = [bool]($job -and $job.Ok)
         Error = if ($job) { $job.Error } elseif ($launcher) { $launcher.Error } else { $launcherText }
-        Result = if ($job) { $job.Result } else { $null }
-        Log = if ($job) { $job.Log } else { @() }
+        # The unary comma keeps one-element arrays as arrays: an if-expression unrolls them into a bare value.
+        Result = if ($job) { ,$job.Result } else { $null }
+        Log = if ($job) { ,@($job.Log) } else { ,@() }
         RunDirectory = $runDir
         TimedOut = [bool]($launcher -and $launcher.TimedOut)
+        Memory = $null
     }
+    # Long sessions leak: SLDWORKS private memory grows with every opened/created document, and when Windows' commit
+    # charge runs out SOLIDWORKS shows a "critically low on memory" prompt before EVERY command (jobs then time out).
+    try {
+        $os = Get-CimInstance Win32_OperatingSystem
+        $sw = @(Get-Process -Name SLDWORKS -ErrorAction SilentlyContinue | Sort-Object PrivateMemorySize64 -Descending | Select-Object -First 1)
+        $freeCommitGB = [math]::Round($os.FreeVirtualMemory / 1MB, 1)
+        $swGB = if ($sw.Count -gt 0) { [math]::Round($sw[0].PrivateMemorySize64 / 1GB, 1) } else { 0 }
+        $summary.Memory = [pscustomobject]@{
+            SolidWorksPrivateGB = $swGB
+            FreeCommitGB = $freeCommitGB
+            Advice = if ($freeCommitGB -lt 8 -or $swGB -gt 16) { 'Restart SOLIDWORKS soon: close all documents, ExitApp from a job, relaunch.' } else { '' }
+        }
+    } catch { }
     if ($summary.TimedOut -or $outcome -eq 'unknown') { Out-Json $summary 2 }
     if ($summary.Ok) { Out-Json $summary 0 }
     Out-Json $summary 1

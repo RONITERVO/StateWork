@@ -61,7 +61,8 @@ Use typed C# for anything that changes CAD data. Ref/out parameters, enums and i
 - `scripts/lib/SwKit.cs` holds the `SwKit.Cad` helper class: documents, geometry lookup by type and position, exact sketch creation, dimensions and relations, features, equations, configurations, assemblies, interference and exports. It takes millimetres, checks every native return and throws `CadException` naming the step. Its header lists the conventions.
 - `scripts/jobs/run-csharp-job.ps1` is the job for the bounded launcher. It records SHA-256 hashes of the kit, body and connect helper in `dependencies.json`, connects, compiles the kit with your body, calls `SwKitJob.Job.Run(cad, args)`, and prints `{Ok, Result, Error, Log, Dependencies}`.
 - `scripts/compile-check.ps1` compiles the kit and a body against the installed interop without attaching to SOLIDWORKS.
-- `scripts/examples/smoke-tray.cs` is the end-to-end example and smoke test. It builds and checks a part with a shell, cuts, patterns, a fill pattern and two configurations, then a mated assembly with an interference count.
+- `scripts/examples/smoke-tray.cs` is the end-to-end example and smoke test. It builds and checks a part with a shell, cuts, patterns, a fill pattern and two configurations, then a mated assembly with an interference count. `smoke-features.cs` and `smoke-topdown.cs` cover multibody parts, two-sided cuts, multi-slot sketches, concentric mates and a part built in context.
+- `scripts/kit-index.ps1` regenerates [swkit-api.md](swkit-api.md), the index of every public kit member; run it after changing the kit (the offline suite fails while the index is stale).
 
 Workflow:
 
@@ -69,7 +70,7 @@ Workflow:
 2. Run it with `scripts/sw-job.ps1 -BodyPath <body.cs> -ArgsPath <args.json> -TimeoutSeconds <n>`. The wrapper:
    - compiles the kit with the body offline and stops with exit 3 on a C# error;
    - writes the input JSON `{skillRoot, bodyPath, args}` next to a new run directory under `-RunRoot` (default: `runs` beside the body, created if missing);
-   - runs `invoke-solidworks-job.ps1` with `jobs/run-csharp-job.ps1` and prints `{Stage, Outcome, Ok, Error, Result, Log, RunDirectory, TimedOut}`.
+   - runs `invoke-solidworks-job.ps1` with `jobs/run-csharp-job.ps1` and prints `{Stage, Outcome, Ok, Error, Result, Log, LastSteps, RunDirectory, TimedOut, Memory}`. Every kit call appends its step to `progress.log` in the run directory as it starts, so `LastSteps` names the call a timed-out job was in. `Error.At` gives the body line of an exception, and a compile error lists file and line in `Errors`. `Memory` reports SOLIDWORKS' private memory and the free commit charge with restart advice ([verification-recovery.md](verification-recovery.md#long-sessions)).
 
    Exit codes: 0 Ok, 1 the job threw, 2 timeout or unknown, 3 compile error, 4 wrapper failure. Size `-TimeoutSeconds` to the work: tens of seconds for a simple part, minutes for fill patterns, large assemblies, interference or per-feature definition edits on a big part (each `ModifyDefinition` rebuilds).
 
@@ -82,7 +83,7 @@ Look up any call the kit does not wrap with `scripts/api-lookup.ps1` (signatures
 
 The compiler is C# 5, from .NET Framework, as used by Windows PowerShell 5.1 `Add-Type`. String interpolation, `?.`, `nameof`, `out var`, tuples and expression-bodied members are unavailable. Compiled types cannot be reloaded in a process, so each run and each compile check needs a fresh process; the launcher already provides one.
 
-Run both smoke tests (`smoke-tray.cs`, then `smoke-features.cs` with args `{"outDir", "wallMm": 2.5, "count": 2, "flag": true}`) once per machine or SOLIDWORKS version, with an `outDir` in a private scratch folder. `Result.passed` must be true for both. `tests/solidworks-helper/run-kit-offline.ps1` checks the compile gate, the wrapper's compile stage, `api-lookup` and `list-dialogs` without a session. The test creates and saves `SwKitSmoke_*` files there and closes the documents it created. A failure there is a kit or installation problem to fix before modeling real work.
+Run the smoke tests (`smoke-tray.cs`, `smoke-features.cs` with args `{"outDir", "wallMm": 2.5, "count": 2, "flag": true}`, and `smoke-topdown.cs`) once per machine or SOLIDWORKS version, with an `outDir` in a private scratch folder. `Result.passed` must be true for each. `tests/solidworks-helper/run-kit-offline.ps1` checks the compile gate, the wrapper's compile stage, `api-lookup` and `list-dialogs` without a session. The test creates and saves `SwKitSmoke_*` files there and closes the documents it created. A failure there is a kit or installation problem to fix before modeling real work.
 
 The kit and `smoke-tray.cs` were verified end to end on SOLIDWORKS 2025 (33.5) Student Edition. In both configurations the volumes matched the specification-derived values exactly; the STL volume was within 0.005 %; the upper tray mated fully defined at Z = 20 with no interference; and every changed user preference read back at its original value afterwards. It was re-run after the editing helpers were added (rollback/insert, reorder, equation delete, `EdgeAt`, configuration checks, interference pairs) and passed again. Rerun the test after changing the kit.
 

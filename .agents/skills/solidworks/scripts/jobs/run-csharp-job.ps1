@@ -17,8 +17,9 @@ The body defines:
 and returns a Dictionary<string, object> (or any value ConvertTo-Json can render).
 
 Before connecting, the job copies the kit and the body into its run directory
-(SwKit.cs, body.cs) and compiles those copies, so the run's evidence holds the exact
-source that ran even if the originals are edited for a retry. dependencies.json
+(SwKit.cs, body.cs) and compiles those copies with debug information into job.dll/job.pdb,
+so the run's evidence holds the exact source that ran even if the originals are edited for a
+retry, and an exception reports Error.At (the body.cs line) and Error.StackTrace. dependencies.json
 records SHA-256 of the originals and the copies. Numbers in args arrive as Int32/Int64
 (integers) or Double (decimals; Windows PowerShell's Decimal is converted); read them
 with SwKit.Cad.ArgDouble/ArgInt/ArgBool/ArgString. A compile error is reported with
@@ -45,13 +46,24 @@ function ConvertTo-JobValue($Value) {
     if ($null -eq $Value) { return $null }
     if ($Value -is [decimal]) { return [double]$Value }
     if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        # Nested JSON objects become Dictionary<string, object>. Store the unwrapped .NET object: a New-Object result is
+        # wrapped in a PSObject, and a wrapped dictionary reaches the job as PSObject (InvalidCastException on
+        # (IDictionary<string, object>)args["key"]).
         $map = New-Object 'System.Collections.Generic.Dictionary[string,object]'
-        foreach ($p in $Value.PSObject.Properties) { $map[$p.Name] = ConvertTo-JobValue $p.Value }
+        foreach ($p in $Value.PSObject.Properties) {
+            $converted = ConvertTo-JobValue $p.Value
+            if ($null -ne $converted) { $converted = $converted.psobject.BaseObject }
+            $map[$p.Name] = $converted
+        }
         return $map
     }
     if ($Value -is [Array]) {
         $list = New-Object 'System.Collections.Generic.List[object]'
-        foreach ($item in $Value) { $list.Add((ConvertTo-JobValue $item)) }
+        foreach ($item in $Value) {
+            $converted = ConvertTo-JobValue $item
+            if ($null -ne $converted) { $converted = $converted.psobject.BaseObject }
+            $list.Add($converted)
+        }
         return ,($list.ToArray())
     }
     return $Value
@@ -91,25 +103,42 @@ try {
     . $connectPath
     $connection = Connect-SolidWorks
 
-    # Separate source files keep each file's using directives and real line numbers in errors.
-    try {
-        Add-Type -ReferencedAssemblies @($connection.InteropPath, $connection.ConstantsPath, 'System.Core') -Path @($kitCopy, $bodyCopy) -ErrorAction Stop | Out-Null
-    } catch {
+    # Compile the two frozen copies into the run directory with a PDB, so an exception thrown by the body or
+    # the kit reports body.cs/SwKit.cs line numbers (a COM fault such as RPC_E_SERVERFAULT carries no other
+    # context). Same C# 5 compiler and references as compile-check.ps1; warnings are errors there too.
+    $provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+    $parameters = New-Object System.CodeDom.Compiler.CompilerParameters
+    # UI Automation: SwKit.DialogAnswerer reads TaskDialog text (WPF assemblies, always in .NET Framework 4).
+    $uiAutomation = @('UIAutomationClient', 'UIAutomationTypes', 'WindowsBase') | ForEach-Object { [Reflection.Assembly]::Load($_ + ', Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35').Location }
+    [void]$parameters.ReferencedAssemblies.AddRange([string[]](@($connection.InteropPath, $connection.ConstantsPath, 'System.dll', 'System.Core.dll') + $uiAutomation))
+    $parameters.GenerateInMemory = $false
+    $parameters.IncludeDebugInformation = $true
+    $parameters.TreatWarningsAsErrors = $true
+    $parameters.OutputAssembly = Join-Path $PSScriptRoot 'job.dll'
+    $compiled = $provider.CompileAssemblyFromFile($parameters, [string[]]@($kitCopy, $bodyCopy))
+    if ($compiled.Errors.Count -gt 0) {
         $compileErrors = @()
-        $ex = $_.Exception
-        if ($ex.PSObject.Properties.Name -contains 'Errors' -and $ex.Errors) {
-            foreach ($e in $ex.Errors) { $compileErrors += ('{0}({1},{2}): {3} {4}' -f [IO.Path]::GetFileName($e.FileName), $e.Line, $e.Column, $e.ErrorNumber, $e.ErrorText) }
-        }
-        if ($compileErrors.Count -gt 0) { throw ('Compile failed (body.cs is the frozen copy of ' + $bodyPath + '): ' + ($compileErrors -join ' | ')) }
-        throw
+        foreach ($e in $compiled.Errors) { $compileErrors += ('{0}({1},{2}): {3} {4}' -f [IO.Path]::GetFileName($e.FileName), $e.Line, $e.Column, $e.ErrorNumber, $e.ErrorText) }
+        throw ('Compile failed (body.cs is the frozen copy of ' + $bodyPath + '): ' + ($compileErrors -join ' | '))
     }
+    $assembly = [Reflection.Assembly]::LoadFrom($compiled.PathToAssembly)
 
     $jobArgs = New-Object 'System.Collections.Generic.Dictionary[string,object]'
     if ($names -contains 'args' -and $null -ne $inputData.args) {
-        foreach ($property in $inputData.args.PSObject.Properties) { $jobArgs[$property.Name] = ConvertTo-JobValue $property.Value }
+        foreach ($property in $inputData.args.PSObject.Properties) {
+            $converted = ConvertTo-JobValue $property.Value
+            if ($null -ne $converted) { $converted = $converted.psobject.BaseObject }
+            $jobArgs[$property.Name] = $converted
+        }
     }
-    $cad = New-Object SwKit.Cad -ArgumentList $connection.Application
-    $output.Result = [SwKitJob.Job]::Run($cad, $jobArgs)
+    $cad = [Activator]::CreateInstance($assembly.GetType('SwKit.Cad', $true), [object[]]@($connection.Application))
+    $cad.ProgressPath = Join-Path $PSScriptRoot 'progress.log'   # each step is appended as it starts
+    $runMethod = $assembly.GetType('SwKitJob.Job', $true).GetMethod('Run')
+    # Pass the raw objects: PowerShell wraps New-Object results in PSObject, which reflection cannot convert.
+    $invokeArgs = New-Object 'object[]' 2
+    $invokeArgs[0] = $cad.psobject.BaseObject
+    $invokeArgs[1] = $jobArgs.psobject.BaseObject
+    $output.Result = $runMethod.Invoke($null, $invokeArgs)
     $output.Ok = $true
     $exitCode = 0
 } catch {
@@ -117,7 +146,18 @@ try {
     while ($exception.InnerException -and ($exception -is [Management.Automation.MethodInvocationException] -or $exception -is [Reflection.TargetInvocationException])) {
         $exception = $exception.InnerException
     }
-    $output.Error = [pscustomobject]@{ Type = $exception.GetType().FullName; Message = $exception.Message; HResultHex = ('0x{0:X8}' -f $exception.HResult) }
+    # Frames from the job's own sources, innermost first; At is the body line that was running.
+    $frames = @()
+    if ($exception.StackTrace) {
+        foreach ($line in ($exception.StackTrace -split "`r?`n")) {
+            if ($line -match '(body|SwKit)\.cs:') { $frames += $line.Trim() }
+        }
+    }
+    $at = $null
+    foreach ($frame in $frames) {
+        if ($frame -match 'body\.cs:\D*(\d+)') { $at = 'body.cs line ' + $Matches[1]; break }   # 'line 30', 'rivillä 30', ...
+    }
+    $output.Error = [pscustomobject]@{ Type = $exception.GetType().FullName; Message = $exception.Message; HResultHex = ('0x{0:X8}' -f $exception.HResult); At = $at; StackTrace = $frames }
 } finally {
     if ($null -ne $cad) { $output.Log = @($cad.Log) }
 }

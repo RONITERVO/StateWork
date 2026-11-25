@@ -1,6 +1,6 @@
 # Cookbook: working code for common tasks
 
-Each recipe is C# for a job body compiled with [`scripts/lib/SwKit.cs`](../scripts/lib/SwKit.cs) and run with `scripts/sw-job.ps1` (see [automation.md](automation.md#c-jobs-with-swkit)). The recipes come from two smoke tests. [`smoke-tray.cs`](../scripts/examples/smoke-tray.cs) builds a shelled part with configurations, edits it and assembles it. [`smoke-features.cs`](../scripts/examples/smoke-features.cs) covers multibody parts, interior walls, two-sided cuts, multi-slot sketches, concentric mates and view capture. Both passed end to end on SOLIDWORKS 2025 (33.5); read them for complete sequences.
+Each recipe is C# for a job body compiled with [`scripts/lib/SwKit.cs`](../scripts/lib/SwKit.cs) and run with `scripts/sw-job.ps1` (see [automation.md](automation.md#c-jobs-with-swkit)). The recipes come from three smoke tests. [`smoke-tray.cs`](../scripts/examples/smoke-tray.cs) builds a shelled part with configurations, edits it and assembles it. [`smoke-features.cs`](../scripts/examples/smoke-features.cs) covers multibody parts, interior walls, two-sided cuts, multi-slot sketches, concentric mates and view capture. [`smoke-topdown.cs`](../scripts/examples/smoke-topdown.cs) builds a part in the context of an assembly. All three passed end to end on SOLIDWORKS 2025 (33.5); read them for complete sequences. The drawing recipes come from a full course rebuild (parts, assemblies, drawings with BOMs) on the same version. Every kit member is listed in [swkit-api.md](swkit-api.md).
 
 SwKit methods take millimetres and model coordinates, check every native return, and throw `CadException` with the step name. `cad.Doc` is the current document. `cad.App`, `cad.MathUtil` and the raw interop types are available whenever the kit lacks a call; see [api-quick-reference.md](api-quick-reference.md).
 
@@ -266,6 +266,87 @@ cad.Mate(asm, swMateType_e.swMateCONCENTRIC, swMateAlign_e.swMateAlignCLOSEST, 0
 cad.CaptureView(Path.Combine(outDir, "preview.png"), new double[] { 1, 1, 1 }, new double[] { 0, 0, 1 });   // toward viewer, up
 List<string> closed = cad.CloseDocumentsUnder(outDir, false);   // drawings, assemblies, then parts; throws if any stay open
 ```
+
+## Part built in the assembly (top-down)
+
+```csharp
+IModelDoc2 asm = cad.Open(asmPath, "");
+cad.Activate(asm);
+IComponent2 part = cad.NewPartInContext(asm, cad.DefaultPlanes()[1]);   // its Front Plane lies on the assembly Top plane
+cad.OpenSketch(part.FeatureByName("Front Plane"));
+cad.ConvertEntities(cad.InComponent(otherComp, otherPartEdge));      // in-context reference to another component
+cad.Exact(() => asm.SketchManager.CreateCircleByRadius(0, 0, 0, 5 * Cad.Mm));
+IFeature sketch = cad.CloseSketch("Profile", out status);
+cad.Extrude(cad.InContextFeature(part, sketch), "Boss", 10, false, false, 0);   // explicit direction in context
+cad.EndEditInContext(asm);
+asm.Save3((int)swSaveAsOptions_e.swSaveAsOptions_Silent, 0, 0);
+cad.SaveVirtualPart(part, Path.Combine(outDir, "Peg.SLDPRT"));
+```
+
+Check the new part's volume and the interference afterwards; the traps (point selection, relations, layout blocks, cavities, mirrored parts) are in [assemblies.md](assemblies.md#top-down-parts-through-the-api).
+
+## Part drawing with placed dimensions and a section
+
+```csharp
+IModelDoc2 part = cad.Open(partPath, "");
+cad.SetProperty(part, "Description", "Drinking glass", "");          // title block fields are model properties
+part.Save3((int)swSaveAsOptions_e.swSaveAsOptions_Silent, 0, 0);
+cad.NewDrawing(templatePath, sheetFormatPath);                       // relinks a sheet format the template lost
+IView front = cad.ModelView(partPath, "*Front", 95, 165);
+cad.CurrentSheet.SetScale(1, 1, false, false);                       // the first view auto-scaled the sheet
+front.UseSheetScale = 1;
+cad.Doc.EditRebuild3();
+double[] box = cad.OutlineMm(front);                                 // [x1, y1, x2, y2] sheet mm
+double cx = (box[0] + box[2]) / 2, y0 = box[1];
+cad.InsertModelDimensionsInto(front);
+foreach (KeyValuePair<string, IDisplayDimension> kv in cad.ViewDisplayDimensions(front))
+{
+    if (kv.Key.StartsWith("D1@Profile@")) cad.DeleteDimension(kv.Value);   // construction length, not a product size
+    else if (kv.Key.StartsWith("D3@Profile@")) cad.MoveDimension(kv.Value, cx + 22, y0 - 12);
+}
+IView section = cad.SectionView(front, new double[] { cx, y0 + 104 }, new double[] { cx, y0 - 4 }, "A", cx + 125, 165, false);
+IView iso = cad.ModelView(partPath, "*Isometric", 350, 180);
+iso.SetDisplayMode4(false, (int)swDisplayMode_e.swSHADED_EDGES, false, true, false);
+cad.AddNote("Wall 2 mm, rim R0.9.", 25, 50);
+cad.SaveDrawing(drawingPath, Path.ChangeExtension(drawingPath, ".pdf"));
+Dictionary<string, object> report = cad.DrawingReport();             // layout lists must be empty
+```
+
+For a quick standard layout use `cad.StandardViews(partPath, "*Front", true, true, true, 18)`, then `InsertModelDimensions()` and `TidyDimensions(...)`.
+
+## Assembly drawing with a BOM and balloons
+
+```csharp
+cad.SetProperty(partDoc, "Description", "Table top 800 x 500 x 30", "");   // BOM text comes from each part
+cad.SetProperty(partDoc, "Material", "\"SW-Material@" + partFileName + "\"", "");
+cad.LinkMassKg(asm);
+cad.NewDrawing(templatePath, sheetFormatPath);
+IView front = cad.ModelView(asmPath, "*Front", 110, 215);
+IView top = cad.ProjectedView(front, 110, 130);
+IView iso = cad.ModelView(asmPath, "*Isometric", 350, 238);
+cad.CurrentSheet.SetScale(1, 5, false, false);
+IBomTableAnnotation bom = cad.BomTable(front, 222, 110, "", swBomType_e.swBomType_PartsOnly);
+cad.AddBomPropertyColumn(bom, "MATERIAL", "Material");
+cad.SetTableColumnWidths((ITableAnnotation)bom, new double[] { 10, 50, 56, 8, 40 });
+List<string> balloons = cad.AutoBalloons(iso);                       // one per BOM item visible in the view
+cad.Balloon(top, "Glass", 300, 120);                                 // an item AutoBalloons could not reach
+cad.SaveDrawing(drawingPath, Path.ChangeExtension(drawingPath, ".pdf"));
+Dictionary<string, object> report = cad.DrawingReport();
+```
+
+Move balloons that land outside the frame or on another view, and check the BOM rows against the components of the configuration shown. `swBomType_TopLevelOnly` lists subassemblies as single rows.
+
+## Restart a long session
+
+```csharp
+// Job 1: save and close the job's own files, then exit (refuses while anything is still open).
+cad.SaveDirtyUnder(workFolder);
+cad.CloseDocumentsUnder(workFolder, false);
+if (cad.App.GetDocumentCount() != 0) throw new CadException("Documents still open");
+cad.App.ExitApp();
+```
+
+Then relaunch SOLIDWORKS with its normal launcher, wait for the main window, and continue with the next job; it attaches to the new process. Do this when `Memory.Advice` in a job result asks for it.
 
 ## Raw API inside a job
 
