@@ -28,7 +28,7 @@ The launcher preserves exact script/input snapshots, hashes, process identity, o
 
 ## Typed jobs (SwKit)
 
-Modeling work runs as C# job bodies against `scripts/lib/SwKit.cs`. The kit takes millimetres, checks every native return and throws with the failing step. It covers sketches with driving dimensions, features, equations, configurations and their traps, editing existing models (rollback, reorder, definitions), assemblies and mates, interference pairs, STL/STEP export and view capture. One command runs a stage:
+Modeling work runs as C# job bodies against `scripts/lib/SwKit.cs`. The kit takes millimetres, checks every native return and throws with the failing step. It covers sketches with driving dimensions, 3D sketches, DXF/DWG import and blocks, features and surfaces, equations, configurations and their traps, editing existing models (rollback, reorder, definitions), parts built top-down in an assembly, assemblies and mates, interference pairs with clash locations, drawings (template relink, views, sections, placed dimensions, title block, BOM, balloons), STL/STEP/PDF export and view capture. [`references/swkit-api.md`](../.agents/skills/solidworks/references/swkit-api.md) indexes every kit member; `scripts/kit-index.ps1` regenerates it and the offline suite fails while it is stale. One command runs a stage:
 
 ```text
 powershell.exe -NoProfile -STA -File "<skill>\scripts\sw-job.ps1" -BodyPath "<private>\stage1.cs" -ArgsPath "<private>\stage1-args.json" -TimeoutSeconds 180
@@ -36,13 +36,14 @@ powershell.exe -NoProfile -STA -File "<skill>\scripts\sw-job.ps1" -BodyPath "<pr
 
 It compiles the kit and body offline first: a C# error stops with exit 3 before SOLIDWORKS is touched. Then it runs the job under the bounded launcher and prints the result, keeping frozen copies of the compiled sources with the run's evidence. `scripts/api-lookup.ps1` prints exact API signatures and enum values from the installed interop in any shell. `scripts/list-dialogs.ps1` shows which SOLIDWORKS window holds a blocked call, without attaching.
 
-Two smoke tests exercise the kit end to end: `scripts/examples/smoke-tray.cs` and `scripts/examples/smoke-features.cs`. On SOLIDWORKS 2025 (33.5) both passed:
+Three smoke tests exercise the kit end to end: `scripts/examples/smoke-tray.cs`, `scripts/examples/smoke-features.cs` and `scripts/examples/smoke-topdown.cs`. On SOLIDWORKS 2025 (33.5) all three passed:
 - every volume matched values derived from the specification;
 - a two-sided cut was refused, and the expected-volume cut kept the correct side;
 - a concentric pin landed on the hole axis;
+- a part built in the assembly context had the expected volume, no interference and its own file;
 - documents were cleaned up and every preference was restored.
 
-The kit was also used for a full multi-configuration edit of a printed PC case. That work found the traps now documented: configurations that silently suppress new features, feature order deciding body merges, and handles disconnecting after configuration switches. `tests/solidworks-helper/run-kit-offline.ps1` checks the tooling without a session.
+The kit was also used for a full multi-configuration edit of a printed PC case. That work found the traps now documented: configurations that silently suppress new features, feature order deciding body merges, and handles disconnecting after configuration switches. A later rebuild of an advanced SOLIDWORKS course's coursework (3D sketches, image- and DXF-based parts, multibody parts, top-down and layout assemblies, configurations, mirrored components, about 30 native drawings with BOMs and balloons) added the top-down helpers and drawing pipeline and documented calls that report success without doing anything, such as point selection in context, body materials and component-pattern skips. `tests/solidworks-helper/run-kit-offline.ps1` checks the tooling without a session.
 
 ## What review receives
 

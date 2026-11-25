@@ -10,35 +10,38 @@ Produce the requested editable CAD result and evidence that the saved files meet
 ## Quick start
 
 1. **Probe** the running session, read-only: installation, version and open documents. Use the bounded probe job (`scripts/jobs/probe-session.ps1` through `scripts/invoke-solidworks-job.ps1`; the command is in [automation.md](references/automation.md#bounded-jobs)). `scripts/probe-solidworks.ps1` gives the same answer without a deadline when SOLIDWORKS is known to be idle.
-2. **Write** one stage of work as a C# job body against `scripts/lib/SwKit.cs`. Start from the skeleton and recipes in [cookbook.md](references/cookbook.md). Look up any raw call offline with `scripts/api-lookup.ps1 -Type IFeatureManager -Member FeatureCut4`, or `-Enum swEndConditions_e`, or `-Search Rollback`.
-3. **Run** it with one command. This compiles the kit and body offline first (exit 3 on a C# error, nothing touches SOLIDWORKS), then runs the job bounded and prints `{Stage, Outcome, Ok, Error, Result, Log, RunDirectory}`:
+2. **Write** one stage of work as a C# job body against `scripts/lib/SwKit.cs`. Start from the skeleton and recipes in [cookbook.md](references/cookbook.md). Before writing raw API, search [swkit-api.md](references/swkit-api.md), the generated index of every kit helper (sketches, 3D sketches, DXF import, surfaces, features, top-down parts, assemblies, drawings, BOMs, exports). Look up any raw call offline with `scripts/api-lookup.ps1 -Type IFeatureManager -Member FeatureCut4`, or `-Enum swEndConditions_e`, or `-Search Rollback`.
+3. **Run** it with one command. This compiles the kit and body offline first (exit 3 on a C# error, nothing touches SOLIDWORKS), then runs the job bounded and prints `{Stage, Outcome, Ok, Error, Result, Log, LastSteps, RunDirectory, Memory}`:
    `powershell.exe -NoProfile -STA -File "<skill>/scripts/sw-job.ps1" -BodyPath "D:/work/stage1.cs" -ArgsPath "D:/work/stage1-args.json" -TimeoutSeconds 180`.
-   Exit 0 means the job returned Ok, 1 that it threw (`Error` names the step), and 2 a timeout or unknown outcome: inspect SOLIDWORKS before any new call, starting with `scripts/list-dialogs.ps1`. The pieces can also be run separately (`compile-check.ps1`, `invoke-solidworks-job.ps1` with `jobs/run-csharp-job.ps1`; see [automation.md](references/automation.md#c-jobs-with-swkit)).
+   Exit 0 means the job returned Ok, 1 that it threw (`Error` names the step and `At` the body line), and 2 a timeout or unknown outcome: inspect SOLIDWORKS before any new call, starting with `scripts/list-dialogs.ps1`; `LastSteps` names the call that did not return. `Memory.Advice` says when the session needs a restart. The pieces can also be run separately (`compile-check.ps1`, `invoke-solidworks-job.ps1` with `jobs/run-csharp-job.ps1`; see [automation.md](references/automation.md#c-jobs-with-swkit)).
 4. **Verify** the saved result against the source, then save, close and reopen ([verification-recovery.md](references/verification-recovery.md)).
 
-On a new machine or SOLIDWORKS version, run both smoke tests once before real work, through `sw-job.ps1` with an `outDir` in a scratch folder:
+On a new machine or SOLIDWORKS version, run all three smoke tests once before real work, through `sw-job.ps1` with an `outDir` in a scratch folder:
 
 - `scripts/examples/smoke-tray.cs` — shelled part with configurations, edits and an assembly.
 - `scripts/examples/smoke-features.cs` — multibody part, interior walls, two-sided cuts, multi-slot sketch, concentric mate and view capture; args `{"outDir", "wallMm": 2.5, "count": 2, "flag": true}`.
+- `scripts/examples/smoke-topdown.cs` — a part built in the context of an assembly (virtual part, in-context sketch and extrude, saved to its own file); args `{"outDir"}`.
 
-Both build, check and close their documents. `tests/solidworks-helper/run-kit-offline.ps1` checks the tooling without a session.
+All three build, check and close their documents. `tests/solidworks-helper/run-kit-offline.ps1` checks the tooling without a session.
 
 ## Find the right reference
 
-| When you need to                                                                          | Read                                                                    |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Connect, run bounded jobs, write C# jobs, own a session, change preferences               | [automation.md](references/automation.md)                               |
-| Copy working code for a task                                                              | [cookbook.md](references/cookbook.md)                                   |
-| Edit an existing model: rollback, reorder, sketch edits, definitions, configuration traps | [cookbook.md](references/cookbook.md#edit-an-existing-model)            |
-| Look up arguments, selection marks, enums or return values of a call                      | [api-quick-reference.md](references/api-quick-reference.md)             |
-| Draw sketches, dimensions and relations                                                   | [sketches.md](references/sketches.md)                                   |
-| Create or edit features, bodies or materials                                              | [features.md](references/features.md)                                   |
-| Drive a model by parameters or build a family of variants                                 | [parameters-configurations.md](references/parameters-configurations.md) |
-| Assemble, mate, pattern components, explode, test motion, check clearances                | [assemblies.md](references/assemblies.md)                               |
-| Make drawings, BOMs and balloons                                                          | [drawings.md](references/drawings.md)                                   |
-| Save, export STEP/STL, Pack and Go, relocate a project                                    | [files-exports.md](references/files-exports.md)                         |
-| Verify results, run interference, recover from a stall or crash                           | [verification-recovery.md](references/verification-recovery.md)         |
-| Render photorealistic images in SOLIDWORKS Visualize                                      | [visualize.md](references/visualize.md)                                 |
+| When you need to                                                                          | Read                                                                     |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Connect, run bounded jobs, write C# jobs, own a session, change preferences               | [automation.md](references/automation.md)                                |
+| Copy working code for a task                                                              | [cookbook.md](references/cookbook.md)                                    |
+| Find a kit helper and its signature (generated from `SwKit.cs`, never stale)              | [swkit-api.md](references/swkit-api.md)                                  |
+| Edit an existing model: rollback, reorder, sketch edits, definitions, configuration traps | [cookbook.md](references/cookbook.md#edit-an-existing-model)             |
+| Look up arguments, selection marks, enums or return values of a call                      | [api-quick-reference.md](references/api-quick-reference.md)              |
+| Draw sketches, dimensions and relations; 3D sketches, DXF/DWG import, blocks              | [sketches.md](references/sketches.md)                                    |
+| Create or edit features, bodies or materials                                              | [features.md](references/features.md)                                    |
+| Drive a model by parameters or build a family of variants                                 | [parameters-configurations.md](references/parameters-configurations.md)  |
+| Assemble, mate, pattern components, explode, test motion, check clearances                | [assemblies.md](references/assemblies.md)                                |
+| Build parts in the assembly (top-down, in context, layout sketches), mirror components    | [assemblies.md](references/assemblies.md#top-down-parts-through-the-api) |
+| Make drawings: templates, views, sections, dimensions, title block, BOMs and balloons     | [drawings.md](references/drawings.md)                                    |
+| Save, export STEP/STL, Pack and Go, relocate a project                                    | [files-exports.md](references/files-exports.md)                          |
+| Verify results, run interference, recover from a stall or crash                           | [verification-recovery.md](references/verification-recovery.md)          |
+| Render photorealistic images in SOLIDWORKS Visualize                                      | [visualize.md](references/visualize.md)                                  |
 
 ## Rules that prevent most failures
 
@@ -52,6 +55,8 @@ Both build, check and close their documents. `tests/solidworks-helper/run-kit-of
 8. Save, close and reopen before claiming success. Open packaged or relocated copies with no same-named originals loaded, and check the resolved paths.
 9. Touch only documents the job created or opened, never discard others' unsaved work, and restore every preference you change.
 10. When the kit lacks a call, get the exact signature and enum values with `scripts/api-lookup.ps1` (read the official help page for remarks), write it raw through `cad.Doc`/`cad.App`, and let the compile gate check it before anything runs.
+11. Some calls report success and do nothing. Observed on 2025: `ISketchPoint.Select4` while a part is edited in context, `IBody2.SetMaterialProperty`, `SkippedItemArray` set before a component pattern is created, `MirrorComponents3`'s return array, sweep guides selected as features. Read the outcome back (selection count, mass, the feature definition, files on disk, geometry against the guide) instead of trusting the return value.
+12. Watch `Memory` in every job result. After many heavy documents SOLIDWORKS can hold 15-20 GB and then warns before every command; save, close all documents, run a job that calls `cad.App.ExitApp()`, and relaunch ([verification-recovery.md](references/verification-recovery.md#long-sessions)).
 
 ## Establish the job
 

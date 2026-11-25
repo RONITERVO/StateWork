@@ -4,9 +4,10 @@ Offline regressions for the SwKit tooling: compile gate, one-call wrapper compil
 .DESCRIPTION
 Needs an installed SOLIDWORKS (its interop assemblies) but no running session and no documents:
   powershell.exe -NoProfile -STA -File tests/solidworks-helper/run-kit-offline.ps1
-Never attaches to SOLIDWORKS. The live smoke tests (scripts/examples/smoke-tray.cs, smoke-features.cs) cover the
+Never attaches to SOLIDWORKS. The live smoke tests (scripts/examples/smoke-tray.cs, smoke-features.cs, smoke-topdown.cs) cover the
 CAD behaviour; this suite covers what can break without CAD: C# 5 compatibility of the kit and examples, error
-reporting with file and line, the wrapper stopping before any live call on a compile error, and API lookup output.
+reporting with file and line, the wrapper stopping before any live call on a compile error, API lookup output and
+the generated kit index (references/swkit-api.md) being current.
 #>
 [CmdletBinding()]
 param([string] $SkillRoot)
@@ -32,7 +33,7 @@ $temp = Join-Path ([IO.Path]::GetTempPath()) ('swkit-offline-' + [Guid]::NewGuid
 New-Item -ItemType Directory -Path $temp | Out-Null
 try {
     $compile = Join-Path $SkillRoot 'scripts\compile-check.ps1'
-    foreach ($example in @('smoke-tray.cs', 'smoke-features.cs')) {
+    foreach ($example in @('smoke-tray.cs', 'smoke-features.cs', 'smoke-topdown.cs')) {
         $r = Invoke-Json @('-NoProfile', '-STA', '-File', $compile, '-BodyPath', (Join-Path $SkillRoot "scripts\examples\$example"))
         Assert-Check "kit + $example compile with C# 5" ($r.Code -eq 0 -and $r.Json.Ok) ($r.Json.Errors -join ' | ')
     }
@@ -69,6 +70,9 @@ namespace SwKitJob
     Assert-Check 'api-lookup prints enum values' ($enum -match 'swMoveRollbackBarToBeforeFeature = 3') $enum
     $prop = (& $ps -NoProfile -File $lookup -Type IConfiguration -Member SuppressNewFeatures) -join "`n"
     Assert-Check 'api-lookup prints settable properties' ($prop -match 'property bool SuppressNewFeatures \{ get; set \}') $prop
+
+    $index = (& $ps -NoProfile -File (Join-Path $SkillRoot 'scripts\kit-index.ps1') -Check) -join "`n"
+    Assert-Check 'references/swkit-api.md matches SwKit.cs (run scripts/kit-index.ps1 after kit changes)' ($LASTEXITCODE -eq 0) $index
 
     $dialogs = Invoke-Json @('-NoProfile', '-File', (Join-Path $SkillRoot 'scripts\list-dialogs.ps1'))
     Assert-Check 'list-dialogs returns JSON with Ok' ($null -ne $dialogs.Json -and ($dialogs.Json.PSObject.Properties.Name -contains 'Ok'))
